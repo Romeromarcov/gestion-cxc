@@ -1,0 +1,3765 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión CxC — Lubrikca</title>
+<style>
+  :root {
+    --primary: #2E75B6; --primary-dark: #1a4f82; --success: #28a745;
+    --warning: #ffc107; --danger: #dc3545; --bg: #f0f2f5;
+    --sidebar-w: 220px; --card: #fff; --border: #dee2e6;
+    --text: #212529; --muted: #6c757d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: var(--sidebar-w); background: var(--primary-dark); color: #fff;
+    position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column; z-index: 100;
+  }
+  #sidebar .logo { padding: 20px 16px; font-size: 1.1rem; font-weight: 700;
+    border-bottom: 1px solid rgba(255,255,255,0.15); }
+  #sidebar .logo small { display: block; font-size: .7rem; opacity: .7; }
+  #sidebar nav a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; color: rgba(255,255,255,.85); text-decoration: none;
+    font-size: .88rem; transition: background .15s;
+  }
+  #sidebar nav a:hover, #sidebar nav a.active { background: rgba(255,255,255,.15); color: #fff; }
+  #sidebar nav a .ico { font-size: 1.1rem; width: 20px; text-align: center; }
+  #sidebar .user-info { margin-top: auto; padding: 14px 16px; font-size: .8rem;
+    border-top: 1px solid rgba(255,255,255,.15); }
+
+  /* ── MAIN ── */
+  #main { margin-left: var(--sidebar-w); flex: 1; padding: 24px; }
+  #topbar { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; }
+  #topbar h1 { font-size: 1.4rem; }
+  .badge-tasas { background: var(--primary); color: #fff; border-radius: 6px;
+    padding: 4px 12px; font-size: .8rem; }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── CARDS ── */
+  .cards-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--card); border-radius: 10px; padding: 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card .num { font-size: 2rem; font-weight: 700; color: var(--primary); }
+  .card .lbl { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── TABLES ── */
+  .table-wrap { background: var(--card); border-radius: 10px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { background: var(--primary); color: #fff; padding: 10px 12px; text-align: left; white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #f8f9fa; }
+
+  /* ── BADGES ── */
+  .badge { padding: 2px 8px; border-radius: 12px; font-size: .75rem; font-weight: 600; }
+  .b-pendiente { background: #fff3cd; color: #856404; }
+  .b-enviada { background: #cff4fc; color: #0c5460; }
+  .b-aprobada { background: #d1e7dd; color: #0a3622; }
+  .b-rechazada { background: #f8d7da; color: #842029; }
+  .b-recibido { background: #d1e7dd; color: #0a3622; }
+  .b-propuesto { background: #fff3cd; color: #856404; }
+  .b-confirmado { background: #d1e7dd; color: #0a3622; }
+  .b-done { background: #d1e7dd; color: #0a3622; }
+  .b-sale { background: #cff4fc; color: #0c5460; }
+
+  /* ── FORMS ── */
+  .form-section { background: var(--card); border-radius: 10px; padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
+  .form-section h3 { margin-bottom: 14px; font-size: 1rem; color: var(--primary); }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .form-group { flex: 1; min-width: 160px; }
+  .form-group label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: .88rem; background: #fff;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(46,117,182,.2);
+  }
+
+  /* ── BUTTONS ── */
+  .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: .88rem; font-weight: 600; transition: opacity .15s; }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-warning { background: var(--warning); color: #212529; }
+  .btn-sm { padding: 4px 10px; font-size: .78rem; }
+  .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--primary-dark);
+    display: flex; align-items: center; justify-content: center; z-index: 999;
+  }
+  .login-box { background: #fff; border-radius: 12px; padding: 40px; width: 340px; }
+  .login-box h2 { text-align: center; color: var(--primary); margin-bottom: 24px; }
+  #login-error { color: var(--danger); font-size: .85rem; margin-top: 8px; text-align: center; }
+
+  /* ── MODALS ── */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    display: none; align-items: center; justify-content: center; z-index: 500; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 24px;
+    max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { margin-bottom: 16px; color: var(--primary); }
+
+  /* ── FILTERS ── */
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-end; }
+
+  /* ── ALERTS ── */
+  .alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: .88rem; }
+  .alert-success { background: #d1e7dd; color: #0a3622; }
+  .alert-danger { background: #f8d7da; color: #842029; }
+  .alert-info { background: #cff4fc; color: #0c5460; }
+
+  /* ── LOADER ── */
+  .loader { text-align: center; padding: 40px; color: var(--muted); }
+
+  @media (max-width: 768px) {
+    #sidebar { transform: translateX(-100%); transition: transform .3s; }
+    #sidebar.open { transform: translateX(0); }
+    #main { margin-left: 0; padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>Gestión CxC</h2>
+    <p style="text-align:center;color:#6c757d;font-size:.85rem;margin-bottom:20px">Lubrikca</p>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="usuario@empresa.com">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Ingresar</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="logo">Gestión CxC<small>Lubrikca</small></div>
+  <nav id="nav">
+    <a href="#" class="active" onclick="showView('dashboard')" data-roles="gerente,admin">
+      <span class="ico">📊</span> Dashboard
+    </a>
+    <a href="#" onclick="showView('ventas')" data-roles="gerente,admin,vendedor">
+      <span class="ico">🛒</span> Ventas Odoo
+    </a>
+    <a href="#" onclick="showView('pagos-odoo')" data-roles="gerente,admin">
+      <span class="ico">🏦</span> Pagos Odoo
+    </a>
+    <a href="#" onclick="showView('pagos-prov')" data-roles="gerente,admin">
+      <span class="ico">🧾</span> Pagos Proveedores
+    </a>
+    <a href="#" onclick="showView('notas')" data-roles="gerente,admin,vendedor">
+      <span class="ico">📋</span> Notas de Crédito
+    </a>
+    <a href="#" onclick="showView('pagos')" data-roles="gerente,admin,vendedor">
+      <span class="ico">💳</span> Pagos
+    </a>
+    <a href="#" onclick="showView('cxc')" data-roles="gerente,admin">
+      <span class="ico">📈</span> Reporte CxC
+    </a>
+    <a href="#" onclick="showView('ventas-int')" data-roles="gerente,admin,vendedor">
+      <span class="ico">🏪</span> Ventas Internas
+    </a>
+    <a href="#" onclick="showView('inventario')" data-roles="gerente,admin">
+      <span class="ico">📦</span> Inventario
+    </a>
+    <a href="#" onclick="showView('promociones')" data-roles="gerente,admin">
+      <span class="ico">🎁</span> Promociones
+    </a>
+    <a href="#" onclick="showView('precios')" data-roles="gerente,admin">
+      <span class="ico">🏷️</span> Precios
+    </a>
+    <a href="#" onclick="showView('maestro')" data-roles="gerente,admin">
+      <span class="ico">💰</span> Maestro Operaciones
+    </a>
+    <a href="#" onclick="showView('cobranza')" data-roles="gerente,admin,vendedor">
+      <span class="ico">📞</span> CRM Cobranza
+    </a>
+    <a href="#" onclick="showView('acuerdos')" data-roles="gerente,admin">
+      <span class="ico">🤝</span> Acuerdos de Pago
+    </a>
+    <a href="#" onclick="showView('config')" data-roles="admin">
+      <span class="ico">⚙️</span> Configuración
+    </a>
+  </nav>
+  <div class="user-info">
+    <div id="user-name" style="font-weight:600"></div>
+    <div id="user-role" style="opacity:.7"></div>
+    <a href="#" onclick="logout()" style="color:rgba(255,255,255,.6);font-size:.78rem">Cerrar sesión</a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <h1 id="view-title">Dashboard</h1>
+    <div>
+      <span class="badge-tasas" id="tasa-display">Cargando tasa...</span>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="view-dashboard" class="view active">
+    <div class="cards-row" id="dashboard-cards">
+      <div class="card"><div class="num" id="d-aprobaciones">—</div><div class="lbl">Aprobaciones pendientes</div></div>
+      <div class="card"><div class="num" id="d-pagos-p">—</div><div class="lbl">Pagos por recibir</div></div>
+      <div class="card"><div class="num" id="d-pagos-r">—</div><div class="lbl">Pagos listos para Odoo</div></div>
+      <div class="card"><div class="num" id="d-vi">—</div><div class="lbl">Ventas internas activas</div></div>
+    </div>
+    <div id="odoo-status" class="alert alert-info">Verificando conexión Odoo...</div>
+  </div>
+
+  <!-- ── VENTAS ── -->
+  <div id="view-ventas" class="view">
+    <div class="filters">
+      <div class="form-group"><label>Buscar</label>
+        <input id="fv-buscar" placeholder="Orden o cliente..." oninput="filtrarVentas()">
+      </div>
+      <button class="btn btn-primary" onclick="loadVentas()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Orden</th><th>Cliente</th><th>Fecha</th>
+        <th>Subtotal</th><th>Impuestos</th><th>Total</th><th>Moneda</th>
+        <th>Término Pago</th><th>Vencimiento</th>
+        <th>Entregado</th><th>F. Entrega</th>
+        <th>Factura</th><th>Estado Factura</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-ventas"><tr><td colspan="14" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PAGOS ODOO ── -->
+  <div id="view-pagos-odoo" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="loadPagosOdoo()">↺ Cargar pagos de Odoo</button>
+      <span style="font-size:.82rem;color:var(--muted)">Pagos registrados en Odoo no importados aún</span>
+    </div>
+    <div id="pagos-odoo-resumen" style="margin-bottom:12px"></div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID Odoo</th><th>Cliente</th><th>Monto</th><th>Fecha</th>
+        <th>Estado Odoo</th><th>Conciliado</th><th>Factura(s)</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-pagos-odoo"><tr><td colspan="8" class="loader">Presiona "Cargar pagos de Odoo"</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PAGOS PROVEEDORES ── -->
+  <div id="view-pagos-prov" class="view">
+    <div class="filters">
+      <input type="date" id="pp-desde">
+      <input type="date" id="pp-hasta">
+      <button class="btn btn-primary" onclick="loadPagosProveedores()">↺ Cargar de Odoo</button>
+      <span style="font-size:.82rem;color:var(--muted)">Pagos a proveedores en Odoo no importados aún</span>
+    </div>
+    <div id="pagos-prov-resumen" style="margin-bottom:12px"></div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID Odoo</th><th>Proveedor</th><th>Monto</th><th>Moneda</th>
+        <th>Fecha</th><th>Diario</th><th>Estado</th><th>Referencia</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-pagos-prov"><tr><td colspan="9" class="loader">Presiona "Cargar de Odoo"</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CRM COBRANZA ── -->
+  <div id="view-cobranza" class="view">
+    <div class="filters">
+      <input type="date" id="crm-desde">
+      <input type="date" id="crm-hasta">
+      <select id="crm-ejecutivo"><option value="">Todos los ejecutivos</option></select>
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-gestion')">+ Registrar Gestión</button>
+      <button class="btn btn-outline" onclick="loadCobranza()">↺ Actualizar</button>
+      <button class="btn btn-outline" onclick="showModal('modal-plantillas-crm')">📋 Plantillas</button>
+    </div>
+    <!-- KPIs cobranza -->
+    <div class="cards-row" style="margin-bottom:16px">
+      <div class="card"><div class="num" id="crm-k-hoy">—</div><div class="lbl">Gestiones hoy</div></div>
+      <div class="card"><div class="num" id="crm-k-agenda">—</div><div class="lbl">Pendientes en agenda</div></div>
+      <div class="card"><div class="num" id="crm-k-promesas">—</div><div class="lbl">Promesas pendientes</div></div>
+      <div class="card"><div class="num" id="crm-k-incumplidas">—</div><div class="lbl">Promesas incumplidas</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <!-- Prioridades -->
+      <div class="form-section">
+        <h3>⚡ Prioridades de cobranza</h3>
+        <div id="crm-prioridades" style="font-size:.85rem">Cargando...</div>
+      </div>
+      <!-- Agenda del día -->
+      <div class="form-section">
+        <h3>📅 Agenda — Próximas acciones</h3>
+        <div id="crm-agenda" style="font-size:.85rem">Cargando...</div>
+      </div>
+    </div>
+    <h3 style="margin-top:20px">Historial de gestiones</h3>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Resultado</th>
+        <th>Comentarios</th><th>Promesa</th><th>Próxima Acción</th><th>Ejecutivo</th><th>Acc.</th>
+      </tr></thead>
+      <tbody id="tb-cobranza"><tr><td colspan="9" class="loader">Cargando...</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <!-- ── ACUERDOS DE PAGO ── -->
+  <div id="view-acuerdos" class="view">
+    <div class="filters">
+      <select id="ac-estado" onchange="loadAcuerdos()">
+        <option value="">Todos</option>
+        <option value="activo">Activos</option>
+        <option value="cumplido">Cumplidos</option>
+        <option value="incumplido">Incumplidos</option>
+      </select>
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-acuerdo')">+ Nuevo Acuerdo</button>
+      <button class="btn btn-outline" onclick="loadAcuerdos()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Cliente</th><th>Descripción</th><th>Monto Total</th>
+        <th>Periodicidad</th><th>Inicio</th><th>Vencimiento</th><th>Estado</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-acuerdos"><tr><td colspan="9" class="loader">Cargando...</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <!-- ── NOTAS DE CRÉDITO ── -->
+  <div id="view-notas" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-nota')">+ Nueva Nota</button>
+      <button class="btn btn-outline" onclick="loadNotas()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Orden</th><th>Vendedor</th><th>Estado</th>
+        <th>Fecha</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-notas"><tr><td colspan="6" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PAGOS ── -->
+  <div id="view-pagos" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-pago')">+ Registrar Pago</button>
+      <select id="f-estado-pago" onchange="loadPagos()">
+        <option value="">Todos</option>
+        <option value="propuesto">Propuestos</option>
+        <option value="recibido">Recibidos</option>
+        <option value="enviado_odoo">En Odoo</option>
+        <option value="confirmado_odoo">Confirmados</option>
+      </select>
+      <button class="btn btn-success" onclick="exportarSheets()">📊 Exportar Google Sheets</button>
+      <button class="btn btn-outline" onclick="generarRecibo()">🖨 Generar Recibo</button>
+      <button class="btn btn-outline" onclick="loadPagos()">↺ Actualizar</button>
+    </div>
+    <div id="tasas-row" style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="card" style="padding:12px;flex:1;min-width:160px">
+        <div style="font-size:.75rem;color:var(--muted)">Tasa BCV (USD/VES)</div>
+        <div id="t-bcv" style="font-size:1.4rem;font-weight:700;color:var(--primary)">—</div>
+      </div>
+      <div class="card" style="padding:12px;flex:1;min-width:160px">
+        <div style="font-size:.75rem;color:var(--muted)">Tasa Custom</div>
+        <div id="t-custom" style="font-size:1.4rem;font-weight:700;color:var(--success)">—</div>
+        <button class="btn btn-sm btn-outline" style="margin-top:6px" onclick="showModal('modal-tasa-custom')">Actualizar</button>
+      </div>
+      <div class="card" style="padding:12px;flex:1;min-width:160px">
+        <div style="font-size:.75rem;color:var(--muted)">BCV scraper</div>
+        <button class="btn btn-sm btn-primary" onclick="actualizarBCV()">↺ Actualizar BCV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th><input type="checkbox" id="chk-all-pagos" onchange="toggleAllPagos(this)"></th>
+        <th>ID</th><th>Orden</th><th>Monto</th><th>Moneda</th><th>Método</th>
+        <th>Equiv USD</th><th>Estado</th><th>Fecha</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-pagos"><tr><td colspan="10" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── REPORTE CxC ── -->
+  <div id="view-cxc" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="loadCxC()">↺ Actualizar</button>
+      <button class="btn btn-success" onclick="exportarExcel()">⬇ Exportar Excel</button>
+    </div>
+    <div id="cxc-resumen" class="cards-row" style="margin-bottom:20px"></div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Fuente</th><th>Código</th><th>Cliente</th><th>Total USD</th>
+        <th>Pagado USD</th><th>Saldo USD</th><th>Saldo (BCV)</th><th>Estado CxC</th>
+      </tr></thead>
+      <tbody id="tb-cxc"><tr><td colspan="8" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── VENTAS INTERNAS ── -->
+  <div id="view-ventas-int" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-vi')">+ Nueva Venta</button>
+      <button class="btn btn-outline" onclick="loadVentasInternas()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Código</th><th>Cliente</th><th>Estado</th><th>Total USD</th>
+        <th>Fecha</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-vi"><tr><td colspan="6" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── INVENTARIO ── -->
+  <div id="view-inventario" class="view">
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:8px">
+      <button class="btn btn-primary" id="tab-inv-local" onclick="switchInvTab('local')">Stock Interno</button>
+      <button class="btn btn-outline" id="tab-inv-odoo" onclick="switchInvTab('odoo')">Catálogo Odoo</button>
+    </div>
+    <!-- Stock interno -->
+    <div id="panel-inv-local">
+      <div class="filters">
+        <button class="btn btn-primary" onclick="showModal('modal-compra-int')">+ Registrar Compra</button>
+        <button class="btn btn-outline" onclick="loadInventario()">↺ Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Código</th><th>Producto</th><th>Stock</th><th>Costo USD</th>
+          <th>Última Act.</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-inv"><tr><td colspan="6" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Catálogo Odoo -->
+    <div id="panel-inv-odoo" style="display:none">
+      <div class="filters">
+        <input id="odoo-prod-q" placeholder="Buscar producto..." oninput="filtrarProductosOdoo()" style="width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:6px">
+        <button class="btn btn-outline" onclick="loadProductosOdoo()">↺ Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Ref.</th><th>Producto</th><th>Categoría</th>
+          <th>Precio Lista</th><th>Costo</th><th>Volumen</th>
+          <th>Marca (local)</th><th>Cat. Local</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-prod-odoo"><tr><td colspan="9" class="loader">Presiona Actualizar</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROMOCIONES ── -->
+  <div id="view-promociones" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-promo')">+ Nueva Promoción</button>
+      <button class="btn btn-outline" onclick="loadPromociones()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Nombre</th><th>Producto Obsequio</th><th>Descuento %</th>
+        <th>Cond. Cliente Nuevo</th><th>Cond. Min. Productos</th><th>Activa</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-promos"><tr><td colspan="7" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PRECIOS ── -->
+  <div id="view-precios" class="view">
+    <div class="filters">
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-lista')">+ Nueva Lista</button>
+      <button class="btn btn-outline" onclick="loadListas()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Nombre</th><th>Moneda</th><th>Umbral Excluir %</th><th>Activa</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-listas"><tr><td colspan="5" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CONFIGURACIÓN ── -->
+  <div id="view-config" class="view">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="form-section">
+        <h3>Monedas</h3>
+        <div id="lista-monedas"></div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group"><label>Código</label><input id="mc-cod" placeholder="USD"></div>
+          <div class="form-group"><label>Nombre</label><input id="mc-nom" placeholder="Dólar US"></div>
+          <div class="form-group"><label>Símbolo</label><input id="mc-sim" placeholder="$"></div>
+        </div>
+        <button class="btn btn-primary" onclick="crearMoneda()">Agregar Moneda</button>
+      </div>
+      <div class="form-section">
+        <h3>Métodos de Pago</h3>
+        <div id="lista-metodos"></div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group"><label>Nombre</label><input id="mp-nom" placeholder="efectivo_usd"></div>
+          <div class="form-group"><label>Monedas (JSON)</label><input id="mp-mon" placeholder='["USD"]'></div>
+        </div>
+        <button class="btn btn-primary" onclick="crearMetodo()">Agregar Método</button>
+      </div>
+      <div class="form-section">
+        <h3>Límites de Descuento</h3>
+        <div id="lista-limites"></div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group"><label>Tipo</label>
+            <select id="ld-tipo"><option value="producto">Producto</option><option value="categoria">Categoría</option></select>
+          </div>
+          <div class="form-group"><label>Referencia</label><input id="ld-ref" placeholder="REF-001"></div>
+          <div class="form-group"><label>Límite %</label><input id="ld-pct" type="number" placeholder="15"></div>
+        </div>
+        <button class="btn btn-primary" onclick="crearLimite()">Agregar Límite</button>
+      </div>
+      <div class="form-section">
+        <h3>Usuarios</h3>
+        <div id="lista-usuarios"></div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group"><label>Nombre</label><input id="nu-nom"></div>
+          <div class="form-group"><label>Email</label><input id="nu-email" type="email"></div>
+          <div class="form-group"><label>Password</label><input id="nu-pass" type="password"></div>
+          <div class="form-group"><label>Rol</label>
+            <select id="nu-rol"><option value="vendedor">Vendedor</option><option value="gerente">Gerente</option><option value="admin">Admin</option></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="crearUsuario()">Crear Usuario</button>
+      </div>
+      <!-- Notas de Crédito — Condiciones múltiples -->
+      <div class="form-section" style="grid-column:1/-1">
+        <h3>Condiciones para Notas de Crédito</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">
+          Cada condición define reglas para aprobar descuentos <strong>por línea de producto</strong>.
+          Puedes crear varias (ej: una para USD, otra para VES). Si se cumplen varias, se aplica la más restrictiva.
+        </p>
+        <button class="btn btn-primary" style="margin-bottom:12px" onclick="showModal('modal-nueva-nc-cond')">+ Nueva Condición</button>
+        <div id="tb-nc-condiciones">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MAESTRO DE OPERACIONES ── -->
+  <div id="view-maestro" class="view">
+    <!-- KPI cards -->
+    <div class="cards-row" id="maestro-cards">
+      <div class="card">
+        <div class="num" id="mk-ingresos" style="color:var(--success)">—</div>
+        <div class="lbl">Ingresos del mes (USD)</div>
+      </div>
+      <div class="card">
+        <div class="num" id="mk-egresos" style="color:var(--danger)">—</div>
+        <div class="lbl">Egresos del mes (USD)</div>
+      </div>
+      <div class="card">
+        <div class="num" id="mk-saldo">—</div>
+        <div class="lbl">Saldo neto (USD)</div>
+      </div>
+      <div class="card">
+        <div class="num" id="mk-cant">—</div>
+        <div class="lbl">Operaciones</div>
+      </div>
+    </div>
+
+    <!-- Filtros y acciones -->
+    <div class="form-section" style="margin-bottom:16px">
+      <div class="filters">
+        <div class="form-group" style="min-width:130px">
+          <label>Desde</label>
+          <input type="date" id="mf-desde">
+        </div>
+        <div class="form-group" style="min-width:130px">
+          <label>Hasta</label>
+          <input type="date" id="mf-hasta">
+        </div>
+        <div class="form-group" style="min-width:110px">
+          <label>Tipo</label>
+          <select id="mf-tipo">
+            <option value="">Todos</option>
+            <option value="ingreso">Ingreso</option>
+            <option value="egreso">Egreso</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:140px">
+          <label>Categoría</label>
+          <select id="mf-cat"><option value="">Todas</option></select>
+        </div>
+        <div class="form-group" style="min-width:100px">
+          <label>Moneda</label>
+          <select id="mf-moneda">
+            <option value="">Todas</option>
+            <option value="USD">USD</option>
+            <option value="VES">VES</option>
+            <option value="USDT">USDT</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="loadMaestro()">Filtrar</button>
+          <button class="btn btn-success" onclick="abrirNuevaOperacion()">+ Nueva</button>
+          <button class="btn btn-outline" onclick="showModal('modal-importar-pagos-proveedor')" title="Importar pagos de proveedor de Odoo">⬇ Proveedores</button>
+          <button class="btn btn-outline" style="color:var(--success);border-color:var(--success)" onclick="syncConciliacion(this)" title="Actualizar estado de conciliación desde Odoo">⟳ Conciliación</button>
+          <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="abrirMapeoCats()" title="Mapeo categorías → Odoo">⚙ Cuentas Odoo</button>
+          <button class="btn btn-outline" style="color:var(--primary)" onclick="abrirSaldosBanco()" title="Ver saldos por banco/caja">🏦 Saldos</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs: Lista / Resumen / Por día -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+      <button class="btn btn-sm" id="mtab-lista" onclick="maestroTab('lista')"
+        style="border-radius:6px 6px 0 0;background:var(--primary);color:#fff;border:none;margin-right:4px">
+        Lista
+      </button>
+      <button class="btn btn-sm" id="mtab-resumen" onclick="maestroTab('resumen')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none;margin-right:4px">
+        Resumen
+      </button>
+      <button class="btn btn-sm" id="mtab-dia" onclick="maestroTab('dia')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none">
+        Por Día
+      </button>
+    </div>
+
+    <!-- Tab: Lista -->
+    <div id="mpanel-lista">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Subcategoría</th>
+              <th>Descripción</th><th>Moneda</th><th style="text-align:right">Monto</th>
+              <th style="text-align:right">Equiv. USD</th><th>Método</th>
+              <th>Origen</th>
+              <th title="Enviado a Odoo">Odoo</th>
+              <th title="Conciliado en Odoo">Conc.</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="maestro-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Resumen por categoría -->
+    <div id="mpanel-resumen" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <h3 style="color:var(--success);margin-bottom:10px">📥 Ingresos</h3>
+          <table>
+            <thead><tr><th>Categoría</th><th>Subcategoría</th><th style="text-align:right">Total USD</th><th style="text-align:right">Cant.</th></tr></thead>
+            <tbody id="mresumen-ing"></tbody>
+            <tfoot><tr><td colspan="2"><strong>TOTAL</strong></td>
+              <td style="text-align:right;font-weight:700" id="mresumen-ing-total">—</td><td></td></tr></tfoot>
+          </table>
+        </div>
+        <div>
+          <h3 style="color:var(--danger);margin-bottom:10px">📤 Egresos</h3>
+          <table>
+            <thead><tr><th>Categoría</th><th>Subcategoría</th><th style="text-align:right">Total USD</th><th style="text-align:right">Cant.</th></tr></thead>
+            <tbody id="mresumen-egr"></tbody>
+            <tfoot><tr><td colspan="2"><strong>TOTAL</strong></td>
+              <td style="text-align:right;font-weight:700" id="mresumen-egr-total">—</td><td></td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Por día -->
+    <div id="mpanel-dia" style="display:none">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th style="text-align:right;color:#a8d5a2">Ingresos USD</th>
+              <th style="text-align:right;color:#f5a0a0">Egresos USD</th>
+              <th style="text-align:right">Saldo USD</th>
+              <th style="text-align:right">Operaciones</th>
+            </tr>
+          </thead>
+          <tbody id="mdia-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALES ══════════════════════════════════════════════════════════════ -->
+
+<!-- Modal: Nueva Nota de Crédito -->
+<div id="modal-nueva-nota" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Nueva Nota de Crédito</h3>
+    <!-- Búsqueda de cliente -->
+    <div class="form-group" style="margin-bottom:10px;position:relative">
+      <label>Buscar cliente</label>
+      <input id="nn-cliente-q" placeholder="Escribe nombre del cliente..." autocomplete="off"
+             oninput="buscarClienteNota()" style="width:100%">
+      <div id="nn-cliente-drop" style="display:none;position:absolute;z-index:200;background:#fff;
+           border:1px solid var(--border);border-radius:6px;width:100%;max-height:180px;
+           overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    </div>
+    <!-- Órdenes pendientes del cliente -->
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Orden <span id="nn-cliente-nombre" style="color:var(--primary);font-size:.82rem"></span></label>
+      <select id="nn-orden-sel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— selecciona cliente primero —</option>
+      </select>
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
+      Las condiciones de aprobación se configuran en <strong>Configuración → Notas de Crédito</strong>
+    </p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearNota()">Crear Nota</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-nota')">Cancelar</button>
+    </div>
+    <div id="nn-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Detalle Nota (líneas + descuentos) -->
+<div id="modal-detalle-nota" class="modal-bg">
+  <div class="modal" style="max-width:750px">
+    <h3>Nota de Crédito <span id="dn-id"></span></h3>
+    <div id="dn-lineas-wrap">
+      <table style="width:100%;font-size:.85rem;margin-bottom:12px">
+        <thead><tr>
+          <th>Producto</th><th>Ref.</th><th>Precio Unit.</th>
+          <th>Límite %</th><th>Desc. Propuesto %</th>
+        </tr></thead>
+        <tbody id="dn-lineas"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="enviarDescuentos()">Enviar a Aprobación</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-detalle-nota')">Cerrar</button>
+    </div>
+    <div id="dn-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Aprobar Nota -->
+<div id="modal-aprobar" class="modal-bg">
+  <div class="modal">
+    <h3>Aprobar Nota <span id="ap-id"></span></h3>
+    <p style="margin-bottom:14px;font-size:.88rem">¿Confirmar la aprobación? Los descuentos se aplicarán en Odoo.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="aprobarNota()">Aprobar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-aprobar')">Cancelar</button>
+    </div>
+    <div id="ap-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Rechazar Nota -->
+<div id="modal-rechazar" class="modal-bg">
+  <div class="modal">
+    <h3>Rechazar Nota <span id="rj-id"></span></h3>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Motivo</label><textarea id="rj-motivo" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-danger" onclick="rechazarNota()">Rechazar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-rechazar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle Orden (productos) -->
+<div id="modal-detalle-orden" class="modal-bg">
+  <div class="modal" style="max-width:800px">
+    <h3>Detalle Orden <span id="do-nombre" style="color:var(--primary)"></span></h3>
+    <div id="do-info" style="font-size:.85rem;color:var(--muted);margin-bottom:12px"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Ref.</th><th>Producto</th><th>Cant.</th>
+          <th>Precio Unit.</th><th>Desc.%</th><th>Subtotal</th>
+        </tr></thead>
+        <tbody id="do-lineas"><tr><td colspan="6" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+    <div id="do-total" style="text-align:right;font-weight:600;margin-top:8px;font-size:1rem"></div>
+    <div style="margin-top:14px">
+      <button class="btn btn-outline" onclick="closeModal('modal-detalle-orden')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Recibo de Pago (imprimible) -->
+<div id="modal-recibo" class="modal-bg">
+  <div class="modal" style="max-width:680px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3>Recibo de Pagos</h3>
+      <button class="btn btn-primary" onclick="imprimirRecibo()">🖨 Imprimir</button>
+    </div>
+    <div id="recibo-contenido" style="border:1px solid var(--border);border-radius:8px;padding:20px"></div>
+    <div style="margin-top:14px">
+      <button class="btn btn-outline" onclick="closeModal('modal-recibo')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo Pago -->
+<div id="modal-nuevo-pago" class="modal-bg">
+  <div class="modal" style="max-width:680px">
+    <h3>Registrar Pago</h3>
+
+    <!-- Búsqueda de cliente -->
+    <div class="form-row">
+      <div class="form-group" style="flex:2;position:relative">
+        <label>Cliente (buscar)</label>
+        <input id="np-cliente-q" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+               oninput="buscarClientePago()" style="width:100%">
+        <div id="np-cliente-sugg" style="position:absolute;top:100%;left:0;right:0;background:#fff;
+          border:1px solid var(--border);border-radius:0 0 6px 6px;z-index:200;display:none;
+          max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Cliente seleccionado</label>
+        <input id="np-cliente-nom" readonly placeholder="—" style="background:#f8f9fa">
+        <input type="hidden" id="np-partner-id">
+      </div>
+    </div>
+
+    <!-- Órdenes pendientes del cliente -->
+    <div id="np-ordenes-wrap" style="display:none;margin-bottom:12px">
+      <label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:4px">
+        Orden (no totalmente pagadas de este cliente)
+      </label>
+      <select id="np-orden-select" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— Sin orden específica —</option>
+      </select>
+      <div id="np-orden-saldo" style="font-size:.8rem;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <div id="np-ordenes-loading" style="display:none;font-size:.82rem;color:var(--muted);margin-bottom:10px">
+      Cargando órdenes...
+    </div>
+
+    <div class="form-row">
+      <div class="form-group"><label>Monto</label>
+        <input id="np-monto" type="number" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group"><label>Moneda</label>
+        <select id="np-moneda">
+          <option value="USD">USD</option><option value="VES">VES</option>
+          <option value="USDT">USDT</option><option value="EUR">EUR</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Método</label>
+        <select id="np-metodo" onchange="toggleBanco()">
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="pago_movil">Pago Móvil</option>
+          <option value="zelle">Zelle</option>
+          <option value="binance">Binance/USDT</option>
+        </select>
+      </div>
+      <div class="form-group" id="np-banco-wrap">
+        <label>Banco / Cuenta destino</label>
+        <input id="np-banco" placeholder="Ej: Banesco, BBVA, PayPal...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Referencia / Confirmación</label>
+        <input id="np-ref" placeholder="Nro. comprobante">
+      </div>
+      <div class="form-group"><label>Fecha pago</label>
+        <input id="np-fecha" type="date">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="registrarPago()">Registrar Pago</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-pago')">Cancelar</button>
+    </div>
+    <div id="np-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Enviar pago a Odoo -->
+<div id="modal-enviar-odoo" class="modal-bg">
+  <div class="modal">
+    <h3>Enviar Pago a Odoo</h3>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Journal (cuenta bancaria/caja)</label>
+      <select id="eo-journal" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="enviarPagoOdoo()">Enviar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-enviar-odoo')">Cancelar</button>
+    </div>
+    <div id="eo-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Tasa Custom -->
+<div id="modal-tasa-custom" class="modal-bg">
+  <div class="modal">
+    <h3>Actualizar Tasa Custom</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Par</label>
+        <select id="tc-par"><option value="USD_VES">USD/VES</option><option value="EUR_VES">EUR/VES</option></select>
+      </div>
+      <div class="form-group"><label>Tasa</label><input id="tc-tasa" type="number" step="0.01"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="guardarTasaCustom()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-tasa-custom')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Venta Interna -->
+<div id="modal-nueva-vi" class="modal-bg">
+  <div class="modal">
+    <h3>Nueva Venta Interna</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Cliente</label><input id="vi-cliente" placeholder="Nombre del cliente"></div>
+      <div class="form-group"><label>Notas</label><input id="vi-notas" placeholder="Notas opcionales"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearVentaInterna()">Crear</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-vi')">Cancelar</button>
+    </div>
+    <div id="vi-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Compra Interna -->
+<div id="modal-compra-int" class="modal-bg">
+  <div class="modal">
+    <h3>Registrar Compra</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Proveedor</label><input id="ci-prov"></div>
+      <div class="form-group"><label>Fecha</label><input id="ci-fecha" type="date"></div>
+      <div class="form-group"><label>Total USD</label><input id="ci-total" type="number" step="0.01"></div>
+    </div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Líneas (código|nombre|cant|costo):</p>
+    <textarea id="ci-lineas" rows="4" placeholder="PROD-001|Producto A|10|5.00&#10;PROD-002|Producto B|5|8.50" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85rem"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn btn-primary" onclick="registrarCompra()">Registrar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-compra-int')">Cancelar</button>
+    </div>
+    <div id="ci-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Promoción -->
+<div id="modal-nueva-promo" class="modal-bg">
+  <div class="modal">
+    <h3>Nueva Promoción</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre</label><input id="pr-nom"></div>
+      <div class="form-group"><label>Producto Obsequio (ref)</label><input id="pr-prod" placeholder="LIGA-FRENOS"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Descuento %</label><input id="pr-pct" type="number" value="99"></div>
+      <div class="form-group"><label>
+        <input type="checkbox" id="pr-nuevo"> Cond. cliente nuevo
+      </label></div>
+      <div class="form-group"><label>Mín. productos</label><input id="pr-min" type="number" value="0"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><label>Descripción</label>
+      <textarea id="pr-desc" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearPromocion()">Crear</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-promo')">Cancelar</button>
+    </div>
+    <div id="pr-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Lista de Precios -->
+<div id="modal-nueva-lista" class="modal-bg">
+  <div class="modal">
+    <h3>Nueva Lista de Precios</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre</label><input id="lp-nom"></div>
+      <div class="form-group"><label>Moneda</label>
+        <select id="lp-mon"><option value="USD">USD</option><option value="VES">VES</option></select>
+      </div>
+      <div class="form-group"><label>Umbral descuento excluir %</label><input id="lp-umbral" type="number" placeholder="50"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearLista()">Crear</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-lista')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Operación -->
+<div id="modal-nueva-operacion" class="modal-bg">
+  <div class="modal" style="max-width:660px">
+    <h3>Registrar Operación</h3>
+    <div class="form-row">
+      <div class="form-group" style="min-width:130px">
+        <label>Fecha</label>
+        <input type="date" id="mo-fecha">
+      </div>
+      <div class="form-group" style="min-width:110px">
+        <label>Tipo</label>
+        <select id="mo-tipo" onchange="actualizarCatsModal(); actualizarSeccionOdooModal()">
+          <option value="ingreso">Ingreso</option>
+          <option value="egreso">Egreso</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Monto</label>
+        <input type="number" id="mo-monto" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group" style="min-width:90px">
+        <label>Moneda</label>
+        <select id="mo-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+          <option value="USDT">USDT</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="mo-cat" onchange="actualizarSubcatsModal()">
+          <option value="">— seleccionar —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Subcategoría</label>
+        <select id="mo-subcat">
+          <option value="">— ninguna —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Método de pago</label>
+        <select id="mo-metodo">
+          <option value="">—</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="pago_movil">Pago Móvil</option>
+          <option value="zelle">Zelle</option>
+          <option value="binance">Binance</option>
+          <option value="efectivo_usd">Efectivo USD</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nro. Documento / Referencia</label>
+        <input id="mo-nrodoc" placeholder="Nro. factura, cheque, etc.">
+      </div>
+      <div class="form-group" style="min-width:110px">
+        <label>Tasa BCV (ref.)</label>
+        <input type="number" id="mo-tasa-bcv" step="0.01" placeholder="auto">
+      </div>
+      <div class="form-group" style="min-width:110px">
+        <label>Tasa real</label>
+        <input type="number" id="mo-tasa-real" step="0.01" placeholder="auto">
+      </div>
+    </div>
+    <!-- Sección Odoo: visible solo para egresos -->
+    <div id="mo-odoo-section" style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+      <div style="font-size:.82rem;font-weight:600;color:var(--primary);margin-bottom:8px">
+        🔗 Enviar a Odoo al guardar
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <div class="form-group">
+          <label>Banco / Caja (nombre)</label>
+          <input id="mo-journal-nombre" list="journal-nombres-list" placeholder="Ej: Banesco, Banco Venezuela, Efectivo USD…">
+          <datalist id="journal-nombres-list">
+            <option value="Banco Venezuela">
+            <option value="Banesco">
+            <option value="Bancamiga">
+            <option value="BNC">
+            <option value="Efectivo USD">
+            <option value="Efectivo VES">
+            <option value="Binance">
+            <option value="Zelle">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label>Diario de pago en Odoo</label>
+          <select id="mo-journal">
+            <option value="">— No enviar a Odoo ahora —</option>
+          </select>
+        </div>
+        <div class="form-group" style="position:relative">
+          <label>Proveedor (opcional)</label>
+          <input id="mo-proveedor-q" placeholder="Buscar proveedor..." autocomplete="off"
+                 oninput="buscarProveedorModal()" style="width:100%">
+          <div id="mo-proveedor-drop" style="display:none;position:absolute;z-index:200;background:#fff;
+               border:1px solid var(--border);border-radius:6px;width:100%;max-height:140px;
+               overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        </div>
+      </div>
+      <input type="hidden" id="mo-partner-id">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Descripción</label>
+      <textarea id="mo-desc" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.88rem;resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="guardarOperacion()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-operacion')">Cancelar</button>
+    </div>
+    <div id="mo-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Importar Pagos de Proveedor Odoo -->
+<div id="modal-importar-pagos-proveedor" class="modal-bg">
+  <div class="modal" style="max-width:440px">
+    <h3>Importar Pagos de Proveedor (Odoo)</h3>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">
+      Importa pagos a proveedores <strong>validados</strong> en Odoo que no estén
+      registrados en el sistema. Si ya existe, se omite.
+    </p>
+    <div class="form-row">
+      <div class="form-group"><label>Desde</label><input type="date" id="imp-desde"></div>
+      <div class="form-group"><label>Hasta</label><input type="date" id="imp-hasta"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="importarPagosProveedor()">Importar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-importar-pagos-proveedor')">Cancelar</button>
+    </div>
+    <div id="imp-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Enviar Egreso a Odoo -->
+<div id="modal-enviar-egreso-odoo" class="modal-bg">
+  <div class="modal" style="max-width:460px">
+    <h3>Enviar Egreso a Odoo</h3>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:4px" id="eeo-desc"></p>
+    <input type="hidden" id="eeo-op-id">
+    <div class="form-row" style="margin-top:12px">
+      <div class="form-group">
+        <label>Diario de pago (Odoo) <span style="color:var(--danger)">*</span></label>
+        <select id="eeo-journal" style="width:100%">
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;position:relative">
+      <label>Proveedor (opcional)</label>
+      <input id="eeo-proveedor-q" placeholder="Buscar proveedor..." autocomplete="off"
+             oninput="buscarProveedorEEO()" style="width:100%">
+      <div id="eeo-proveedor-drop" style="display:none;position:absolute;z-index:200;background:#fff;
+           border:1px solid var(--border);border-radius:6px;width:100%;max-height:160px;
+           overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    </div>
+    <input type="hidden" id="eeo-partner-id">
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="confirmarEnviarEgresoOdoo()">Enviar a Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-enviar-egreso-odoo')">Cancelar</button>
+    </div>
+    <div id="eeo-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Mapeo Categorías → Odoo -->
+<div id="modal-mapeo-cats" class="modal-bg">
+  <div class="modal" style="max-width:800px">
+    <h3>Mapeo Categorías → Cuentas y Diarios Odoo</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Asocia cada categoría con una cuenta contable de gasto y un diario de pago predeterminado en Odoo.
+    </p>
+    <div id="mapeo-cats-content"><div class="loader">Cargando...</div></div>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button class="btn btn-outline" onclick="closeModal('modal-mapeo-cats')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Condición NC -->
+<div id="modal-nueva-nc-cond" class="modal-bg">
+  <div class="modal" style="max-width:480px">
+    <h3 id="nc-cond-title">Nueva Condición NC</h3>
+    <input type="hidden" id="nc-cond-id">
+    <div class="form-row">
+      <div class="form-group" style="grid-column:1/-1"><label>Nombre de la condición</label>
+        <input id="nc-cond-nombre" placeholder="Ej: Pagos en USD, Clientes preferentes…">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Monedas aplicables (selecciona una o varias)</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+          <label><input type="checkbox" class="nc-moneda-cb" value="USD" checked> USD</label>
+          <label><input type="checkbox" class="nc-moneda-cb" value="USDT"> USDT</label>
+          <label><input type="checkbox" class="nc-moneda-cb" value="VES"> VES</label>
+          <label><input type="checkbox" class="nc-moneda-cb" value="EUR"> EUR</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Descuento máximo por línea (%)</label>
+        <input id="nc-cond-desc" type="number" min="0" max="100" step="0.5" placeholder="5">
+      </div>
+      <div class="form-group"><label>Días máx. desde entrega (0=sin límite)</label>
+        <input id="nc-cond-dias" type="number" min="0" value="0">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label><input type="checkbox" id="nc-cond-pago"> Requiere pago registrado en el sistema</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn btn-primary" onclick="guardarNcCondicion()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-nc-cond')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Registrar Gestión CRM -->
+<div id="modal-nueva-gestion" class="modal-bg">
+  <div class="modal" style="max-width:540px">
+    <h3>Registrar Gestión de Cobranza</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Cliente (ID Odoo)</label>
+        <div style="display:flex;gap:6px">
+          <input id="gest-cliente-q" placeholder="Buscar cliente..." oninput="buscarClienteGestion(this.value)" style="flex:1">
+          <input type="hidden" id="gest-cliente-id">
+        </div>
+        <div id="gest-cliente-sugg" style="font-size:.82rem;margin-top:4px"></div>
+      </div>
+      <div class="form-group"><label>Orden (opcional)</label>
+        <input id="gest-orden" placeholder="S00001">
+      </div>
+      <div class="form-group"><label>Fecha</label>
+        <input id="gest-fecha" type="date">
+      </div>
+      <div class="form-group"><label>Tipo de contacto</label>
+        <select id="gest-tipo">
+          <option value="llamada">📞 Llamada</option>
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="email">📧 Email</option>
+          <option value="visita">🏢 Visita</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Resultado</label>
+        <select id="gest-resultado">
+          <option value="contactado">✅ Contactado</option>
+          <option value="no_contesto">📵 No contestó</option>
+          <option value="buzon">📬 Buzón de voz</option>
+          <option value="promesa_pago">🤝 Promesa de pago</option>
+          <option value="pago_realizado">💰 Pago realizado</option>
+        </select>
+      </div>
+      <div class="form-group" id="gest-promesa-row" style="display:none"><label>Monto prometido (USD)</label>
+        <input id="gest-monto-prom" type="number" min="0" step="0.01">
+      </div>
+      <div class="form-group" id="gest-fecha-prom-row" style="display:none"><label>Fecha de promesa</label>
+        <input id="gest-fecha-prom" type="date">
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Comentarios</label>
+        <textarea id="gest-comentarios" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+      </div>
+      <div class="form-group"><label>Próxima acción</label>
+        <input id="gest-proxima-acc" placeholder="Llamar de nuevo, enviar factura...">
+      </div>
+      <div class="form-group"><label>Fecha próxima acción</label>
+        <input id="gest-fecha-prox" type="date">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn btn-primary" onclick="guardarGestion()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-gestion')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Plantillas CRM -->
+<div id="modal-plantillas-crm" class="modal-bg">
+  <div class="modal" style="max-width:700px">
+    <h3>Plantillas de Mensajes (WhatsApp / Email)</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px">
+      Variables: <code>{cliente}</code> <code>{orden}</code> <code>{monto}</code> <code>{vencimiento}</code> <code>{dias_vencida}</code>
+    </p>
+    <button class="btn btn-primary" style="margin-bottom:12px" onclick="showNuevaPlatilla()">+ Nueva Plantilla</button>
+    <div id="tb-plantillas">Cargando...</div>
+    <div style="margin-top:14px"><button class="btn btn-outline" onclick="closeModal('modal-plantillas-crm')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo Acuerdo de Pago -->
+<div id="modal-nuevo-acuerdo" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Nuevo Acuerdo de Pago Especial</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px">
+      Define condiciones de pago personalizadas distintas de los términos de Odoo.
+    </p>
+    <div class="form-row">
+      <div class="form-group"><label>Cliente (ID Odoo)</label>
+        <div style="display:flex;gap:6px">
+          <input id="ac-cliente-q" placeholder="Buscar cliente..." oninput="buscarClienteAcuerdo(this.value)" style="flex:1">
+          <input type="hidden" id="ac-cliente-id">
+        </div>
+        <div id="ac-cliente-sugg" style="font-size:.82rem;margin-top:4px"></div>
+      </div>
+      <div class="form-group"><label>Descripción del acuerdo</label>
+        <input id="ac-desc" placeholder="Ej: 90 días con abonos semanales de ventas">
+      </div>
+      <div class="form-group"><label>Monto total (USD)</label>
+        <input id="ac-monto" type="number" min="0" step="0.01">
+      </div>
+      <div class="form-group"><label>Plazo total (días)</label>
+        <input id="ac-plazo" type="number" min="1" value="90">
+      </div>
+      <div class="form-group"><label>Periodicidad de abonos</label>
+        <select id="ac-period">
+          <option value="semanal">Semanal (cada 7 días)</option>
+          <option value="quincenal">Quincenal (cada 15 días)</option>
+          <option value="mensual">Mensual (cada 30 días)</option>
+          <option value="unico">Único (al vencimiento)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Monto por cuota (USD, 0 = usar %)</label>
+        <input id="ac-cuota" type="number" min="0" step="0.01" value="0" oninput="acActualizarPorc()">
+      </div>
+      <div class="form-group"><label>% por cuota (0 = usar monto fijo)</label>
+        <input id="ac-porc" type="number" min="0" max="100" step="0.1" value="0" oninput="acActualizarMonto()">
+      </div>
+      <div class="form-group"><label>Fecha de inicio</label>
+        <input id="ac-inicio" type="date">
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Órdenes Odoo vinculadas (separadas por coma)</label>
+        <input id="ac-ordenes" placeholder="S00001, S00002">
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notas</label>
+        <textarea id="ac-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn btn-primary" onclick="guardarAcuerdo()">Crear Acuerdo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-acuerdo')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle Acuerdo -->
+<div id="modal-detalle-acuerdo" class="modal-bg">
+  <div class="modal" style="max-width:680px">
+    <h3 id="ac-detalle-title">Acuerdo de Pago</h3>
+    <div id="ac-detalle-info" style="margin-bottom:12px;font-size:.9rem"></div>
+    <h4>Cuotas</h4>
+    <div class="table-wrap"><table><thead><tr>
+      <th>#</th><th>Vencimiento</th><th>Esperado</th><th>Pagado</th><th>Estado</th><th>Acción</th>
+    </tr></thead>
+    <tbody id="tb-cuotas"></tbody></table></div>
+    <div style="margin-top:14px"><button class="btn btn-outline" onclick="closeModal('modal-detalle-acuerdo')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal: Saldos por Banco -->
+<div id="modal-saldos-banco" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Saldos por Banco / Caja</h3>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <div class="form-group" style="flex:1"><label>Desde</label><input id="sb-desde" type="date"></div>
+      <div class="form-group" style="flex:1"><label>Hasta</label><input id="sb-hasta" type="date"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="loadSaldosBanco()">Filtrar</button></div>
+    </div>
+    <div id="tb-saldos-banco">Cargando...</div>
+    <div style="margin-top:14px"><button class="btn btn-outline" onclick="closeModal('modal-saldos-banco')">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('token') || '';
+let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+let currentView = 'dashboard';
+let currentNotaId = null;
+let currentPagoId = null;
+let _nnClienteId = null;
+
+// ── UTILIDADES ────────────────────────────────────────────────────────────────
+function fmtNum(n, decimals = 2) {
+  // '.' para decimales, ',' para miles
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('es-VE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+// ── API HELPER ────────────────────────────────────────────────────────────────
+async function api(method, path, body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (r.status === 401) { logout(); return null; }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const msg = Array.isArray(data.detail)
+      ? data.detail.map(e => `${e.loc?.join('.')}: ${e.msg}`).join(' | ')
+      : (data.detail || JSON.stringify(data));
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-pass').value;
+  document.getElementById('login-error').textContent = '';
+  try {
+    const r = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error al ingresar');
+    token = data.access_token;
+    currentUser = data.usuario;
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(currentUser));
+    initApp();
+  } catch (e) {
+    document.getElementById('login-error').textContent = e.message;
+  }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function logout() {
+  token = ''; currentUser = null;
+  localStorage.removeItem('token'); localStorage.removeItem('user');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function initApp() {
+  if (!token || !currentUser) { document.getElementById('login-screen').style.display = 'flex'; return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('user-name').textContent = currentUser.nombre;
+  document.getElementById('user-role').textContent = currentUser.rol;
+
+  // Filtrar nav por rol
+  document.querySelectorAll('#nav a[data-roles]').forEach(a => {
+    const roles = a.dataset.roles.split(',');
+    a.style.display = roles.includes(currentUser.rol) ? 'flex' : 'none';
+  });
+
+  loadTasas();
+  showView(currentUser.rol === 'vendedor' ? 'ventas' : 'dashboard');
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('#nav a').forEach(a => a.classList.remove('active'));
+  const el = document.getElementById('view-' + name);
+  if (el) el.classList.add('active');
+  currentView = name;
+
+  const titles = {
+    dashboard: 'Dashboard', ventas: 'Ventas Odoo',
+    'pagos-odoo': 'Pagos de Odoo',
+    'pagos-prov': 'Pagos a Proveedores (Odoo)',
+    notas: 'Notas de Crédito', pagos: 'Pagos', cxc: 'Reporte CxC',
+    'ventas-int': 'Ventas Internas', inventario: 'Inventario',
+    promociones: 'Promociones', precios: 'Listas de Precios',
+    maestro: 'Maestro de Operaciones',
+    cobranza: 'CRM Cobranza',
+    acuerdos: 'Acuerdos de Pago Especiales',
+    config: 'Configuración'
+  };
+  document.getElementById('view-title').textContent = titles[name] || name;
+
+  const loaders = {
+    dashboard: loadDashboard, ventas: loadVentas,
+    'pagos-odoo': loadPagosOdoo,
+    'pagos-prov': loadPagosProveedores,
+    notas: loadNotas, pagos: loadPagos, cxc: loadCxC,
+    'ventas-int': loadVentasInternas, inventario: loadInventario,
+    promociones: loadPromociones, precios: loadListas,
+    maestro: initMaestroView,
+    cobranza: loadCobranza,
+    acuerdos: loadAcuerdos,
+    config: loadConfig
+  };
+  if (loaders[name]) loaders[name]();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const r = await api('GET', '/reportes/resumen-dashboard');
+    if (!r) return;
+    document.getElementById('d-aprobaciones').textContent = r.aprobaciones_pendientes;
+    document.getElementById('d-pagos-p').textContent = r.pagos_pendientes_recepcion;
+    document.getElementById('d-pagos-r').textContent = r.pagos_listos_para_odoo;
+    document.getElementById('d-vi').textContent = r.ventas_internas_activas;
+  } catch(e) {}
+
+  try {
+    const s = await api('GET', '/odoo/status');
+    const el = document.getElementById('odoo-status');
+    if (s && s.status === 'ok') {
+      el.className = 'alert alert-success';
+      el.textContent = `✓ Odoo conectado (UID: ${s.uid})`;
+    } else {
+      el.className = 'alert alert-danger';
+      el.textContent = `✗ Odoo desconectado: ${s?.detalle || 'sin respuesta'}`;
+    }
+  } catch(e) {}
+}
+
+// ── TASAS ─────────────────────────────────────────────────────────────────────
+async function loadTasas() {
+  try {
+    const r = await api('GET', '/pagos/tasas/hoy');
+    if (!r) return;
+    const bcv = r.usd_ves_bcv ? `Bs. ${fmtNum(r.usd_ves_bcv, 2)}` : '—';
+    const eur = r.eur_ves_bcv ? `€ Bs. ${fmtNum(r.eur_ves_bcv, 2)}` : '';
+    const custom = r.usd_ves_custom ? `Bs. ${fmtNum(r.usd_ves_custom, 2)}` : '—';
+    document.getElementById('tasa-display').textContent =
+      `BCV: ${bcv}${eur ? '  |  EUR: ' + eur : ''}`;
+    const tb = document.getElementById('t-bcv');
+    const tc = document.getElementById('t-custom');
+    if (tb) tb.textContent = bcv;
+    if (tc) tc.textContent = custom;
+  } catch(e) {}
+}
+
+async function actualizarBCV() {
+  try {
+    await api('POST', '/pagos/tasas/actualizar-bcv');
+    loadTasas();
+    alert('Tasa BCV actualizada');
+  } catch(e) { alert(e.message); }
+}
+
+async function guardarTasaCustom() {
+  const par = document.getElementById('tc-par').value;
+  const tasa = parseFloat(document.getElementById('tc-tasa').value);
+  try {
+    await api('POST', '/pagos/tasas/custom', { par, tasa_custom: tasa });
+    closeModal('modal-tasa-custom');
+    loadTasas();
+  } catch(e) { alert(e.message); }
+}
+
+// ── VENTAS ────────────────────────────────────────────────────────────────────
+let allVentas = [];
+async function loadVentas() {
+  const tb = document.getElementById('tb-ventas');
+  tb.innerHTML = '<tr><td colspan="7" class="loader">Cargando...</td></tr>';
+  try {
+    allVentas = await api('GET', '/odoo/ventas') || [];
+    renderVentas(allVentas);
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="7" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderVentas(ventas) {
+  const tb = document.getElementById('tb-ventas');
+  if (!ventas.length) { tb.innerHTML = '<tr><td colspan="12" class="loader">Sin datos</td></tr>'; return; }
+  tb.innerHTML = ventas.map(v => {
+    const entregado = v.entregado
+      ? '<span class="badge b-aprobada">✓ Entregado</span>'
+      : (v.entrega_estado ? `<span class="badge b-enviada">${v.entrega_estado}</span>` : '—');
+    const facEstado = v.factura_estado === 'posted' ? 'b-aprobada'
+                    : v.factura_estado === 'draft'  ? 'b-pendiente' : '';
+    const facLabel  = v.factura_estado === 'posted' ? 'Registrada'
+                    : v.factura_estado === 'draft'  ? 'Borrador' : '—';
+    // Vencimiento = última entrega completada + días del término de pago (calculado en backend)
+    let vencCell = '—';
+    if (v.factura_vencimiento) {
+      if (v.vencida && v.dias_vencida > 0) {
+        vencCell = `<span class="badge b-rechazada" title="Vencida hace ${v.dias_vencida} días">${v.factura_vencimiento} ⚠ ${v.dias_vencida}d</span>`;
+      } else {
+        vencCell = v.factura_vencimiento;
+      }
+    }
+    return `<tr${v.vencida ? ' style="background:#fff5f5"' : ''}>
+      <td><strong>${v.name}</strong></td>
+      <td>${v.partner_id?.[1] || ''}</td>
+      <td>${(v.date_order||'').substring(0,10)}</td>
+      <td style="font-size:.82rem">${fmtNum(v.amount_untaxed||0, 2)}</td>
+      <td style="font-size:.82rem;color:var(--muted)">${fmtNum(v.amount_tax||0, 2)}</td>
+      <td><strong>${fmtNum(v.amount_total||0, 2)}</strong></td>
+      <td>${v.moneda || 'USD'}</td>
+      <td style="font-size:.8rem;color:var(--muted)">${v.termino_pago || '—'}</td>
+      <td>${vencCell}</td>
+      <td>${entregado}</td>
+      <td>${v.entrega_fecha || '—'}</td>
+      <td>${v.factura_numero || '—'}</td>
+      <td>${facEstado ? `<span class="badge ${facEstado}">${facLabel}</span>` : '—'}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline" onclick="verDetalleOrden('${v.name}','${(v.partner_id?.[1]||'').replace(/'/g,"\\'")}',${v.amount_total||0},'${v.moneda||'USD'}')">Ver</button>
+        <button class="btn btn-sm btn-primary" onclick="nuevaNotaDesde('${v.name}',${v.partner_id?.[0]||'null'},'${(v.partner_id?.[1]||'').replace(/'/g,"\\'")}')">+ Nota</button>
+        <button class="btn btn-sm btn-outline" onclick="prepPagoDesdeVenta('${v.name}',${v.partner_id?.[0]||'null'},'${v.partner_id?.[1]||''}')">+ Pago</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filtrarVentas() {
+  const q = document.getElementById('fv-buscar').value.toLowerCase();
+  const f = allVentas.filter(v =>
+    v.name.toLowerCase().includes(q) ||
+    (v.partner_id?.[1]||'').toLowerCase().includes(q)
+  );
+  renderVentas(f);
+}
+
+function nuevaNotaDesde(orden, partnerId, partnerNombre) {
+  // Limpiar modal
+  document.getElementById('nn-cliente-q').value = partnerNombre || '';
+  document.getElementById('nn-cliente-nombre').textContent = partnerNombre || '';
+  document.getElementById('nn-result').innerHTML = '';
+  _nnClienteId = partnerId || null;
+  // Pre-cargar la orden en el select
+  const sel = document.getElementById('nn-orden-sel');
+  if (orden) {
+    sel.innerHTML = `<option value="${orden}" selected>${orden}</option>`;
+  } else {
+    sel.innerHTML = '<option value="">— selecciona —</option>';
+  }
+  showModal('modal-nueva-nota');
+}
+
+async function verDetalleOrden(nombre, cliente, total, moneda) {
+  document.getElementById('do-nombre').textContent = nombre;
+  document.getElementById('do-info').textContent = `Cliente: ${cliente} · Total: ${fmtNum(total,2)} ${moneda}`;
+  document.getElementById('do-lineas').innerHTML = '<tr><td colspan="6" class="loader">Cargando...</td></tr>';
+  document.getElementById('do-total').textContent = '';
+  showModal('modal-detalle-orden');
+  try {
+    const lineas = await api('GET', `/odoo/ventas/${encodeURIComponent(nombre)}/lineas`) || [];
+    if (!lineas.length) {
+      document.getElementById('do-lineas').innerHTML = '<tr><td colspan="6" class="loader">Sin líneas</td></tr>';
+      return;
+    }
+    let subtotal = 0;
+    document.getElementById('do-lineas').innerHTML = lineas.map(l => {
+      const precio = l.price_unit || 0;
+      const cant = l.product_uom_qty || 0;
+      const desc = l.discount || 0;
+      const sub = l.price_subtotal || (precio * cant * (1 - desc/100));
+      subtotal += sub;
+      return `<tr>
+        <td style="font-size:.8rem;color:var(--muted)">${l.default_code||'—'}</td>
+        <td>${l.product_id?.[1]||'—'}</td>
+        <td style="text-align:right">${fmtNum(cant,2)}</td>
+        <td style="text-align:right">$${fmtNum(precio,2)}</td>
+        <td style="text-align:center">${desc ? desc+'%' : '—'}</td>
+        <td style="text-align:right;font-weight:600">$${fmtNum(sub,2)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('do-total').textContent = `Total: $${fmtNum(subtotal,2)} ${moneda}`;
+  } catch(e) {
+    document.getElementById('do-lineas').innerHTML = `<tr><td colspan="6" style="color:red">${e.message}</td></tr>`;
+  }
+}
+
+// ── ENTREGAS ──────────────────────────────────────────────────────────────────
+async function loadEntregas() {
+  const tb = document.getElementById('tb-entregas');
+  tb.innerHTML = '<tr><td colspan="7" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/odoo/entregas') || [];
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="loader">Sin entregas</td></tr>'; return; }
+    tb.innerHTML = rows.map(e => `
+      <tr>
+        <td><strong>${e.name}</strong></td>
+        <td>${e.partner_id?.[1]||''}</td>
+        <td>${(e.scheduled_date||'').substring(0,10)}</td>
+        <td>${(e.date_done||'').substring(0,10)}</td>
+        <td><span class="badge b-${e.state}">${e.state}</span></td>
+        <td>${e.origin||''}</td>
+        <td>
+          ${e.origin ? `<button class="btn btn-sm btn-primary" onclick="nuevaNotaDesde('${e.origin}')">+ Nota</button>` : ''}
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="7" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+// ── NOTAS DE CRÉDITO ──────────────────────────────────────────────────────────
+async function loadNotas() {
+  const tb = document.getElementById('tb-notas');
+  tb.innerHTML = '<tr><td colspan="6" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/notas-credito') || [];
+    tb.innerHTML = rows.map(n => `
+      <tr>
+        <td>${n.id}</td>
+        <td><strong>${n.odoo_order_name}</strong></td>
+        <td>${n.vendedor_nombre||n.vendedor_id||''}</td>
+        <td><span class="badge b-${n.estado}">${n.estado}</span></td>
+        <td>${(n.creado_en||'').substring(0,10)}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-outline" onclick="verLineasNota(${n.id})">Ver líneas</button>
+          ${n.estado==='enviada' && ['gerente','admin'].includes(currentUser?.rol) ? `
+            <button class="btn btn-sm btn-success" onclick="prepAprobar(${n.id})">Aprobar</button>
+            <button class="btn btn-sm btn-danger" onclick="prepRechazar(${n.id})">Rechazar</button>` : ''}
+        </td>
+      </tr>`).join('') || '<tr><td colspan="6" class="loader">Sin notas</td></tr>';
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="6" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+// ── NOTAS: búsqueda de cliente ────────────────────────────────────────────────
+let _nnDebounce = null;
+async function buscarClienteNota() {
+  clearTimeout(_nnDebounce);
+  const q = document.getElementById('nn-cliente-q').value.trim();
+  const drop = document.getElementById('nn-cliente-drop');
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  _nnDebounce = setTimeout(async () => {
+    try {
+      const clientes = await api('GET', `/odoo/clientes/buscar?q=${encodeURIComponent(q)}`);
+      if (!clientes?.length) { drop.style.display = 'none'; return; }
+      drop.innerHTML = clientes.map(c =>
+        `<div onclick="seleccionarClienteNota(${c.id},'${c.name.replace(/'/g,"\\'")}')"
+              style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)"
+              onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+          <strong>${c.name}</strong>${c.phone ? ' · ' + c.phone : ''}
+        </div>`
+      ).join('');
+      drop.style.display = 'block';
+    } catch(e) {}
+  }, 300);
+}
+
+async function seleccionarClienteNota(id, nombre) {
+  _nnClienteId = id;
+  document.getElementById('nn-cliente-q').value = nombre;
+  document.getElementById('nn-cliente-nombre').textContent = nombre;
+  document.getElementById('nn-cliente-drop').style.display = 'none';
+  // Cargar órdenes pendientes del cliente
+  const sel = document.getElementById('nn-orden-sel');
+  sel.innerHTML = '<option value="">Cargando...</option>';
+  try {
+    const ordenes = await api('GET', `/odoo/clientes/${id}/ordenes-pendientes`);
+    if (!ordenes?.length) {
+      sel.innerHTML = '<option value="">Sin órdenes pendientes</option>';
+    } else {
+      sel.innerHTML = ordenes.map(o =>
+        `<option value="${o.name}">${o.name} — $${fmtNum(o.amount_total,2)} (${o.invoice_status})</option>`
+      ).join('');
+    }
+  } catch(e) {
+    sel.innerHTML = '<option value="">Error cargando órdenes</option>';
+  }
+}
+
+async function crearNota() {
+  const orden = document.getElementById('nn-orden-sel').value.trim();
+  const el = document.getElementById('nn-result');
+  if (!orden) {
+    el.innerHTML = '<div class="alert alert-danger">Selecciona una orden</div>';
+    return;
+  }
+  try {
+    const r = await api('POST', '/notas-credito/crear', { odoo_order_name: orden });
+    el.innerHTML = `<div class="alert alert-success">Nota #${r.id} creada (${r.lineas_cargadas} líneas)</div>`;
+    loadNotas();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// Config notas de crédito
+async function loadConfigNC() {
+  try {
+    const cfg = await api('GET', '/config/notas-credito');
+    if (!cfg) return;
+    document.getElementById('cfg-requiere-pago').checked = cfg.requiere_pago === '1';
+    document.getElementById('cfg-moneda').value = cfg.moneda_pago || '';
+    document.getElementById('cfg-dias').value = cfg.dias_max_entrega || '0';
+    document.getElementById('cfg-desc-max').value = cfg.descuento_maximo || '100';
+  } catch(e) {}
+}
+async function guardarConfigNC() {
+  const body = {
+    requiere_pago: document.getElementById('cfg-requiere-pago').checked ? '1' : '0',
+    moneda_pago: document.getElementById('cfg-moneda').value,
+    dias_max_entrega: document.getElementById('cfg-dias').value || '0',
+    descuento_maximo: document.getElementById('cfg-desc-max').value || '100',
+  };
+  const sp = document.getElementById('cfg-nc-result');
+  try {
+    await api('PUT', '/config/notas-credito', body);
+    sp.textContent = '✔ Guardado';
+    sp.style.color = 'var(--success)';
+  } catch(e) {
+    sp.textContent = e.message;
+    sp.style.color = 'var(--danger)';
+  }
+}
+
+async function verLineasNota(id) {
+  currentNotaId = id;
+  document.getElementById('dn-id').textContent = '#' + id;
+  document.getElementById('dn-result').innerHTML = '';
+  try {
+    const lineas = await api('GET', `/notas-credito/${id}/lineas`) || [];
+    const tbody = document.getElementById('dn-lineas');
+    tbody.innerHTML = lineas.map((l, i) => `
+      <tr>
+        <td>${l.producto_nombre}</td>
+        <td>${l.producto_ref||''}</td>
+        <td>$${fmtNum(l.precio_original||0, 2)}</td>
+        <td>${l.descuento_maximo||100}%</td>
+        <td><input type="number" min="0" max="${l.descuento_maximo||100}" step="0.5"
+            value="${l.descuento_propuesto||0}"
+            id="desc-${l.id}" style="width:80px;padding:4px;border:1px solid var(--border);border-radius:4px">
+        </td>
+      </tr>`).join('') || '<tr><td colspan="5">Sin líneas</td></tr>';
+    showModal('modal-detalle-nota');
+  } catch(e) { alert(e.message); }
+}
+
+async function enviarDescuentos() {
+  const lineas = [];
+  document.querySelectorAll('[id^="desc-"]').forEach(inp => {
+    lineas.push({ line_id: parseInt(inp.id.split('-')[1]), descuento_pct: parseFloat(inp.value) });
+  });
+  const el = document.getElementById('dn-result');
+  try {
+    await api('PUT', `/notas-credito/${currentNotaId}/proponer-descuentos`, { lineas });
+    el.innerHTML = '<div class="alert alert-success">Descuentos enviados a aprobación</div>';
+    loadNotas();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+function prepAprobar(id) {
+  currentNotaId = id;
+  document.getElementById('ap-id').textContent = '#' + id;
+  document.getElementById('ap-result').innerHTML = '';
+  showModal('modal-aprobar');
+}
+
+async function aprobarNota() {
+  const el = document.getElementById('ap-result');
+  try {
+    const r = await api('POST', `/notas-credito/${currentNotaId}/aprobar`);
+    el.innerHTML = `<div class="alert alert-success">${r.mensaje}</div>`;
+    loadNotas();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+function prepRechazar(id) {
+  currentNotaId = id;
+  document.getElementById('rj-id').textContent = '#' + id;
+  showModal('modal-rechazar');
+}
+
+async function rechazarNota() {
+  const motivo = document.getElementById('rj-motivo').value;
+  try {
+    await api('POST', `/notas-credito/${currentNotaId}/rechazar`, { motivo });
+    closeModal('modal-rechazar');
+    loadNotas();
+  } catch(e) { alert(e.message); }
+}
+
+// ── PAGOS ─────────────────────────────────────────────────────────────────────
+let _pagosData = [];
+async function loadPagos() {
+  const estado = document.getElementById('f-estado-pago')?.value || '';
+  const tb = document.getElementById('tb-pagos');
+  tb.innerHTML = '<tr><td colspan="10" class="loader">Cargando...</td></tr>';
+  try {
+    const url = estado ? `/pagos?estado=${estado}` : '/pagos';
+    _pagosData = await api('GET', url) || [];
+    tb.innerHTML = _pagosData.map(p => `
+      <tr>
+        <td><input type="checkbox" class="chk-pago" data-id="${p.id}" value="${p.id}"></td>
+        <td>${p.id}</td>
+        <td>${p.odoo_order_name||p.venta_interna_id||'—'}</td>
+        <td>${fmtNum(p.monto||0, 2)}</td>
+        <td>${p.moneda}</td>
+        <td>${p.metodo}${p.banco ? ' · '+p.banco : ''}</td>
+        <td>${p.equivalente_usd ? '$'+fmtNum(p.equivalente_usd, 2) : '—'}</td>
+        <td><span class="badge b-${p.estado.replace(/_/g,'-')}">${p.estado}</span></td>
+        <td>${(p.fecha_pago||'').substring(0,10)}</td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          ${p.estado==='propuesto' && ['gerente','admin'].includes(currentUser?.rol) ?
+            `<button class="btn btn-sm btn-success" onclick="marcarRecibido(${p.id})">Recibir</button>` : ''}
+          ${p.estado==='recibido' && ['gerente','admin'].includes(currentUser?.rol) ?
+            `<button class="btn btn-sm btn-primary" onclick="prepEnviarOdoo(${p.id})">→ Odoo</button>` : ''}
+        </td>
+      </tr>`).join('') || '<tr><td colspan="10" class="loader">Sin pagos</td></tr>';
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="10" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function toggleAllPagos(chk) {
+  document.querySelectorAll('.chk-pago').forEach(c => c.checked = chk.checked);
+}
+
+function generarRecibo() {
+  const selIds = [...document.querySelectorAll('.chk-pago:checked')].map(c => parseInt(c.value));
+  if (!selIds.length) { alert('Selecciona al menos un pago'); return; }
+  const selPagos = _pagosData.filter(p => selIds.includes(p.id));
+  const totalUSD = selPagos.reduce((s,p) => s + (p.equivalente_usd||0), 0);
+  const hoy = new Date().toLocaleDateString('es-VE');
+  const usuario = currentUser?.nombre || 'Usuario';
+
+  const lineas = selPagos.map(p => `
+    <tr>
+      <td>${p.id}</td>
+      <td>${p.odoo_order_name||'—'}</td>
+      <td>${fmtNum(p.monto,2)} ${p.moneda}</td>
+      <td>${p.metodo}${p.banco?' · '+p.banco:''}</td>
+      <td>${(p.referencia||'—')}</td>
+      <td>${(p.fecha_pago||'').substring(0,10)}</td>
+    </tr>`).join('');
+
+  document.getElementById('recibo-contenido').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:1.3rem;font-weight:700">CONSTANCIA DE RECEPCIÓN DE PAGO</div>
+      <div style="font-size:.85rem;color:var(--muted)">Lubrikca — Gestión CxC</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px;font-size:.88rem">
+      <div><strong>Fecha:</strong> ${hoy}</div>
+      <div><strong>Recibido por:</strong> ${usuario}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:16px">
+      <thead><tr style="background:var(--primary);color:#fff">
+        <th style="padding:6px;text-align:left">ID</th>
+        <th style="padding:6px;text-align:left">Orden</th>
+        <th style="padding:6px;text-align:right">Monto</th>
+        <th style="padding:6px;text-align:left">Método</th>
+        <th style="padding:6px;text-align:left">Ref.</th>
+        <th style="padding:6px;text-align:left">Fecha</th>
+      </tr></thead>
+      <tbody>${lineas}</tbody>
+    </table>
+    <div style="text-align:right;font-size:1rem;font-weight:700;margin-bottom:24px">
+      Total equivalente USD: <span style="color:var(--primary)">$${fmtNum(totalUSD,2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-around;margin-top:40px;font-size:.85rem">
+      <div style="text-align:center;border-top:1px solid #333;padding-top:8px;min-width:180px">
+        Firma quien recibe<br><strong>${usuario}</strong>
+      </div>
+      <div style="text-align:center;border-top:1px solid #333;padding-top:8px;min-width:180px">
+        Firma quien entrega
+      </div>
+    </div>`;
+  showModal('modal-recibo');
+}
+
+function imprimirRecibo() {
+  const contenido = document.getElementById('recibo-contenido').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Recibo</title>
+    <style>
+      body{font-family:'Segoe UI',sans-serif;padding:30px;color:#212529}
+      table{width:100%;border-collapse:collapse}
+      th,td{padding:6px 8px;border:1px solid #dee2e6;font-size:.85rem}
+      th{background:#2E75B6;color:#fff}
+      @media print{button{display:none}}
+    </style></head><body>${contenido}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+// ── PAGO — cliente search + banco + orden filtrada ────────────────────────────
+let _pagoClienteTimer = null;
+
+function toggleBanco() {
+  const metodo = document.getElementById('np-metodo').value;
+  const wrap = document.getElementById('np-banco-wrap');
+  const inp  = document.getElementById('np-banco');
+  if (metodo === 'efectivo') {
+    wrap.style.opacity = '.4';
+    inp.disabled = true; inp.value = '';
+  } else {
+    wrap.style.opacity = '1';
+    inp.disabled = false;
+  }
+}
+
+async function buscarClientePago() {
+  clearTimeout(_pagoClienteTimer);
+  const q = document.getElementById('np-cliente-q').value.trim();
+  const sugg = document.getElementById('np-cliente-sugg');
+  if (q.length < 2) { sugg.style.display = 'none'; return; }
+  _pagoClienteTimer = setTimeout(async () => {
+    try {
+      const res = await api('GET', `/odoo/clientes/buscar?q=${encodeURIComponent(q)}`);
+      if (!res || !res.length) { sugg.style.display = 'none'; return; }
+      sugg.innerHTML = res.map(c =>
+        `<div onclick="seleccionarClientePago(${c.id},'${c.name.replace(/'/g,"\\'")}');"
+              style="padding:8px 12px;cursor:pointer;font-size:.88rem;border-bottom:1px solid var(--border)"
+              onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background=''">
+           <strong>${c.name}</strong>${c.phone ? ' · '+c.phone : ''}
+         </div>`
+      ).join('');
+      sugg.style.display = 'block';
+    } catch(e) {}
+  }, 300);
+}
+
+async function seleccionarClientePago(partnerId, nombre) {
+  document.getElementById('np-cliente-nom').value = nombre;
+  document.getElementById('np-partner-id').value = partnerId;
+  document.getElementById('np-cliente-q').value = nombre;
+  document.getElementById('np-cliente-sugg').style.display = 'none';
+  // Cargar órdenes pendientes
+  document.getElementById('np-ordenes-loading').style.display = 'block';
+  document.getElementById('np-ordenes-wrap').style.display = 'none';
+  try {
+    const ordenes = await api('GET', `/odoo/clientes/${partnerId}/ordenes-pendientes`);
+    const sel = document.getElementById('np-orden-select');
+    sel.innerHTML = '<option value="">— Sin orden específica —</option>' +
+      (ordenes||[]).map(o => {
+        const moneda = o.moneda || 'USD';
+        return `<option value="${o.name}" data-total="${o.amount_total||0}" data-saldo="${o.saldo||0}" data-moneda="${moneda}">
+           ${o.name} — Total: ${fmtNum(o.amount_total||0, 2)} ${moneda} | Saldo: ${fmtNum(o.saldo||0, 2)} ${moneda}
+         </option>`;
+      }).join('');
+    sel.onchange = () => {
+      const opt = sel.selectedOptions[0];
+      const saldoEl = document.getElementById('np-orden-saldo');
+      if (opt.value) {
+        const saldo = parseFloat(opt.dataset.saldo||0);
+        const moneda = opt.dataset.moneda || 'USD';
+        saldoEl.textContent = `Saldo pendiente: ${fmtNum(saldo, 2)} ${moneda}`;
+        // Ajustar moneda del pago según la orden
+        const monedaSel = document.getElementById('np-moneda');
+        if (monedaSel && moneda && moneda !== 'USD') {
+          // Sugerir la moneda de la orden si no es USD
+        }
+      } else {
+        saldoEl.textContent = '';
+      }
+    };
+    document.getElementById('np-ordenes-wrap').style.display = 'block';
+  } catch(e) {}
+  document.getElementById('np-ordenes-loading').style.display = 'none';
+}
+
+function prepPagoDesdeVenta(orderName, partnerId, partnerNombre) {
+  showModal('modal-nuevo-pago');
+  if (partnerId) {
+    document.getElementById('np-cliente-q').value = partnerNombre;
+    document.getElementById('np-cliente-nom').value = partnerNombre;
+    document.getElementById('np-partner-id').value = partnerId;
+    seleccionarClientePago(partnerId, partnerNombre);
+  }
+  setTimeout(() => {
+    const sel = document.getElementById('np-orden-select');
+    for (const opt of sel.options) {
+      if (opt.value === orderName) { opt.selected = true; sel.onchange(); break; }
+    }
+  }, 800);
+}
+
+async function registrarPago() {
+  const el = document.getElementById('np-result');
+  const ordenSel = document.getElementById('np-orden-select');
+  const ordenNombre = ordenSel ? ordenSel.value : null;
+  try {
+    const r = await api('POST', '/pagos/registrar', {
+      odoo_order_name: ordenNombre || null,
+      partner_id: parseInt(document.getElementById('np-partner-id').value) || null,
+      monto: parseFloat(document.getElementById('np-monto').value),
+      moneda: document.getElementById('np-moneda').value,
+      metodo: document.getElementById('np-metodo').value,
+      banco: document.getElementById('np-banco').value || null,
+      referencia: document.getElementById('np-ref').value || null,
+      fecha_pago: document.getElementById('np-fecha').value || null,
+    });
+    el.innerHTML = `<div class="alert alert-success">Pago #${r.id} registrado. Equiv USD: $${fmtNum(r.equivalente_usd||0, 2)}</div>`;
+    loadPagos();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function marcarRecibido(id) {
+  try {
+    await api('POST', `/pagos/${id}/recibir`);
+    loadPagos();
+  } catch(e) { alert(e.message); }
+}
+
+async function prepEnviarOdoo(id) {
+  currentPagoId = id;
+  const el = document.getElementById('eo-journal');
+  el.innerHTML = '<option>Cargando...</option>';
+  document.getElementById('eo-result').innerHTML = '';
+  try {
+    const journals = await api('GET', '/odoo/journals') || [];
+    el.innerHTML = journals.map(j => `<option value="${j.id}">${j.name}</option>`).join('');
+  } catch(e) {
+    el.innerHTML = '<option value="">Error cargando journals</option>';
+  }
+  showModal('modal-enviar-odoo');
+}
+
+async function enviarPagoOdoo() {
+  const jid = document.getElementById('eo-journal').value;
+  const el = document.getElementById('eo-result');
+  if (!jid || isNaN(parseInt(jid))) {
+    el.innerHTML = '<div class="alert alert-danger">Selecciona un journal válido. Si la lista está vacía verifica la conexión con Odoo.</div>';
+    return;
+  }
+  try {
+    const r = await api('POST', `/pagos/${currentPagoId}/enviar-odoo?journal_id=${parseInt(jid)}`);
+    el.innerHTML = `<div class="alert alert-success">${r.mensaje} (Odoo ID: ${r.odoo_payment_id})</div>`;
+    loadPagos();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function exportarSheets() {
+  try {
+    const r = await api('POST', '/pagos/exportar-sheets');
+    alert(r.mensaje);
+    loadPagos();
+  } catch(e) { alert(e.message); }
+}
+
+// ── CxC ───────────────────────────────────────────────────────────────────────
+async function loadCxC() {
+  const tb = document.getElementById('tb-cxc');
+  tb.innerHTML = '<tr><td colspan="8" class="loader">Cargando...</td></tr>';
+  try {
+    const r = await api('GET', '/reportes/cxc');
+    const res = document.getElementById('cxc-resumen');
+    res.innerHTML = `
+      <div class="card"><div class="num">$${fmtNum(r.total_saldo_usd||0, 2)}</div><div class="lbl">Saldo Total USD</div></div>
+      <div class="card"><div class="num">Bs.${fmtNum(r.tasa_bcv||0, 2)}</div><div class="lbl">Tasa BCV</div></div>
+      <div class="card"><div class="num">Bs.${(r.total_saldo_ves_bcv||0).toLocaleString('es-VE',{maximumFractionDigits:0})}</div><div class="lbl">Saldo Total (BCV)</div></div>
+    `;
+    tb.innerHTML = (r.ventas||[]).map(v => `
+      <tr>
+        <td><span class="badge b-${v.fuente==='odoo'?'sale':'propuesto'}">${v.fuente}</span></td>
+        <td><strong>${v.codigo}</strong></td>
+        <td>${v.cliente}</td>
+        <td>$${fmtNum(v.total_usd||0, 2)}</td>
+        <td>$${fmtNum(v.pagado_usd||0, 2)}</td>
+        <td>$${fmtNum(v.saldo_usd||0, 2)}</td>
+        <td>Bs.${(v.saldo_ves_bcv||0).toLocaleString('es-VE',{maximumFractionDigits:0})}</td>
+        <td><span class="badge b-${v.estado_cxc.replace('_','-')}">${v.estado_cxc}</span></td>
+      </tr>`).join('') || '<tr><td colspan="8" class="loader">Sin datos</td></tr>';
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="8" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+async function exportarExcel() {
+  window.open('/reportes/ventas/exportar-excel', '_blank');
+}
+
+// ── VENTAS INTERNAS ───────────────────────────────────────────────────────────
+async function loadVentasInternas() {
+  const tb = document.getElementById('tb-vi');
+  tb.innerHTML = '<tr><td colspan="6" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/ventas-internas') || [];
+    tb.innerHTML = rows.map(v => `
+      <tr>
+        <td><strong>${v.codigo}</strong></td>
+        <td>${v.cliente_nombre}</td>
+        <td><span class="badge b-${v.estado}">${v.estado}</span></td>
+        <td>${v.total_usd ? '$'+fmtNum(v.total_usd, 2) : '—'}</td>
+        <td>${(v.creado_en||'').substring(0,10)}</td>
+        <td>
+          ${v.estado==='borrador' ? `<button class="btn btn-sm btn-success" onclick="confirmarVI(${v.id})">Confirmar</button>` : ''}
+        </td>
+      </tr>`).join('') || '<tr><td colspan="6" class="loader">Sin ventas</td></tr>';
+  } catch(e) {}
+}
+
+async function crearVentaInterna() {
+  const el = document.getElementById('vi-result');
+  try {
+    const r = await api('POST', '/ventas-internas/crear', {
+      cliente_nombre: document.getElementById('vi-cliente').value,
+      notas: document.getElementById('vi-notas').value || null,
+    });
+    el.innerHTML = `<div class="alert alert-success">Venta ${r.codigo} creada</div>`;
+    loadVentasInternas();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function confirmarVI(id) {
+  try {
+    const r = await api('PUT', `/ventas-internas/${id}/confirmar`);
+    alert(r.mensaje);
+    loadVentasInternas();
+  } catch(e) { alert(e.message); }
+}
+
+// ── INVENTARIO ────────────────────────────────────────────────────────────────
+async function loadInventario() {
+  const tb = document.getElementById('tb-inv');
+  tb.innerHTML = '<tr><td colspan="6" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/inventario-interno') || [];
+    tb.innerHTML = rows.map(p => `
+      <tr>
+        <td>${p.producto_codigo}</td>
+        <td>${p.producto_nombre}</td>
+        <td>${p.stock_actual}</td>
+        <td>${p.costo_usd ? '$'+fmtNum(p.costo_usd, 2) : '—'}</td>
+        <td>${(p.ultima_actualizacion||'').substring(0,10)}</td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="ajustarStock('${p.producto_codigo}')">Ajustar</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="6" class="loader">Sin productos</td></tr>';
+  } catch(e) {}
+}
+
+async function ajustarStock(codigo) {
+  const delta = parseFloat(prompt('Cantidad a agregar (+) o restar (-):'));
+  if (isNaN(delta)) return;
+  try {
+    const r = await api('PUT', `/inventario-interno/${encodeURIComponent(codigo)}/ajustar`, { cantidad_delta: delta });
+    alert(`Stock nuevo: ${r.stock_nuevo}`);
+    loadInventario();
+  } catch(e) { alert(e.message); }
+}
+
+async function registrarCompra() {
+  const el = document.getElementById('ci-result');
+  const lineasTxt = document.getElementById('ci-lineas').value.trim();
+  const lineas = lineasTxt.split('\n').filter(l => l.trim()).map(l => {
+    const parts = l.split('|');
+    return { producto_codigo: parts[0]?.trim(), producto_nombre: parts[1]?.trim(),
+             cantidad: parseFloat(parts[2]) || 0, costo_unitario: parseFloat(parts[3]) || 0 };
+  });
+  try {
+    const r = await api('POST', '/inventario-interno/compras/crear', {
+      proveedor: document.getElementById('ci-prov').value,
+      fecha: document.getElementById('ci-fecha').value,
+      total_usd: parseFloat(document.getElementById('ci-total').value) || 0,
+      lineas
+    });
+    el.innerHTML = `<div class="alert alert-success">Compra #${r.id} registrada</div>`;
+    loadInventario();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// ── INVENTARIO — CATÁLOGO ODOO ────────────────────────────────────────────────
+let _productosOdoo = [];
+let _extrasMap = {};
+
+function switchInvTab(tab) {
+  document.getElementById('panel-inv-local').style.display = tab === 'local' ? '' : 'none';
+  document.getElementById('panel-inv-odoo').style.display = tab === 'odoo' ? '' : 'none';
+  document.getElementById('tab-inv-local').className = tab==='local' ? 'btn btn-primary' : 'btn btn-outline';
+  document.getElementById('tab-inv-odoo').className = tab==='odoo' ? 'btn btn-primary' : 'btn btn-outline';
+  if (tab === 'odoo' && !_productosOdoo.length) loadProductosOdoo();
+}
+
+async function loadProductosOdoo() {
+  const tb = document.getElementById('tb-prod-odoo');
+  tb.innerHTML = '<tr><td colspan="9" class="loader">Cargando desde Odoo...</td></tr>';
+  try {
+    const [productos, extras] = await Promise.all([
+      api('GET', '/odoo/productos'),
+      api('GET', '/inventario-interno/productos-extra')
+    ]);
+    _productosOdoo = productos || [];
+    _extrasMap = {};
+    for (const e of (extras||[])) _extrasMap[e.producto_ref] = e;
+    renderProductosOdoo(_productosOdoo);
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="9" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderProductosOdoo(lista) {
+  const tb = document.getElementById('tb-prod-odoo');
+  if (!lista.length) { tb.innerHTML = '<tr><td colspan="9" class="loader">Sin productos</td></tr>'; return; }
+  tb.innerHTML = lista.map(p => {
+    const ref = p.default_code || '';
+    const ex = _extrasMap[ref] || {};
+    return `<tr>
+      <td style="font-size:.8rem;color:var(--muted)">${ref||'—'}</td>
+      <td>${p.name}</td>
+      <td style="font-size:.8rem">${p.categ_id?.[1]||'—'}</td>
+      <td style="text-align:right">$${fmtNum(p.list_price||0,2)}</td>
+      <td style="text-align:right">$${fmtNum(p.standard_price||0,2)}</td>
+      <td style="text-align:right">${p.volume ? fmtNum(p.volume,3)+' L' : '—'}</td>
+      <td>
+        <input value="${ex.marca||''}" placeholder="Marca"
+               onchange="guardarExtra('${ref}','marca',this.value)"
+               style="width:90px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:.8rem">
+      </td>
+      <td>
+        <input value="${ex.categoria_local||''}" placeholder="Cat. local"
+               onchange="guardarExtra('${ref}','categoria_local',this.value)"
+               style="width:100px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:.8rem">
+      </td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="agregarALista('${ref}','${p.name.replace(/'/g,"\\'")}',${p.list_price||0})">
+          + Lista
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filtrarProductosOdoo() {
+  const q = document.getElementById('odoo-prod-q').value.toLowerCase();
+  renderProductosOdoo(_productosOdoo.filter(p =>
+    (p.name||'').toLowerCase().includes(q) ||
+    (p.default_code||'').toLowerCase().includes(q)
+  ));
+}
+
+async function guardarExtra(ref, campo, valor) {
+  if (!ref) return;
+  const ex = _extrasMap[ref] || {};
+  ex[campo] = valor;
+  ex.producto_ref = ref;
+  _extrasMap[ref] = ex;
+  try {
+    await api('PUT', '/inventario-interno/productos-extra', ex);
+  } catch(e) { console.error(e); }
+}
+
+async function agregarALista(ref, nombre, precio) {
+  const listas = await api('GET', '/precios') || [];
+  if (!listas.length) { alert('Primero crea una lista de precios en Precios'); return; }
+  const opciones = listas.map((l,i) => `${i+1}. ${l.nombre} (${l.moneda})`).join('\n');
+  const idx = parseInt(prompt(`¿A qué lista agregar "${nombre}"?\n\n${opciones}\n\nIngresa el número:`));
+  if (isNaN(idx) || idx < 1 || idx > listas.length) return;
+  const lista = listas[idx-1];
+  const precioFinal = parseFloat(prompt(`Precio para "${nombre}" en "${lista.nombre}":`, precio)) || precio;
+  try {
+    await api('POST', `/precios/${lista.id}/items`, { producto_ref: ref, precio: precioFinal });
+    alert(`✔ ${nombre} agregado a "${lista.nombre}" con precio $${fmtNum(precioFinal,2)}`);
+  } catch(e) { alert(e.message); }
+}
+
+// ── PROMOCIONES ───────────────────────────────────────────────────────────────
+async function loadPromociones() {
+  const tb = document.getElementById('tb-promos');
+  tb.innerHTML = '<tr><td colspan="7" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/promociones') || [];
+    tb.innerHTML = rows.map(p => `
+      <tr>
+        <td>${p.nombre}</td>
+        <td>${p.producto_obsequio_ref||'—'}</td>
+        <td>${p.descuento_pct}%</td>
+        <td>${p.condicion_cliente_nuevo ? '✓' : '—'}</td>
+        <td>${p.condicion_min_productos || '—'}</td>
+        <td>${p.activa ? '✓' : '✗'}</td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="validarPromo(${p.id})">Validar</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="7" class="loader">Sin promociones</td></tr>';
+  } catch(e) {}
+}
+
+async function crearPromocion() {
+  const el = document.getElementById('pr-result');
+  try {
+    const r = await api('POST', '/promociones', {
+      nombre: document.getElementById('pr-nom').value,
+      descripcion: document.getElementById('pr-desc').value || null,
+      descuento_pct: parseFloat(document.getElementById('pr-pct').value) || 99,
+      producto_obsequio_ref: document.getElementById('pr-prod').value || null,
+      condicion_cliente_nuevo: document.getElementById('pr-nuevo').checked ? 1 : 0,
+      condicion_min_productos: parseInt(document.getElementById('pr-min').value) || 0,
+    });
+    el.innerHTML = `<div class="alert alert-success">Promoción creada</div>`;
+    loadPromociones();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function validarPromo(id) {
+  const orden = prompt('Número de orden Odoo (ej: S00025):');
+  if (!orden) return;
+  try {
+    const r = await api('POST', '/promociones/validar', { odoo_order_name: orden, promocion_id: id });
+    alert(`${r.mensaje}\nNota ID: ${r.nota_id}`);
+  } catch(e) { alert(e.message); }
+}
+
+// ── LISTAS DE PRECIOS ─────────────────────────────────────────────────────────
+async function loadListas() {
+  const tb = document.getElementById('tb-listas');
+  tb.innerHTML = '<tr><td colspan="5" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/precios') || [];
+    tb.innerHTML = rows.map(l => `
+      <tr>
+        <td>${l.nombre}</td>
+        <td>${l.moneda}</td>
+        <td>${l.umbral_descuento_excluir ?? '—'}%</td>
+        <td>${l.activa ? '✓' : '✗'}</td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="verItemsLista(${l.id},'${l.nombre}')">Ver items</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="5" class="loader">Sin listas</td></tr>';
+  } catch(e) {}
+}
+
+async function crearLista() {
+  try {
+    await api('POST', '/precios', {
+      nombre: document.getElementById('lp-nom').value,
+      moneda: document.getElementById('lp-mon').value,
+      umbral_descuento_excluir: parseFloat(document.getElementById('lp-umbral').value) || null,
+    });
+    closeModal('modal-nueva-lista');
+    loadListas();
+  } catch(e) { alert(e.message); }
+}
+
+async function verItemsLista(id, nombre) {
+  const items = await api('GET', `/precios/${id}/items`);
+  const ref = prompt(`Items en ${nombre} (ref|precio — uno por línea):\n\nActuales:\n${(items||[]).map(i=>i.producto_ref+'|'+i.precio).join('\n')}\n\nIngresa nuevos (vacío para cancelar):`);
+  if (!ref) return;
+  for (const linea of ref.split('\n').filter(l=>l.trim())) {
+    const [r, p] = linea.split('|');
+    if (r && p) await api('POST', `/precios/${id}/items`, { producto_ref: r.trim(), precio: parseFloat(p) });
+  }
+  alert('Items actualizados');
+}
+
+// ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
+async function loadConfig() {
+  loadMonedas(); loadMetodos(); loadLimitesDesc(); loadUsuarios();
+  loadNcCondiciones();
+}
+
+async function loadMonedas() {
+  const rows = await api('GET', '/config/monedas') || [];
+  document.getElementById('lista-monedas').innerHTML = rows.map(m =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem">
+      <span>${m.simbolo} <strong>${m.codigo}</strong> — ${m.nombre}</span>
+      <span style="color:${m.activa?'var(--success)':'var(--danger)'};">${m.activa?'✓ activa':'✗ inactiva'}</span>
+      <button class="btn btn-sm btn-outline" onclick="api('PUT','/config/monedas/${m.codigo}/toggle').then(loadMonedas)">Toggle</button>
+    </div>`
+  ).join('');
+}
+
+async function crearMoneda() {
+  await api('POST', '/config/monedas', {
+    codigo: document.getElementById('mc-cod').value.trim().toUpperCase(),
+    nombre: document.getElementById('mc-nom').value.trim(),
+    simbolo: document.getElementById('mc-sim').value.trim(),
+  });
+  loadMonedas();
+}
+
+async function loadMetodos() {
+  const rows = await api('GET', '/config/metodos-pago') || [];
+  document.getElementById('lista-metodos').innerHTML = rows.map(m =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem">
+      <strong>${m.nombre}</strong> <span style="color:var(--muted)">${m.monedas_permitidas}</span>
+      <button class="btn btn-sm btn-outline" onclick="api('PUT','/config/metodos-pago/${m.id}/toggle').then(loadMetodos)">${m.activo?'Desactivar':'Activar'}</button>
+    </div>`
+  ).join('');
+}
+
+async function crearMetodo() {
+  await api('POST', '/config/metodos-pago', {
+    nombre: document.getElementById('mp-nom').value.trim(),
+    monedas_permitidas: document.getElementById('mp-mon').value.trim(),
+  });
+  loadMetodos();
+}
+
+async function loadLimitesDesc() {
+  const rows = await api('GET', '/notas-credito/limites-descuento') || [];
+  document.getElementById('lista-limites').innerHTML = rows.map(l =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem">
+      <span>${l.tipo}: <strong>${l.referencia}</strong> → max ${l.limite_pct}%</span>
+      <button class="btn btn-sm btn-danger" onclick="eliminarLimite(${l.id})">✕</button>
+    </div>`
+  ).join('');
+}
+
+async function crearLimite() {
+  await api('POST', '/notas-credito/limites-descuento', {
+    tipo: document.getElementById('ld-tipo').value,
+    referencia: document.getElementById('ld-ref').value.trim(),
+    limite_pct: parseFloat(document.getElementById('ld-pct').value),
+  });
+  loadLimitesDesc();
+}
+
+async function eliminarLimite(id) {
+  if (!confirm('¿Eliminar este límite?')) return;
+  await api('DELETE', `/notas-credito/limites-descuento/${id}`);
+  loadLimitesDesc();
+}
+
+async function loadUsuarios() {
+  const rows = await api('GET', '/auth/usuarios') || [];
+  document.getElementById('lista-usuarios').innerHTML = rows.map(u =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem">
+      <strong>${u.nombre}</strong> <span style="color:var(--muted)">${u.email}</span>
+      <span class="badge b-${u.rol==='admin'?'aprobada':u.rol==='gerente'?'enviada':'propuesto'}">${u.rol}</span>
+      ${u.activo ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--danger)">✗</span>'}
+    </div>`
+  ).join('');
+}
+
+async function crearUsuario() {
+  await api('POST', '/auth/usuarios', {
+    nombre: document.getElementById('nu-nom').value,
+    email: document.getElementById('nu-email').value,
+    password: document.getElementById('nu-pass').value,
+    rol: document.getElementById('nu-rol').value,
+  });
+  loadUsuarios();
+}
+
+// ── PAGOS ODOO ────────────────────────────────────────────────────────────────
+async function loadPagosOdoo() {
+  const tb = document.getElementById('tb-pagos-odoo');
+  tb.innerHTML = '<tr><td colspan="8" class="loader">Consultando Odoo...</td></tr>';
+  try {
+    const r = await api('GET', '/odoo/pagos-clientes');
+    const res = document.getElementById('pagos-odoo-resumen');
+    res.innerHTML = `<div class="alert alert-info">
+      Total en Odoo: <strong>${r.total_odoo}</strong> pagos ·
+      Nuevos (no importados): <strong>${r.nuevos}</strong>
+    </div>`;
+    const pagos = r.pagos || [];
+    if (!pagos.length) {
+      tb.innerHTML = '<tr><td colspan="8" class="loader">No hay pagos nuevos para importar</td></tr>';
+      return;
+    }
+    tb.innerHTML = pagos.map(p => {
+      // Estado legible
+      const estadoLabel = {
+        'in_process': 'En proceso', 'paid': 'Pagado'
+      }[p.state] || p.state;
+      const estadoClass = p.state === 'paid' ? 'aprobada' : 'enviada';
+
+      // Conciliación
+      const conciliadoBadge = p.conciliado
+        ? '<span class="badge b-aprobada">✔ Sí</span>'
+        : '<span class="badge b-pendiente">No</span>';
+
+      // Facturas asociadas
+      const facturas = (p.facturas_asociadas||[]).map(f => {
+        const label = f.name || `ID:${f.id}`;
+        const origen = f.invoice_origin ? ` (${f.invoice_origin})` : '';
+        return `<span class="badge b-aprobada" title="Orden: ${f.invoice_origin||'—'}">${label}${origen}</span>`;
+      }).join(' ') || (p.conciliado ? '<span style="color:var(--muted);font-size:.8rem">Ver en Odoo</span>' : '—');
+
+      return `<tr>
+        <td>${p.id}</td>
+        <td>${p.partner_id?.[1]||'—'}</td>
+        <td><strong>${fmtNum(p.amount||0, 2)}</strong> ${p.currency_id?.[1]||''}</td>
+        <td>${(p.date||'').substring(0,10)}</td>
+        <td><span class="badge b-${estadoClass}">${estadoLabel}</span></td>
+        <td>${conciliadoBadge}</td>
+        <td style="max-width:220px;white-space:normal">${facturas}</td>
+        <td>
+          <button class="btn btn-sm btn-success" onclick="importarPagoOdoo(${p.id},'${(p.partner_id?.[1]||'').replace(/'/g,"\\'")}')">
+            Importar
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="8" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+async function importarPagoOdoo(odooPaymentId, clienteNombre) {
+  const orden = prompt(`Importar pago de "${clienteNombre}"\n\nAsociar a orden (ej: S00025) — dejar vacío si no aplica:`);
+  if (orden === null) return; // canceló
+  try {
+    const url = `/odoo/pagos-clientes/${odooPaymentId}/importar` +
+                (orden.trim() ? `?odoo_order_name=${encodeURIComponent(orden.trim())}` : '');
+    const r = await api('POST', url);
+    alert(r.mensaje);
+    loadPagosOdoo();
+  } catch(e) { alert(e.message); }
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────────────────────────
+function showModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAESTRO DE OPERACIONES
+// ══════════════════════════════════════════════════════════════════════════════
+let _maestroData = [];
+let _maestroCats = [];
+let _maestroTab = 'lista';
+
+async function initMaestroView() {
+  // Setear rango por defecto: mes actual
+  const hoy   = new Date();
+  const desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+  const hasta = hoy.toISOString().split('T')[0];
+  document.getElementById('mf-desde').value = desde;
+  document.getElementById('mf-hasta').value = hasta;
+  document.getElementById('imp-desde').value = desde;
+  document.getElementById('imp-hasta').value = hasta;
+  await loadMaestroCategorias();
+  loadMaestro();
+}
+
+async function loadMaestro() {
+  const desde = document.getElementById('mf-desde').value;
+  const hasta  = document.getElementById('mf-hasta').value;
+  const tipo   = document.getElementById('mf-tipo').value;
+  const cat    = document.getElementById('mf-cat').value;
+  const moneda = document.getElementById('mf-moneda').value;
+
+  let qs = [];
+  if (desde)  qs.push(`fecha_desde=${desde}`);
+  if (hasta)  qs.push(`fecha_hasta=${hasta}`);
+  if (tipo)   qs.push(`tipo=${tipo}`);
+  if (cat)    qs.push(`categoria=${encodeURIComponent(cat)}`);
+  if (moneda) qs.push(`moneda=${moneda}`);
+  qs.push('limit=500');
+
+  const rows = await api('GET', `/maestro?${qs.join('&')}`) || [];
+  _maestroData = rows;
+  renderMaestroLista(rows);
+
+  // KPIs: resumen del período
+  const rqs = [];
+  if (desde) rqs.push(`fecha_desde=${desde}`);
+  if (hasta) rqs.push(`fecha_hasta=${hasta}`);
+  const res = await api('GET', `/maestro/reportes/resumen?${rqs.join('&')}&moneda=USD`);
+  if (res) {
+    document.getElementById('mk-ingresos').textContent = fmtNum(res.total_ingresos);
+    document.getElementById('mk-egresos').textContent  = fmtNum(res.total_egresos);
+    const saldo = res.saldo;
+    const el = document.getElementById('mk-saldo');
+    el.textContent = fmtNum(saldo);
+    el.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+    document.getElementById('mk-cant').textContent = rows.length;
+    renderMaestroResumen(res.detalle);
+  }
+
+  // Por día
+  const dqs = [];
+  if (desde) dqs.push(`fecha_desde=${desde}`);
+  if (hasta) dqs.push(`fecha_hasta=${hasta}`);
+  const dias = await api('GET', `/maestro/reportes/por-dia?${dqs.join('&')}`);
+  if (dias) renderMaestroDia(dias);
+}
+
+async function loadMaestroCategorias() {
+  _maestroCats = await api('GET', '/maestro/categorias') || [];
+  const sel = document.getElementById('mf-cat');
+  const cats = [...new Set(_maestroCats.map(c => c.categoria))];
+  sel.innerHTML = '<option value="">Todas</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function renderMaestroLista(rows) {
+  const tbody = document.getElementById('maestro-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="13" class="loader">Sin operaciones para el período</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const esIng  = r.tipo === 'ingreso';
+    const color  = esIng ? 'var(--success)' : 'var(--danger)';
+    const ico    = esIng ? '📥' : '📤';
+    const eqUsd  = r.monto_usd_bcv != null ? fmtNum(r.monto_usd_bcv) : '—';
+
+    const origenBadge = {
+      pago_sistema:        '<span class="badge b-recibido"  style="font-size:.7rem">Sistema</span>',
+      odoo_pago_proveedor: '<span class="badge b-enviada"   style="font-size:.7rem">Odoo↓</span>',
+      odoo_gasto:          '<span class="badge b-enviada"   style="font-size:.7rem">Odoo↓</span>',
+    }[r.origen] || '<span class="badge b-propuesto" style="font-size:.7rem">Manual</span>';
+
+    // Columna Odoo
+    const odooCol = r.odoo_payment_id
+      ? `<span style="color:var(--success);font-size:.85rem" title="ID Odoo: ${r.odoo_payment_id}">✓ #${r.odoo_payment_id}</span>`
+      : (r.tipo === 'egreso' && r.origen === 'manual'
+          ? `<button class="btn btn-sm btn-outline" style="font-size:.72rem;padding:2px 6px"
+               onclick="abrirEnviarEgresoOdoo(${r.id}, '${(r.descripcion||'').replace(/'/g,'')}')"
+               title="Enviar a Odoo">→ Odoo</button>`
+          : '<span style="color:var(--muted);font-size:.8rem">—</span>');
+
+    // Columna conciliación
+    const concCol = r.odoo_conciliado
+      ? '<span style="color:var(--success)" title="Conciliado en Odoo">✔ Sí</span>'
+      : (r.odoo_payment_id
+          ? '<span style="color:var(--warning);font-size:.8rem">Pendiente</span>'
+          : '<span style="color:var(--muted);font-size:.8rem">—</span>');
+
+    const canEdit = r.origen === 'manual';
+    return `<tr>
+      <td style="white-space:nowrap">${r.fecha}</td>
+      <td style="color:${color};font-weight:600;white-space:nowrap">${ico} ${r.tipo}</td>
+      <td style="white-space:nowrap">${r.categoria || '—'}</td>
+      <td style="font-size:.8rem;color:var(--muted)">${r.subcategoria || ''}</td>
+      <td style="font-size:.83rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${r.descripcion||''}">${r.descripcion || ''}</td>
+      <td><span class="badge b-sale">${r.moneda}</span></td>
+      <td style="text-align:right;font-weight:600;color:${color}">${fmtNum(r.monto)}</td>
+      <td style="text-align:right">${eqUsd}</td>
+      <td style="font-size:.8rem">${r.metodo || '—'}</td>
+      <td>${origenBadge}</td>
+      <td style="white-space:nowrap">${odooCol}</td>
+      <td style="white-space:nowrap">${concCol}</td>
+      <td>
+        ${canEdit ? `<button class="btn btn-sm btn-danger" onclick="eliminarOperacion(${r.id})" title="Eliminar">✕</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMaestroResumen(detalle) {
+  const ingresos = (detalle || []).filter(r => r.tipo === 'ingreso');
+  const egresos  = (detalle || []).filter(r => r.tipo === 'egreso');
+
+  const makeRows = items => items.map(r =>
+    `<tr>
+      <td>${r.categoria || '—'}</td>
+      <td style="font-size:.8rem;color:var(--muted)">${r.subcategoria || ''}</td>
+      <td style="text-align:right">${fmtNum(r.total || 0)}</td>
+      <td style="text-align:right;color:var(--muted)">${r.cant}</td>
+    </tr>`
+  ).join('');
+
+  document.getElementById('mresumen-ing').innerHTML = makeRows(ingresos);
+  document.getElementById('mresumen-egr').innerHTML = makeRows(egresos);
+
+  const totIng = ingresos.reduce((s, r) => s + (r.total || 0), 0);
+  const totEgr = egresos.reduce((s, r) => s + (r.total || 0), 0);
+  document.getElementById('mresumen-ing-total').textContent = fmtNum(totIng);
+  document.getElementById('mresumen-egr-total').textContent = fmtNum(totEgr);
+}
+
+function renderMaestroDia(dias) {
+  const tbody = document.getElementById('mdia-tbody');
+  if (!dias.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loader">Sin datos</td></tr>';
+    return;
+  }
+  tbody.innerHTML = dias.map(d => {
+    const saldo = (d.ingresos_usd || 0) - (d.egresos_usd || 0);
+    const sc = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+    return `<tr>
+      <td>${d.fecha}</td>
+      <td style="text-align:right;color:var(--success)">${fmtNum(d.ingresos_usd || 0)}</td>
+      <td style="text-align:right;color:var(--danger)">${fmtNum(d.egresos_usd || 0)}</td>
+      <td style="text-align:right;font-weight:600;color:${sc}">${fmtNum(saldo)}</td>
+      <td style="text-align:right">${d.cant}</td>
+    </tr>`;
+  }).join('');
+}
+
+function maestroTab(tab) {
+  _maestroTab = tab;
+  ['lista', 'resumen', 'dia'].forEach(t => {
+    document.getElementById(`mpanel-${t}`).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById(`mtab-${t}`);
+    btn.style.background = t === tab ? 'var(--primary)' : '#e9ecef';
+    btn.style.color       = t === tab ? '#fff' : '#495057';
+  });
+}
+
+// ── Modal nueva operación ──────────────────────────────────────────────────
+
+function actualizarCatsModal() {
+  const tipo = document.getElementById('mo-tipo').value;
+  const sel  = document.getElementById('mo-cat');
+  const cats = [...new Set(
+    _maestroCats.filter(c => c.tipo === tipo || c.tipo === 'ambos').map(c => c.categoria)
+  )];
+  sel.innerHTML = '<option value="">— seleccionar —</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  actualizarSubcatsModal();
+  actualizarSeccionOdooModal();
+}
+
+function actualizarJournalPorCategoria() {
+  // Pre-seleccionar diario Odoo según categoría si tiene mapeo
+  const tipo = document.getElementById('mo-tipo').value;
+  const cat  = document.getElementById('mo-cat').value;
+  const match = _maestroCats.find(c =>
+    (c.tipo === tipo || c.tipo === 'ambos') && c.categoria === cat && c.odoo_journal_id
+  );
+  if (match && match.odoo_journal_id) {
+    const jrnSel = document.getElementById('mo-journal');
+    if (jrnSel) {
+      for (const opt of jrnSel.options) {
+        if (parseInt(opt.value) === match.odoo_journal_id) {
+          jrnSel.value = opt.value;
+          break;
+        }
+      }
+    }
+  }
+}
+
+function actualizarSubcatsModal() {
+  const tipo = document.getElementById('mo-tipo').value;
+  const cat  = document.getElementById('mo-cat').value;
+  const sel  = document.getElementById('mo-subcat');
+  const subs = _maestroCats
+    .filter(c => (c.tipo === tipo || c.tipo === 'ambos') && c.categoria === cat && c.subcategoria)
+    .map(c => c.subcategoria);
+  sel.innerHTML = '<option value="">— ninguna —</option>' +
+    subs.map(s => `<option value="${s}">${s}</option>`).join('');
+  actualizarJournalPorCategoria();
+}
+
+async function abrirNuevaOperacion() {
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('mo-fecha').value = hoy;
+  document.getElementById('mo-tipo').value  = 'egreso';   // default egreso
+  document.getElementById('mo-monto').value = '';
+  document.getElementById('mo-nrodoc').value = '';
+  document.getElementById('mo-desc').value = '';
+  document.getElementById('mo-tasa-bcv').value = '';
+  document.getElementById('mo-tasa-real').value = '';
+  document.getElementById('mo-result').innerHTML = '';
+  document.getElementById('mo-proveedor-q').value = '';
+  document.getElementById('mo-partner-id').value = '';
+  document.getElementById('mo-proveedor-drop').style.display = 'none';
+  actualizarCatsModal();    // también llama actualizarSeccionOdooModal
+  showModal('modal-nueva-operacion');
+}
+
+async function guardarOperacion() {
+  const tipo   = document.getElementById('mo-tipo').value;
+  const monto  = parseFloat(document.getElementById('mo-monto').value) || 0;
+  const jrnSel = document.getElementById('mo-journal');
+  const journalId = jrnSel && tipo === 'egreso' ? (parseInt(jrnSel.value) || null) : null;
+  const partnerId = parseInt(document.getElementById('mo-partner-id').value) || null;
+
+  const jrnNombreEl = document.getElementById('mo-journal-nombre');
+  const body = {
+    fecha:          document.getElementById('mo-fecha').value,
+    tipo,
+    monto,
+    moneda:         document.getElementById('mo-moneda').value,
+    categoria:      document.getElementById('mo-cat').value,
+    subcategoria:   document.getElementById('mo-subcat').value || null,
+    metodo:         document.getElementById('mo-metodo').value || null,
+    nro_documento:  document.getElementById('mo-nrodoc').value.trim() || null,
+    descripcion:    document.getElementById('mo-desc').value.trim() || null,
+    tasa_bcv:       parseFloat(document.getElementById('mo-tasa-bcv').value) || null,
+    tasa_real:      parseFloat(document.getElementById('mo-tasa-real').value) || null,
+    journal_nombre: jrnNombreEl ? jrnNombreEl.value.trim() || null : null,
+  };
+  if (!body.monto || !body.tipo) {
+    document.getElementById('mo-result').innerHTML =
+      '<div class="alert alert-danger">Monto y tipo son requeridos.</div>';
+    return;
+  }
+
+  // 1) Guardar localmente
+  const res = await api('POST', '/maestro', body);
+  if (!res) return;
+
+  // 2) Si egreso con journal → enviar a Odoo inmediatamente
+  if (tipo === 'egreso' && journalId) {
+    document.getElementById('mo-result').innerHTML =
+      '<div class="alert alert-info">Enviando a Odoo...</div>';
+    const odooBody = { journal_id: journalId };
+    if (partnerId) odooBody.partner_id = partnerId;
+    const odooRes = await api('POST', `/maestro/${res.id}/enviar-odoo`, odooBody);
+    if (odooRes) {
+      document.getElementById('mo-result').innerHTML =
+        `<div class="alert alert-success">✓ Registrado y enviado a Odoo (ID: ${odooRes.odoo_payment_id})</div>`;
+    } else {
+      document.getElementById('mo-result').innerHTML =
+        '<div class="alert alert-warning">⚠ Registrado localmente. Fallo envío a Odoo — usa el botón → Odoo en la tabla.</div>';
+    }
+  } else {
+    document.getElementById('mo-result').innerHTML =
+      '<div class="alert alert-success">✓ Operación registrada</div>';
+  }
+
+  setTimeout(() => { closeModal('modal-nueva-operacion'); loadMaestro(); }, 1200);
+}
+
+async function eliminarOperacion(id) {
+  if (!confirm('¿Eliminar esta operación?')) return;
+  await api('DELETE', `/maestro/${id}`);
+  loadMaestro();
+}
+
+// ── Importar pagos de proveedor Odoo ─────────────────────────────────────────
+
+async function importarPagosProveedor() {
+  const desde = document.getElementById('imp-desde').value;
+  const hasta  = document.getElementById('imp-hasta').value;
+  document.getElementById('imp-result').innerHTML =
+    '<div class="alert alert-info">Consultando Odoo...</div>';
+  const res = await api('POST', '/maestro/importar-pagos-proveedor',
+    { fecha_desde: desde, fecha_hasta: hasta });
+  if (res) {
+    document.getElementById('imp-result').innerHTML =
+      `<div class="alert alert-success">✓ ${res.mensaje}</div>`;
+    setTimeout(() => {
+      closeModal('modal-importar-pagos-proveedor');
+      loadMaestro();
+    }, 1200);
+  }
+}
+
+// ── Enviar egreso a Odoo ──────────────────────────────────────────────────────
+
+let _journals_cache = null;
+
+async function _loadJournals() {
+  if (_journals_cache) return _journals_cache;
+  try {
+    _journals_cache = await api('GET', '/maestro/journals-odoo') || [];
+  } catch (e) {
+    _journals_cache = [];
+  }
+  return _journals_cache;
+}
+
+function _fillJournalSelect(selId) {
+  return _loadJournals().then(journals => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const first = sel.options[0]?.value === '' ? sel.options[0].outerHTML : '';
+    sel.innerHTML = first +
+      journals.map(j => `<option value="${j.id}">${j.name} (${j.type})</option>`).join('');
+  });
+}
+
+async function abrirEnviarEgresoOdoo(opId, desc) {
+  document.getElementById('eeo-op-id').value = opId;
+  document.getElementById('eeo-desc').textContent = desc || `Operación #${opId}`;
+  document.getElementById('eeo-result').innerHTML = '';
+  document.getElementById('eeo-proveedor-q').value = '';
+  document.getElementById('eeo-partner-id').value = '';
+  document.getElementById('eeo-proveedor-drop').style.display = 'none';
+  await _fillJournalSelect('eeo-journal');
+  showModal('modal-enviar-egreso-odoo');
+}
+
+async function confirmarEnviarEgresoOdoo() {
+  const opId     = document.getElementById('eeo-op-id').value;
+  const jid      = document.getElementById('eeo-journal').value;
+  const partnerId = document.getElementById('eeo-partner-id').value;
+  if (!jid) {
+    document.getElementById('eeo-result').innerHTML =
+      '<div class="alert alert-danger">Selecciona un diario.</div>';
+    return;
+  }
+  const body = { journal_id: parseInt(jid) };
+  if (partnerId) body.partner_id = parseInt(partnerId);
+  const res = await api('POST', `/maestro/${opId}/enviar-odoo`, body);
+  if (res) {
+    document.getElementById('eeo-result').innerHTML =
+      `<div class="alert alert-success">✓ ${res.mensaje} (Odoo ID: ${res.odoo_payment_id})</div>`;
+    setTimeout(() => { closeModal('modal-enviar-egreso-odoo'); loadMaestro(); }, 1000);
+  }
+}
+
+async function buscarProveedorEEO() {
+  const q = document.getElementById('eeo-proveedor-q').value.trim();
+  const drop = document.getElementById('eeo-proveedor-drop');
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  const res = await api('GET', `/maestro/buscar-proveedores?q=${encodeURIComponent(q)}`);
+  if (!res || !res.length) { drop.style.display = 'none'; return; }
+  drop.style.display = 'block';
+  drop.innerHTML = res.map(p =>
+    `<div style="padding:8px 12px;cursor:pointer;font-size:.85rem;border-bottom:1px solid #eee"
+          onclick="selProveedorEEO(${p.id},'${p.name.replace(/'/g,'')}')"
+          onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+      <strong>${p.name}</strong>
+     </div>`
+  ).join('');
+}
+
+function selProveedorEEO(id, nombre) {
+  document.getElementById('eeo-partner-id').value = id;
+  document.getElementById('eeo-proveedor-q').value = nombre;
+  document.getElementById('eeo-proveedor-drop').style.display = 'none';
+}
+
+async function buscarProveedorModal() {
+  const q = document.getElementById('mo-proveedor-q').value.trim();
+  const drop = document.getElementById('mo-proveedor-drop');
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  const res = await api('GET', `/maestro/buscar-proveedores?q=${encodeURIComponent(q)}`);
+  if (!res || !res.length) { drop.style.display = 'none'; return; }
+  drop.style.display = 'block';
+  drop.innerHTML = res.map(p =>
+    `<div style="padding:8px 12px;cursor:pointer;font-size:.85rem;border-bottom:1px solid #eee"
+          onclick="selProveedorModal(${p.id},'${p.name.replace(/'/g,'')}')"
+          onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+      <strong>${p.name}</strong>
+     </div>`
+  ).join('');
+}
+
+function selProveedorModal(id, nombre) {
+  document.getElementById('mo-partner-id').value = id;
+  document.getElementById('mo-proveedor-q').value = nombre;
+  document.getElementById('mo-proveedor-drop').style.display = 'none';
+}
+
+// ── Sync conciliación ─────────────────────────────────────────────────────────
+
+async function syncConciliacion(btn) {
+  btn.disabled = true;
+  btn.textContent = '⟳ Sincronizando...';
+  try {
+    const res = await api('POST', '/maestro/sync-conciliacion');
+    if (res) {
+      btn.textContent = `✓ ${res.actualizados} actualizados`;
+      loadMaestro();
+      setTimeout(() => { btn.textContent = '⟳ Conciliación'; btn.disabled = false; }, 3000);
+    } else {
+      btn.textContent = '⟳ Conciliación'; btn.disabled = false;
+    }
+  } catch (e) {
+    btn.textContent = '⟳ Conciliación'; btn.disabled = false;
+  }
+}
+
+// ── Mapeo categorías → cuentas Odoo ──────────────────────────────────────────
+
+let _cuentasOdoo = [];
+let _journalsCache = [];
+
+async function abrirMapeoCats() {
+  showModal('modal-mapeo-cats');
+  document.getElementById('mapeo-cats-content').innerHTML =
+    '<div class="loader">Cargando categorías y cuentas Odoo...</div>';
+  const [cats, cuentas, journals] = await Promise.all([
+    api('GET', '/maestro/categorias'),
+    api('GET', '/maestro/cuentas-odoo').catch(() => []),
+    api('GET', '/maestro/journals-odoo').catch(() => []),
+  ]);
+  _cuentasOdoo   = cuentas || [];
+  _journalsCache = journals || [];
+  renderMapeoCats(cats || []);
+}
+
+function renderMapeoCats(cats) {
+  const cuentasOpts = '<option value="">— ninguna —</option>' +
+    _cuentasOdoo.map(c => `<option value="${c.id}" data-code="${c.code}">${c.code} - ${c.name}</option>`).join('');
+  const journalsOpts = '<option value="">— ninguno —</option>' +
+    _journalsCache.map(j => `<option value="${j.id}">${j.name}</option>`).join('');
+
+  // Agrupar por tipo
+  const grupos = {};
+  cats.forEach(c => {
+    const k = c.tipo;
+    if (!grupos[k]) grupos[k] = [];
+    grupos[k].push(c);
+  });
+
+  let html = '<div style="max-height:60vh;overflow-y:auto">';
+  for (const [tipo, items] of Object.entries(grupos)) {
+    const tColor = tipo === 'ingreso' ? 'var(--success)' : 'var(--danger)';
+    html += `<h4 style="color:${tColor};margin:12px 0 6px;text-transform:capitalize">${tipo}s</h4>
+      <table style="width:100%;font-size:.83rem;margin-bottom:8px">
+        <thead><tr>
+          <th>Categoría</th><th>Subcategoría</th>
+          <th>Cuenta Odoo</th><th>Diario Odoo</th><th></th>
+        </tr></thead><tbody>`;
+    items.forEach(c => {
+      html += `<tr id="mcat-row-${c.id}">
+        <td>${c.categoria}</td>
+        <td style="color:var(--muted)">${c.subcategoria || ''}</td>
+        <td>
+          <select id="mcat-acc-${c.id}" style="width:100%;font-size:.8rem;padding:3px 6px;border:1px solid var(--border);border-radius:4px">
+            ${cuentasOpts.replace(`value="${c.odoo_account_id}"`,
+              `value="${c.odoo_account_id}" selected`)}
+          </select>
+        </td>
+        <td>
+          <select id="mcat-jrn-${c.id}" style="width:100%;font-size:.8rem;padding:3px 6px;border:1px solid var(--border);border-radius:4px">
+            ${journalsOpts.replace(`value="${c.odoo_journal_id}"`,
+              `value="${c.odoo_journal_id}" selected`)}
+          </select>
+        </td>
+        <td>
+          <button class="btn btn-sm btn-primary" style="font-size:.75rem;padding:3px 8px"
+                  onclick="guardarMapeoCat(${c.id})">✓</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  document.getElementById('mapeo-cats-content').innerHTML = html;
+}
+
+async function guardarMapeoCat(catId) {
+  const accSel = document.getElementById(`mcat-acc-${catId}`);
+  const jrnSel = document.getElementById(`mcat-jrn-${catId}`);
+  const accId   = accSel.value ? parseInt(accSel.value) : null;
+  const accCode = accSel.selectedOptions[0]?.dataset.code || null;
+  const jrnId   = jrnSel.value ? parseInt(jrnSel.value)  : null;
+  const res = await api('PUT', `/maestro/categorias/${catId}`, {
+    odoo_account_id:   accId,
+    odoo_account_code: accCode,
+    odoo_journal_id:   jrnId,
+  });
+  if (res) {
+    const row = document.getElementById(`mcat-row-${catId}`);
+    if (row) {
+      row.style.background = '#d1e7dd';
+      setTimeout(() => row.style.background = '', 1500);
+    }
+  }
+}
+
+// ── Mostrar/ocultar sección Odoo en modal nueva operación ─────────────────────
+
+function actualizarSeccionOdooModal() {
+  const tipo = document.getElementById('mo-tipo').value;
+  const sec  = document.getElementById('mo-odoo-section');
+  if (!sec) return;
+  if (tipo === 'egreso') {
+    sec.style.display = '';
+    if (!document.getElementById('mo-journal').options.length ||
+        document.getElementById('mo-journal').options[0].value === '' &&
+        document.getElementById('mo-journal').options.length === 1) {
+      _fillJournalSelect('mo-journal');
+    }
+  } else {
+    sec.style.display = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── PAGOS PROVEEDORES ODOO ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function loadPagosProveedores() {
+  const tb = document.getElementById('tb-pagos-prov');
+  tb.innerHTML = '<tr><td colspan="9" class="loader">Consultando Odoo...</td></tr>';
+  const desde = document.getElementById('pp-desde').value;
+  const hasta  = document.getElementById('pp-hasta').value;
+  let url = '/odoo/pagos-proveedores';
+  const params = [];
+  if (desde) params.push(`fecha_desde=${desde}`);
+  if (hasta) params.push(`fecha_hasta=${hasta}`);
+  if (params.length) url += '?' + params.join('&');
+  try {
+    const r = await api('GET', url);
+    document.getElementById('pagos-prov-resumen').innerHTML = `
+      <div class="alert alert-info">Total en Odoo: <strong>${r.total_odoo}</strong> pagos ·
+      Nuevos (no importados): <strong>${r.nuevos}</strong></div>`;
+    if (!r.pagos?.length) {
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Sin pagos nuevos de Odoo en el periodo</td></tr>';
+      return;
+    }
+    tb.innerHTML = r.pagos.map(p => {
+      const estado = p.state === 'paid' ? '<span class="badge b-aprobada">Pagado</span>'
+                   : p.state === 'in_process' ? '<span class="badge b-enviada">En proceso</span>'
+                   : `<span class="badge b-pendiente">${p.state}</span>`;
+      const moneda = p.currency_id?.[1] || 'USD';
+      const diario = p.journal_id?.[1] || '—';
+      const proveedor = p.partner_id?.[1] || '—';
+      return `<tr>
+        <td>${p.id}</td>
+        <td>${proveedor}</td>
+        <td><strong>${fmtNum(p.amount, 2)}</strong></td>
+        <td>${moneda}</td>
+        <td>${(p.date||'').substring(0,10)}</td>
+        <td style="font-size:.82rem">${diario}</td>
+        <td>${estado}</td>
+        <td style="font-size:.78rem;color:var(--muted)">${p.memo||p.ref||'—'}</td>
+        <td><button class="btn btn-sm btn-success" onclick="importarPagoProveedor(${p.id},this)">Importar</button></td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="9" class="loader">${e.message}</td></tr>`;
+  }
+}
+
+async function importarPagoProveedor(odooId, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await api('POST', `/odoo/pagos-proveedores/${odooId}/importar`);
+    btn.closest('tr').style.background = '#d1e7dd';
+    btn.textContent = '✓';
+    setTimeout(() => loadPagosProveedores(), 1500);
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Importar';
+    alert(e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── CRM COBRANZA ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function loadCobranza() {
+  await Promise.all([loadGestiones(), loadAgendaCRM(), loadPrioridadesCRM()]);
+}
+
+async function loadGestiones() {
+  const tb = document.getElementById('tb-cobranza');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="9" class="loader">Cargando...</td></tr>';
+  const desde = document.getElementById('crm-desde').value;
+  const hasta  = document.getElementById('crm-hasta').value;
+  let url = '/cobranza/gestiones';
+  const params = [];
+  if (desde) params.push(`desde=${desde}`);
+  if (hasta) params.push(`hasta=${hasta}`);
+  if (params.length) url += '?' + params.join('&');
+  try {
+    const rows = await api('GET', url) || [];
+    const hoy = new Date().toISOString().split('T')[0];
+    // KPI: gestiones hoy
+    document.getElementById('crm-k-hoy').textContent =
+      rows.filter(r => r.fecha_gestion === hoy).length;
+    document.getElementById('crm-k-promesas').textContent =
+      rows.filter(r => r.resultado === 'promesa_pago' && r.fecha_promesa >= hoy).length;
+    document.getElementById('crm-k-incumplidas').textContent =
+      rows.filter(r => r.resultado === 'promesa_pago' && r.fecha_promesa && r.fecha_promesa < hoy).length;
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Sin gestiones registradas</td></tr>';
+      return;
+    }
+    const tipoIco = {llamada:'📞', whatsapp:'💬', email:'📧', visita:'🏢', otro:'📝'};
+    const resIco  = {contactado:'✅', no_contesto:'📵', buzon:'📬', promesa_pago:'🤝', pago_realizado:'💰'};
+    tb.innerHTML = rows.map(r => `<tr>
+      <td style="font-size:.82rem">${r.fecha_gestion}</td>
+      <td>${r.cliente_nombre||r.cliente_id}</td>
+      <td>${tipoIco[r.tipo_contacto]||''} ${r.tipo_contacto}</td>
+      <td>${resIco[r.resultado]||''} ${r.resultado.replace('_',' ')}</td>
+      <td style="font-size:.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.comentarios||''}">${r.comentarios||'—'}</td>
+      <td style="font-size:.82rem">${r.monto_prometido ? '$'+fmtNum(r.monto_prometido,2)+' '+r.fecha_promesa : '—'}</td>
+      <td style="font-size:.82rem">${r.proxima_accion ? r.proxima_accion+'<br><small>'+r.fecha_proxima+'</small>' : '—'}</td>
+      <td style="font-size:.82rem">${r.ejecutivo_nombre||'—'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="eliminarGestion(${r.id},this)" style="font-size:.7rem;padding:2px 6px">×</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="9" class="loader">${e.message}</td></tr>`;
+  }
+}
+
+async function loadAgendaCRM() {
+  const div = document.getElementById('crm-agenda');
+  if (!div) return;
+  const rows = await api('GET', '/cobranza/agenda') || [];
+  document.getElementById('crm-k-agenda').textContent = rows.length;
+  if (!rows.length) { div.innerHTML = '<p style="color:var(--muted)">Sin acciones pendientes.</p>'; return; }
+  div.innerHTML = rows.slice(0,8).map(r => `
+    <div style="padding:8px;border-left:3px solid var(--warning);margin-bottom:6px;background:#fffdf0;border-radius:0 6px 6px 0">
+      <strong>${r.cliente_nombre||r.cliente_id}</strong>
+      <span style="float:right;font-size:.78rem;color:var(--muted)">${r.fecha_proxima}</span><br>
+      <span style="font-size:.8rem">${r.proxima_accion||'—'}</span>
+      ${r.orden_name ? `<span class="badge b-enviada" style="font-size:.7rem">${r.orden_name}</span>` : ''}
+    </div>`).join('');
+}
+
+async function loadPrioridadesCRM() {
+  const div = document.getElementById('crm-prioridades');
+  if (!div) return;
+  const stats = await api('GET', '/cobranza/prioridades') || [];
+  if (!stats.length) { div.innerHTML = '<p style="color:var(--muted)">Sin datos de gestión.</p>'; return; }
+  div.innerHTML = stats.slice(0,8).map(s => {
+    const score = (s.sin_respuesta||0)*5 + (s.promesas_incumplidas||0)*10;
+    const color = score >= 20 ? 'var(--danger)' : score >= 10 ? 'var(--warning)' : 'var(--success)';
+    return `<div style="padding:8px;border-left:3px solid ${color};margin-bottom:6px;background:#f8f9fa;border-radius:0 6px 6px 0">
+      <strong>${s.cliente_nombre||s.cliente_id}</strong>
+      <span style="float:right;font-size:.78rem;color:${color};font-weight:600">Score: ${score}</span><br>
+      <span style="font-size:.78rem;color:var(--muted)">
+        ${s.total_gestiones} gestiones · ${s.sin_respuesta} sin respuesta · ${s.promesas_incumplidas} promesas incumplidas
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function abrirModalGestion(clienteId = '', clienteNombre = '', ordenName = '') {
+  document.getElementById('gest-cliente-id').value = clienteId;
+  document.getElementById('gest-cliente-q').value = clienteNombre;
+  document.getElementById('gest-orden').value = ordenName;
+  document.getElementById('gest-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('gest-resultado').value = 'contactado';
+  document.getElementById('gest-comentarios').value = '';
+  document.getElementById('gest-promesa-row').style.display = 'none';
+  document.getElementById('gest-fecha-prom-row').style.display = 'none';
+  showModal('modal-nueva-gestion');
+}
+
+document.addEventListener('change', e => {
+  if (e.target?.id === 'gest-resultado') {
+    const esProm = e.target.value === 'promesa_pago';
+    document.getElementById('gest-promesa-row').style.display = esProm ? '' : 'none';
+    document.getElementById('gest-fecha-prom-row').style.display = esProm ? '' : 'none';
+  }
+});
+
+async function buscarClienteGestion(q) {
+  const div = document.getElementById('gest-cliente-sugg');
+  if (q.length < 2) { div.innerHTML=''; return; }
+  const res = await api('GET', `/odoo/clientes/buscar?q=${encodeURIComponent(q)}`);
+  if (!res?.length) { div.innerHTML=''; return; }
+  div.innerHTML = res.slice(0,5).map(c =>
+    `<span style="cursor:pointer;padding:2px 8px;display:inline-block;background:#e9ecef;border-radius:4px;margin:2px;font-size:.82rem"
+      onclick="selClienteGestion(${c.id},'${c.name.replace(/'/g,'')}')">
+      ${c.name}</span>`
+  ).join('');
+}
+
+function selClienteGestion(id, nombre) {
+  document.getElementById('gest-cliente-id').value = id;
+  document.getElementById('gest-cliente-q').value = nombre;
+  document.getElementById('gest-cliente-sugg').innerHTML = '';
+}
+
+async function guardarGestion() {
+  const body = {
+    cliente_id: parseInt(document.getElementById('gest-cliente-id').value),
+    cliente_nombre: document.getElementById('gest-cliente-q').value,
+    orden_name: document.getElementById('gest-orden').value||null,
+    fecha_gestion: document.getElementById('gest-fecha').value,
+    tipo_contacto: document.getElementById('gest-tipo').value,
+    resultado: document.getElementById('gest-resultado').value,
+    monto_prometido: parseFloat(document.getElementById('gest-monto-prom').value)||null,
+    fecha_promesa: document.getElementById('gest-fecha-prom').value||null,
+    comentarios: document.getElementById('gest-comentarios').value,
+    proxima_accion: document.getElementById('gest-proxima-acc').value,
+    fecha_proxima: document.getElementById('gest-fecha-prox').value||null,
+  };
+  if (!body.cliente_id) { alert('Selecciona un cliente'); return; }
+  try {
+    await api('POST', '/cobranza/gestiones', body);
+    closeModal('modal-nueva-gestion');
+    loadCobranza();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarGestion(id, btn) {
+  if (!confirm('¿Eliminar esta gestión?')) return;
+  btn.disabled = true;
+  try {
+    await api('DELETE', `/cobranza/gestiones/${id}`);
+    loadGestiones();
+  } catch(e) { btn.disabled=false; alert(e.message); }
+}
+
+// ── Plantillas CRM ──────────────────────────────────────────────────────────
+
+let _editPlantillaId = null;
+
+async function loadPlantillasCRM() {
+  const div = document.getElementById('tb-plantillas');
+  if (!div) return;
+  const rows = await api('GET', '/cobranza/plantillas') || [];
+  if (!rows.length) { div.innerHTML='<p style="color:var(--muted)">Sin plantillas.</p>'; return; }
+  const tipoLabel = {antes_vencimiento:'Antes de vencer', dia_vencimiento:'Día de vencimiento',
+                     despues_vencimiento:'Después de vencer', recordatorio:'Recordatorio periódico'};
+  div.innerHTML = `<table><thead><tr>
+    <th>Nombre</th><th>Tipo</th><th>Días</th><th>Canal</th><th>Activa</th><th>Acciones</th>
+  </tr></thead><tbody>` +
+  rows.map(p => `<tr>
+    <td>${p.nombre}</td>
+    <td style="font-size:.82rem">${tipoLabel[p.tipo]||p.tipo}</td>
+    <td style="text-align:center">${p.dias_relativos > 0 ? '+'+p.dias_relativos : p.dias_relativos}</td>
+    <td>${p.canal}</td>
+    <td>${p.activa ? '✅' : '❌'}</td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-sm btn-outline" onclick="editarPlantilla(${p.id})" style="font-size:.72rem;padding:2px 6px">✏</button>
+      <button class="btn btn-sm btn-outline" onclick="eliminarPlantilla(${p.id},this)" style="font-size:.72rem;padding:2px 6px;color:var(--danger)">×</button>
+    </td>
+  </tr>`).join('') + '</tbody></table>';
+}
+
+async function showNuevaPlatilla() {
+  _editPlantillaId = null;
+  const form = `<div class="form-row" style="margin-top:10px">
+    <div class="form-group"><label>Nombre</label><input id="plt-nombre"></div>
+    <div class="form-group"><label>Tipo</label>
+      <select id="plt-tipo">
+        <option value="antes_vencimiento">Antes de vencer</option>
+        <option value="dia_vencimiento">Día de vencimiento</option>
+        <option value="despues_vencimiento">Después de vencer</option>
+        <option value="recordatorio">Recordatorio periódico</option>
+      </select></div>
+    <div class="form-group"><label>Días (negativo=antes, 0=el día, positivo=después)</label>
+      <input id="plt-dias" type="number" value="0"></div>
+    <div class="form-group"><label>Canal</label>
+      <select id="plt-canal"><option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="ambos">Ambos</option></select></div>
+    <div class="form-group" style="grid-column:1/-1"><label>Mensaje</label>
+      <textarea id="plt-msg" rows="4" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-primary" onclick="guardarPlantilla()">Guardar</button>
+    <button class="btn btn-outline" onclick="loadPlantillasCRM()">Cancelar</button>
+  </div>`;
+  document.getElementById('tb-plantillas').innerHTML = form;
+}
+
+async function guardarPlantilla() {
+  const body = {
+    nombre: document.getElementById('plt-nombre').value,
+    tipo: document.getElementById('plt-tipo').value,
+    dias_relativos: parseInt(document.getElementById('plt-dias').value)||0,
+    canal: document.getElementById('plt-canal').value,
+    mensaje: document.getElementById('plt-msg').value,
+  };
+  if (!body.nombre || !body.mensaje) { alert('Nombre y mensaje requeridos'); return; }
+  try {
+    if (_editPlantillaId) {
+      await api('PUT', `/cobranza/plantillas/${_editPlantillaId}`, body);
+    } else {
+      await api('POST', '/cobranza/plantillas', body);
+    }
+    loadPlantillasCRM();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarPlantilla(id, btn) {
+  if (!confirm('¿Eliminar plantilla?')) return;
+  btn.disabled = true;
+  await api('DELETE', `/cobranza/plantillas/${id}`);
+  loadPlantillasCRM();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ACUERDOS DE PAGO ESPECIALES ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function loadAcuerdos() {
+  const tb = document.getElementById('tb-acuerdos');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="9" class="loader">Cargando...</td></tr>';
+  const estado = document.getElementById('ac-estado').value;
+  let url = '/acuerdos-pago';
+  if (estado) url += `?estado=${estado}`;
+  try {
+    const rows = await api('GET', url) || [];
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Sin acuerdos</td></tr>';
+      return;
+    }
+    const estadoColor = {activo:'b-enviada', cumplido:'b-aprobada', incumplido:'b-rechazada', cancelado:'b-pendiente'};
+    tb.innerHTML = rows.map(r => `<tr>
+      <td>${r.id}</td>
+      <td>${r.cliente_nombre||r.cliente_id}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descripcion}">${r.descripcion}</td>
+      <td><strong>$${fmtNum(r.monto_total,2)}</strong> ${r.moneda}</td>
+      <td style="font-size:.82rem">${r.periodicidad}</td>
+      <td style="font-size:.82rem">${r.fecha_inicio}</td>
+      <td style="font-size:.82rem">${r.fecha_vencimiento||'—'}</td>
+      <td><span class="badge ${estadoColor[r.estado]||''}">${r.estado}</span></td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="verAcuerdo(${r.id})" style="font-size:.75rem">Ver cuotas</button>
+        <button class="btn btn-sm btn-outline" onclick="eliminarAcuerdo(${r.id},this)" style="font-size:.72rem;padding:2px 6px;color:var(--danger)">×</button>
+      </td>
+    </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="9" class="loader">${e.message}</td></tr>`;
+  }
+}
+
+async function verAcuerdo(id) {
+  const r = await api('GET', `/acuerdos-pago/${id}`);
+  if (!r) return;
+  showModal('modal-detalle-acuerdo');
+  document.getElementById('ac-detalle-title').textContent = `Acuerdo #${r.id} — ${r.cliente_nombre}`;
+  document.getElementById('ac-detalle-info').innerHTML = `
+    <strong>${r.descripcion}</strong><br>
+    Monto total: <strong>$${fmtNum(r.monto_total,2)} ${r.moneda}</strong> ·
+    Inicio: ${r.fecha_inicio} · Vence: ${r.fecha_vencimiento||'—'} ·
+    Periodicidad: ${r.periodicidad} · Estado: <span class="badge">${r.estado}</span>`;
+  const estadoColor = {pendiente:'b-pendiente', pagado:'b-aprobada', parcial:'b-enviada', vencido:'b-rechazada'};
+  document.getElementById('tb-cuotas').innerHTML = (r.cuotas||[]).map(c => `<tr>
+    <td>${c.numero_cuota}</td>
+    <td>${c.fecha_vencimiento}</td>
+    <td>$${fmtNum(c.monto_esperado,2)}</td>
+    <td>$${fmtNum(c.monto_pagado||0,2)}</td>
+    <td><span class="badge ${estadoColor[c.estado]||''}">${c.estado}</span></td>
+    <td>${c.estado !== 'pagado' ? `<button class="btn btn-sm btn-success" onclick="pagarCuota(${r.id},${c.id})" style="font-size:.72rem;padding:2px 6px">Marcar pago</button>` : '✓'}</td>
+  </tr>`).join('');
+}
+
+async function pagarCuota(acuerdoId, cuotaId) {
+  const monto = prompt('Monto pagado (USD):');
+  if (!monto) return;
+  try {
+    await api('PUT', `/acuerdos-pago/${acuerdoId}/cuotas/${cuotaId}/pagar`, {monto_pagado: parseFloat(monto)});
+    verAcuerdo(acuerdoId);
+    loadAcuerdos();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarAcuerdo(id, btn) {
+  if (!confirm('¿Eliminar este acuerdo y sus cuotas?')) return;
+  btn.disabled = true;
+  try { await api('DELETE', `/acuerdos-pago/${id}`); loadAcuerdos(); }
+  catch(e) { btn.disabled=false; alert(e.message); }
+}
+
+async function buscarClienteAcuerdo(q) {
+  const div = document.getElementById('ac-cliente-sugg');
+  if (q.length < 2) { div.innerHTML=''; return; }
+  const res = await api('GET', `/odoo/clientes/buscar?q=${encodeURIComponent(q)}`);
+  if (!res?.length) { div.innerHTML=''; return; }
+  div.innerHTML = res.slice(0,5).map(c =>
+    `<span style="cursor:pointer;padding:2px 8px;display:inline-block;background:#e9ecef;border-radius:4px;margin:2px;font-size:.82rem"
+      onclick="selClienteAcuerdo(${c.id},'${c.name.replace(/'/g,'')}')">
+      ${c.name}</span>`
+  ).join('');
+}
+
+function selClienteAcuerdo(id, nombre) {
+  document.getElementById('ac-cliente-id').value = id;
+  document.getElementById('ac-cliente-q').value = nombre;
+  document.getElementById('ac-cliente-sugg').innerHTML = '';
+}
+
+function acActualizarPorc() { document.getElementById('ac-porc').value = 0; }
+function acActualizarMonto() { document.getElementById('ac-cuota').value = 0; }
+
+async function guardarAcuerdo() {
+  const ordenesRaw = document.getElementById('ac-ordenes').value;
+  const ordenes = ordenesRaw ? ordenesRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  const body = {
+    cliente_id: parseInt(document.getElementById('ac-cliente-id').value),
+    cliente_nombre: document.getElementById('ac-cliente-q').value,
+    descripcion: document.getElementById('ac-desc').value,
+    monto_total: parseFloat(document.getElementById('ac-monto').value)||0,
+    plazo_total_dias: parseInt(document.getElementById('ac-plazo').value)||90,
+    periodicidad: document.getElementById('ac-period').value,
+    monto_cuota: parseFloat(document.getElementById('ac-cuota').value)||0,
+    porcentaje_abono: parseFloat(document.getElementById('ac-porc').value)||0,
+    fecha_inicio: document.getElementById('ac-inicio').value,
+    ordenes_odoo: ordenes,
+    notas: document.getElementById('ac-notas').value,
+  };
+  if (!body.cliente_id || !body.descripcion || !body.monto_total || !body.fecha_inicio) {
+    alert('Completa: cliente, descripción, monto y fecha de inicio'); return;
+  }
+  try {
+    await api('POST', '/acuerdos-pago', body);
+    closeModal('modal-nuevo-acuerdo');
+    loadAcuerdos();
+  } catch(e) { alert(e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── SALDOS POR BANCO ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function abrirSaldosBanco() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const primerDia = hoy.substring(0,7) + '-01';
+  document.getElementById('sb-desde').value = primerDia;
+  document.getElementById('sb-hasta').value = hoy;
+  showModal('modal-saldos-banco');
+  loadSaldosBanco();
+}
+
+async function loadSaldosBanco() {
+  const div = document.getElementById('tb-saldos-banco');
+  const desde = document.getElementById('sb-desde').value;
+  const hasta  = document.getElementById('sb-hasta').value;
+  let url = '/maestro/saldos-banco';
+  const params = [];
+  if (desde) params.push(`desde=${desde}`);
+  if (hasta) params.push(`hasta=${hasta}`);
+  if (params.length) url += '?' + params.join('&');
+  try {
+    const rows = await api('GET', url) || [];
+    if (!rows.length) { div.innerHTML='<p style="color:var(--muted)">Sin operaciones en el período.</p>'; return; }
+    const totalSaldo = rows.reduce((s,r) => s + (r.saldo||0), 0);
+    div.innerHTML = `<table><thead><tr>
+      <th>Banco / Caja</th><th>Ingresos</th><th>Egresos</th><th>Saldo Neto</th>
+    </tr></thead><tbody>` +
+    rows.map(r => {
+      const color = r.saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+      return `<tr>
+        <td><strong>${r.banco}</strong></td>
+        <td style="color:var(--success)">$${fmtNum(r.total_ingresos||0,2)}</td>
+        <td style="color:var(--danger)">$${fmtNum(r.total_egresos||0,2)}</td>
+        <td style="color:${color};font-weight:700">$${fmtNum(r.saldo,2)}</td>
+      </tr>`;
+    }).join('') +
+    `<tr style="border-top:2px solid var(--border);font-weight:700">
+      <td>TOTAL</td>
+      <td style="color:var(--success)">$${fmtNum(rows.reduce((s,r)=>s+(r.total_ingresos||0),0),2)}</td>
+      <td style="color:var(--danger)">$${fmtNum(rows.reduce((s,r)=>s+(r.total_egresos||0),0),2)}</td>
+      <td style="color:${totalSaldo>=0?'var(--success)':'var(--danger)'};font-weight:700">$${fmtNum(totalSaldo,2)}</td>
+    </tr>` +
+    '</tbody></table>';
+  } catch(e) { div.innerHTML = `<p style="color:var(--danger)">${e.message}</p>`; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── CONDICIONES NC (multi-condición) ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function loadNcCondiciones() {
+  const div = document.getElementById('tb-nc-condiciones');
+  if (!div) return;
+  const rows = await api('GET', '/config/nc-condiciones') || [];
+  if (!rows.length) {
+    div.innerHTML = '<p style="color:var(--muted)">Sin condiciones configuradas.</p>';
+    return;
+  }
+  div.innerHTML = `<table><thead><tr>
+    <th>Nombre</th><th>Monedas</th><th>Desc. máx. por línea</th>
+    <th>Requiere pago</th><th>Días máx. entrega</th><th>Activa</th><th>Acciones</th>
+  </tr></thead><tbody>` +
+  rows.map(r => {
+    let monedas = [];
+    try { monedas = JSON.parse(r.monedas); } catch(e) { monedas = [r.monedas]; }
+    return `<tr id="nc-cond-row-${r.id}">
+      <td><strong>${r.nombre}</strong></td>
+      <td>${monedas.map(m=>`<span class="badge b-enviada" style="font-size:.72rem">${m}</span>`).join(' ')}</td>
+      <td><strong>${r.descuento_max_pct}%</strong> por línea</td>
+      <td>${r.requiere_pago ? '✅ Sí' : '—'}</td>
+      <td>${r.dias_max_entrega || '—'}</td>
+      <td>${r.activa ? '✅' : '❌'}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-sm btn-outline" onclick="editarNcCondicion(${r.id})" style="font-size:.72rem;padding:2px 6px">✏ Editar</button>
+        <button class="btn btn-sm btn-outline" onclick="eliminarNcCondicion(${r.id},this)" style="font-size:.72rem;padding:2px 6px;color:var(--danger)">×</button>
+      </td>
+    </tr>`;
+  }).join('') + '</tbody></table>';
+}
+
+async function editarNcCondicion(id) {
+  const rows = await api('GET', '/config/nc-condiciones') || [];
+  const r = rows.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('nc-cond-id').value = r.id;
+  document.getElementById('nc-cond-title').textContent = 'Editar Condición NC';
+  document.getElementById('nc-cond-nombre').value = r.nombre;
+  document.getElementById('nc-cond-desc').value = r.descuento_max_pct;
+  document.getElementById('nc-cond-dias').value = r.dias_max_entrega;
+  document.getElementById('nc-cond-pago').checked = !!r.requiere_pago;
+  let monedas = [];
+  try { monedas = JSON.parse(r.monedas); } catch(e) { monedas = [r.monedas]; }
+  document.querySelectorAll('.nc-moneda-cb').forEach(cb => {
+    cb.checked = monedas.includes(cb.value);
+  });
+  showModal('modal-nueva-nc-cond');
+}
+
+async function guardarNcCondicion() {
+  const id = document.getElementById('nc-cond-id').value;
+  const monedas = [...document.querySelectorAll('.nc-moneda-cb:checked')].map(c=>c.value);
+  if (!monedas.length) { alert('Selecciona al menos una moneda'); return; }
+  const body = {
+    nombre: document.getElementById('nc-cond-nombre').value,
+    monedas: JSON.stringify(monedas),
+    descuento_max_pct: parseFloat(document.getElementById('nc-cond-desc').value)||5,
+    dias_max_entrega: parseInt(document.getElementById('nc-cond-dias').value)||0,
+    requiere_pago: document.getElementById('nc-cond-pago').checked ? 1 : 0,
+  };
+  if (!body.nombre) { alert('El nombre es requerido'); return; }
+  try {
+    if (id) {
+      await api('PUT', `/config/nc-condiciones/${id}`, body);
+    } else {
+      await api('POST', '/config/nc-condiciones', body);
+    }
+    closeModal('modal-nueva-nc-cond');
+    document.getElementById('nc-cond-id').value = '';
+    document.getElementById('nc-cond-title').textContent = 'Nueva Condición NC';
+    loadNcCondiciones();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarNcCondicion(id, btn) {
+  if (!confirm('¿Eliminar esta condición?')) return;
+  btn.disabled = true;
+  try { await api('DELETE', `/config/nc-condiciones/${id}`); loadNcCondiciones(); }
+  catch(e) { btn.disabled=false; alert(e.message); }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('input[type="date"]').forEach(el => {
+  if (!el.value) el.value = new Date().toISOString().split('T')[0];
+});
+
+// Cerrar sugerencias de cliente al hacer clic fuera
+document.addEventListener('click', e => {
+  if (!e.target.closest('#np-cliente-q') && !e.target.closest('#np-cliente-sugg')) {
+    const s = document.getElementById('np-cliente-sugg');
+    if (s) s.style.display = 'none';
+  }
+  // Cerrar dropdowns de proveedor
+  ['eeo-proveedor-q', 'eeo-proveedor-drop',
+   'mo-proveedor-q',  'mo-proveedor-drop'].forEach((id, i) => {
+    if (i % 2 === 1) {
+      const inp = document.getElementById(id.replace('-drop','-q'));
+      const drp = document.getElementById(id);
+      if (drp && !e.target.closest(`#${inp?.id}`) && !e.target.closest(`#${drp.id}`)) {
+        drp.style.display = 'none';
+      }
+    }
+  });
+});
+
+// Inicializar estado del campo banco
+toggleBanco();
+
+initApp();
+</script>
+</body>
+</html>

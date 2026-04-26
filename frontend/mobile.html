@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CxC — Vendedor</title>
+<style>
+  :root {
+    --primary: #2E75B6; --primary-dark: #1a4f82;
+    --success: #28a745; --warning: #ffc107; --danger: #dc3545;
+    --bg: #f0f2f5; --card: #fff; --border: #dee2e6;
+    --text: #212529; --muted: #6c757d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text);
+    padding-bottom: 70px; }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--primary-dark); color: #fff;
+    padding: 14px 16px; display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 50;
+  }
+  header h1 { font-size: 1rem; }
+  header small { font-size: .75rem; opacity: .75; }
+  #btn-logout { background: rgba(255,255,255,.2); border: none; color: #fff;
+    padding: 6px 12px; border-radius: 6px; font-size: .8rem; cursor: pointer; }
+
+  /* ── BOTTOM NAV ── */
+  #bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--primary-dark);
+    display: flex; z-index: 50; border-top: 2px solid rgba(255,255,255,.15);
+  }
+  #bottom-nav a {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 10px 4px; color: rgba(255,255,255,.7); text-decoration: none;
+    font-size: .65rem; gap: 3px; transition: background .15s;
+  }
+  #bottom-nav a .ico { font-size: 1.3rem; }
+  #bottom-nav a.active, #bottom-nav a:active { background: rgba(255,255,255,.15); color: #fff; }
+
+  /* ── VIEWS ── */
+  .view { display: none; padding: 14px; }
+  .view.active { display: block; }
+
+  /* ── CARDS ── */
+  .card { background: var(--card); border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px; }
+  .card-title { font-weight: 700; font-size: .95rem; }
+  .card-sub { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+  .card-footer { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+  /* ── BADGES ── */
+  .badge { padding: 3px 9px; border-radius: 12px; font-size: .72rem; font-weight: 600; }
+  .b-pendiente, .b-propuesto, .b-borrador { background: #fff3cd; color: #856404; }
+  .b-enviada, .b-sale, .b-confirmed, .b-assigned { background: #cff4fc; color: #0c5460; }
+  .b-aprobada, .b-recibido, .b-done, .b-confirmado { background: #d1e7dd; color: #0a3622; }
+  .b-rechazada { background: #f8d7da; color: #842029; }
+
+  /* ── FORMS ── */
+  .form-card { background: var(--card); border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
+  .form-card h3 { font-size: .95rem; color: var(--primary); margin-bottom: 12px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: .92rem; background: #fff;
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--primary); }
+
+  /* ── BUTTONS ── */
+  .btn { display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer;
+    font-size: .9rem; font-weight: 600; transition: opacity .15s; }
+  .btn:active { opacity: .75; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--primary); color: var(--primary); }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 7px 13px; font-size: .8rem; }
+
+  /* ── ALERTS ── */
+  .alert { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: .85rem; }
+  .alert-success { background: #d1e7dd; color: #0a3622; }
+  .alert-danger { background: #f8d7da; color: #842029; }
+  .alert-info { background: #cff4fc; color: #0c5460; }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--primary-dark);
+    display: flex; align-items: center; justify-content: center; z-index: 999;
+    padding: 20px;
+  }
+  .login-box { background: #fff; border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 340px; }
+  .login-box h2 { text-align: center; color: var(--primary); margin-bottom: 6px; }
+  .login-box p { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 24px; }
+
+  /* ── TABLE simple ── */
+  .mini-table { width: 100%; font-size: .82rem; }
+  .mini-table td { padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .mini-table td:first-child { color: var(--muted); width: 45%; }
+
+  /* ── TASA ── */
+  .tasa-pill { background: var(--primary); color: #fff; border-radius: 20px;
+    padding: 4px 12px; font-size: .78rem; display: inline-block; }
+
+  /* ── DESCUENTO LINEAS ── */
+  .linea-desc { background: #f8f9fa; border-radius: 8px; padding: 10px;
+    margin-bottom: 8px; }
+  .linea-desc .prod { font-weight: 600; font-size: .88rem; }
+  .linea-desc .meta { font-size: .76rem; color: var(--muted); margin: 3px 0 8px; }
+  .linea-desc input[type="range"] { width: 100%; }
+  .linea-desc .val { font-size: .85rem; color: var(--primary); font-weight: 700; text-align: right; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-state .ico { font-size: 2.5rem; margin-bottom: 10px; }
+
+  .section-title { font-size: .8rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 8px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>Gestión CxC</h2>
+    <p>Lubrikca — Portal Vendedor</p>
+    <div class="field"><label>Email</label>
+      <input type="email" id="l-email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="field"><label>Contraseña</label>
+      <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()">Ingresar</button>
+    <div id="l-err" style="margin-top:10px;color:var(--danger);font-size:.85rem;text-align:center"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <h1>Gestión CxC</h1>
+    <small id="h-user">—</small>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="h-tasa" class="tasa-pill">BCV —</span>
+    <button id="btn-logout" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<!-- VIEWS -->
+
+<!-- Entregas -->
+<div id="view-entregas" class="view active">
+  <p class="section-title">Mis Entregas del día</p>
+  <div id="entregas-list">
+    <div class="empty-state"><div class="ico">🚚</div>Cargando entregas...</div>
+  </div>
+</div>
+
+<!-- Notas de Crédito -->
+<div id="view-notas" class="view">
+  <p class="section-title">Mis Notas de Crédito</p>
+  <div id="notas-list">
+    <div class="empty-state"><div class="ico">📋</div>Cargando...</div>
+  </div>
+
+  <!-- Form nueva nota -->
+  <div id="form-nueva-nota" style="display:none">
+    <div class="form-card">
+      <h3>Nueva Nota de Crédito</h3>
+      <div class="field"><label>Orden Odoo</label>
+        <input id="mn-orden" placeholder="S00025" style="font-size:1rem;text-transform:uppercase">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="crearNotaMovil()">Cargar Productos</button>
+      <div id="mn-msg" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Líneas de descuento -->
+    <div id="mn-lineas-wrap" style="display:none">
+      <p class="section-title">Proponer Descuentos</p>
+      <div id="mn-lineas"></div>
+      <button class="btn btn-success btn-block" style="margin-top:8px" onclick="enviarDescuentosMovil()">
+        Enviar a Aprobación
+      </button>
+      <div id="mn-send-msg" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btn-nueva-nota"
+    onclick="toggleNuevaNota()" style="margin-top:8px">
+    + Nueva Nota de Crédito
+  </button>
+</div>
+
+<!-- Pagos -->
+<div id="view-pagos" class="view">
+  <div id="tasas-display" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <div class="card" style="padding:12px;flex:1;min-width:140px">
+      <div style="font-size:.72rem;color:var(--muted)">BCV (USD/VES)</div>
+      <div id="m-bcv" style="font-size:1.3rem;font-weight:700;color:var(--primary)">—</div>
+    </div>
+    <div class="card" style="padding:12px;flex:1;min-width:140px">
+      <div style="font-size:.72rem;color:var(--muted)">Tasa Custom</div>
+      <div id="m-custom" style="font-size:1.3rem;font-weight:700;color:var(--success)">—</div>
+    </div>
+  </div>
+
+  <p class="section-title">Registrar Pago</p>
+  <div class="form-card">
+    <div class="field"><label>Orden Odoo (opcional)</label>
+      <input id="mp-orden" placeholder="S00025" style="text-transform:uppercase">
+    </div>
+    <div class="field"><label>Monto</label>
+      <input id="mp-monto" type="number" step="0.01" placeholder="0.00" inputmode="decimal">
+    </div>
+    <div class="field"><label>Moneda</label>
+      <select id="mp-moneda">
+        <option value="USD">USD — Dólar</option>
+        <option value="VES">VES — Bolívar</option>
+        <option value="USDT">USDT — Tether</option>
+        <option value="EUR">EUR — Euro</option>
+      </select>
+    </div>
+    <div class="field"><label>Método de pago</label>
+      <select id="mp-metodo">
+        <option value="efectivo">Efectivo</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="pago_movil">Pago Móvil</option>
+        <option value="zelle">Zelle</option>
+        <option value="binance">Binance/USDT</option>
+      </select>
+    </div>
+    <div class="field"><label>Referencia / Confirmación</label>
+      <input id="mp-ref" placeholder="Nro. comprobante">
+    </div>
+    <div class="field"><label>Fecha de pago</label>
+      <input id="mp-fecha" type="date">
+    </div>
+    <button class="btn btn-success btn-block" onclick="registrarPagoMovil()">Registrar Pago</button>
+    <div id="mp-msg" style="margin-top:10px"></div>
+  </div>
+
+  <p class="section-title">Mis Pagos</p>
+  <div id="mis-pagos">
+    <div class="empty-state"><div class="ico">💳</div>Cargando...</div>
+  </div>
+</div>
+
+<!-- Estado -->
+<div id="view-estado" class="view">
+  <p class="section-title">Estado de mis operaciones</p>
+  <div id="estado-notas"></div>
+  <div id="estado-pagos"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav id="bottom-nav">
+  <a href="#" class="active" onclick="showView('entregas')">
+    <span class="ico">🚚</span>Entregas
+  </a>
+  <a href="#" onclick="showView('notas')">
+    <span class="ico">📋</span>Notas
+  </a>
+  <a href="#" onclick="showView('pagos')">
+    <span class="ico">💳</span>Pagos
+  </a>
+  <a href="#" onclick="showView('estado')">
+    <span class="ico">👁️</span>Estado
+  </a>
+</nav>
+
+<script>
+const API = '';
+let token = localStorage.getItem('m_token') || '';
+let currentUser = JSON.parse(localStorage.getItem('m_user') || 'null');
+let currentNotaId = null;
+let lineasNota = [];
+
+// ── API ────────────────────────────────────────────────────────────────────────
+async function api(method, path, body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (r.status === 401) { logout(); return null; }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail ? JSON.stringify(data.detail) : JSON.stringify(data));
+  return data;
+}
+
+// ── AUTH ───────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('l-email').value;
+  const pass  = document.getElementById('l-pass').value;
+  document.getElementById('l-err').textContent = '';
+  try {
+    const r = await fetch('/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    token = data.access_token;
+    currentUser = data.usuario;
+    localStorage.setItem('m_token', token);
+    localStorage.setItem('m_user', JSON.stringify(currentUser));
+    initApp();
+  } catch(e) {
+    document.getElementById('l-err').textContent = e.message;
+  }
+}
+
+document.getElementById('l-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function logout() {
+  token = ''; currentUser = null;
+  localStorage.removeItem('m_token'); localStorage.removeItem('m_user');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function initApp() {
+  if (!token || !currentUser) { document.getElementById('login-screen').style.display = 'flex'; return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('h-user').textContent = currentUser.nombre + ' (' + currentUser.rol + ')';
+  loadTasas();
+  showView('entregas');
+}
+
+// ── VIEWS ──────────────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('#bottom-nav a').forEach(a => a.classList.remove('active'));
+  const el = document.getElementById('view-' + name);
+  if (el) el.classList.add('active');
+  const nav = document.querySelector(`#bottom-nav a[onclick="showView('${name}')"]`);
+  if (nav) nav.classList.add('active');
+
+  const loaders = {
+    entregas: loadEntregas, notas: loadNotas,
+    pagos: () => { loadTasas(); loadMisPagos(); },
+    estado: loadEstado
+  };
+  if (loaders[name]) loaders[name]();
+  return false;
+}
+
+// ── TASAS ──────────────────────────────────────────────────────────────────────
+async function loadTasas() {
+  try {
+    const r = await api('GET', '/pagos/tasas/hoy');
+    if (!r) return;
+    const bcv = r.usd_ves_bcv ? r.usd_ves_bcv.toFixed(2) : '—';
+    const custom = r.usd_ves_custom ? r.usd_ves_custom.toFixed(2) : '—';
+    document.getElementById('h-tasa').textContent = `BCV Bs.${bcv}`;
+    const mb = document.getElementById('m-bcv');
+    const mc = document.getElementById('m-custom');
+    if (mb) mb.textContent = `Bs. ${bcv}`;
+    if (mc) mc.textContent = `Bs. ${custom}`;
+  } catch(e) {}
+}
+
+// ── ENTREGAS ───────────────────────────────────────────────────────────────────
+async function loadEntregas() {
+  const el = document.getElementById('entregas-list');
+  el.innerHTML = '<div class="empty-state"><div class="ico">⏳</div>Cargando...</div>';
+  try {
+    const rows = await api('GET', '/odoo/entregas') || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state"><div class="ico">✅</div>No hay entregas pendientes</div>';
+      return;
+    }
+    el.innerHTML = rows.slice(0, 30).map(e => `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${e.name}</div>
+            <div class="card-sub">${e.partner_id?.[1] || ''}</div>
+          </div>
+          <span class="badge b-${e.state}">${e.state}</span>
+        </div>
+        <table class="mini-table">
+          <tr><td>Origen</td><td><strong>${e.origin||'—'}</strong></td></tr>
+          <tr><td>Prog.</td><td>${(e.scheduled_date||'').substring(0,10)}</td></tr>
+          ${e.date_done ? `<tr><td>Entregado</td><td>${e.date_done.substring(0,10)}</td></tr>` : ''}
+        </table>
+        ${e.origin ? `
+        <div class="card-footer">
+          <button class="btn btn-primary btn-sm" onclick="crearNotaDesde('${e.origin}')">
+            + Nota de Crédito
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="registrarPagoDesde('${e.origin}')">
+            + Pago
+          </button>
+        </div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// ── NOTAS ──────────────────────────────────────────────────────────────────────
+async function loadNotas() {
+  const el = document.getElementById('notas-list');
+  el.innerHTML = '<div class="empty-state"><div class="ico">⏳</div>Cargando...</div>';
+  try {
+    const rows = await api('GET', '/notas-credito') || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state"><div class="ico">📋</div>No tienes notas de crédito</div>';
+      return;
+    }
+    el.innerHTML = rows.map(n => `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${n.odoo_order_name}</div>
+            <div class="card-sub">Nota #${n.id} · ${(n.creado_en||'').substring(0,10)}</div>
+          </div>
+          <span class="badge b-${n.estado}">${n.estado}</span>
+        </div>
+        ${n.rechazado_motivo ? `<div class="alert alert-danger" style="margin-top:8px;font-size:.8rem">Motivo: ${n.rechazado_motivo}</div>` : ''}
+        ${n.estado === 'borrador' ? `
+        <div class="card-footer">
+          <button class="btn btn-primary btn-sm" onclick="abrirLineasNota(${n.id})">Proponer descuentos</button>
+        </div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+function toggleNuevaNota() {
+  const form = document.getElementById('form-nueva-nota');
+  const btn  = document.getElementById('btn-nueva-nota');
+  const visible = form.style.display !== 'none';
+  form.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '+ Nueva Nota de Crédito' : '✕ Cancelar';
+}
+
+function crearNotaDesde(orden) {
+  showView('notas');
+  setTimeout(() => {
+    document.getElementById('form-nueva-nota').style.display = 'block';
+    document.getElementById('btn-nueva-nota').textContent = '✕ Cancelar';
+    document.getElementById('mn-orden').value = orden;
+  }, 100);
+}
+
+async function crearNotaMovil() {
+  const orden = document.getElementById('mn-orden').value.trim().toUpperCase();
+  const el = document.getElementById('mn-msg');
+  if (!orden) { el.innerHTML = '<div class="alert alert-danger">Ingresa la orden</div>'; return; }
+  el.innerHTML = '<div class="alert alert-info">Cargando productos desde Odoo...</div>';
+  try {
+    const r = await api('POST', '/notas-credito/crear', {
+      odoo_order_name: orden,
+      condiciones_opcionales: null
+    });
+    currentNotaId = r.id;
+    el.innerHTML = `<div class="alert alert-success">Nota #${r.id} creada (${r.lineas_cargadas} productos)</div>`;
+    await cargarLineasParaDescuento(r.id);
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function abrirLineasNota(id) {
+  currentNotaId = id;
+  document.getElementById('form-nueva-nota').style.display = 'block';
+  document.getElementById('btn-nueva-nota').textContent = '✕ Cancelar';
+  document.getElementById('mn-msg').innerHTML = '';
+  await cargarLineasParaDescuento(id);
+  window.scrollTo(0, document.getElementById('mn-lineas-wrap').offsetTop - 60);
+}
+
+async function cargarLineasParaDescuento(notaId) {
+  try {
+    lineasNota = await api('GET', `/notas-credito/${notaId}/lineas`) || [];
+    const wrap = document.getElementById('mn-lineas-wrap');
+    const cont = document.getElementById('mn-lineas');
+
+    if (!lineasNota.length) {
+      cont.innerHTML = '<div class="alert alert-info">Sin líneas en esta nota</div>';
+    } else {
+      cont.innerHTML = lineasNota.map(l => `
+        <div class="linea-desc" id="linea-wrap-${l.id}">
+          <div class="prod">${l.producto_nombre || '—'}</div>
+          <div class="meta">Ref: ${l.producto_ref||'—'} · Precio: $${(l.precio_original||0).toFixed(2)} · Máx: ${l.descuento_maximo||100}%</div>
+          <input type="range" min="0" max="${l.descuento_maximo||100}" step="0.5"
+            value="${l.descuento_propuesto||0}" id="sl-${l.id}"
+            oninput="document.getElementById('val-${l.id}').textContent=this.value+'%'">
+          <div class="val" id="val-${l.id}">${l.descuento_propuesto||0}%</div>
+        </div>`).join('');
+    }
+    wrap.style.display = 'block';
+  } catch(e) {
+    document.getElementById('mn-msg').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function enviarDescuentosMovil() {
+  const lineas = lineasNota.map(l => ({
+    line_id: l.id,
+    descuento_pct: parseFloat(document.getElementById('sl-' + l.id)?.value || 0)
+  }));
+  const el = document.getElementById('mn-send-msg');
+  try {
+    await api('PUT', `/notas-credito/${currentNotaId}/proponer-descuentos`, { lineas });
+    el.innerHTML = '<div class="alert alert-success">✓ Enviado a aprobación del gerente</div>';
+    setTimeout(() => {
+      document.getElementById('form-nueva-nota').style.display = 'none';
+      document.getElementById('mn-lineas-wrap').style.display = 'none';
+      document.getElementById('btn-nueva-nota').textContent = '+ Nueva Nota de Crédito';
+      loadNotas();
+    }, 1500);
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// ── PAGOS ──────────────────────────────────────────────────────────────────────
+function registrarPagoDesde(orden) {
+  showView('pagos');
+  setTimeout(() => {
+    document.getElementById('mp-orden').value = orden;
+    window.scrollTo(0, 0);
+  }, 100);
+}
+
+async function registrarPagoMovil() {
+  const el = document.getElementById('mp-msg');
+  const monto = parseFloat(document.getElementById('mp-monto').value);
+  if (!monto || monto <= 0) {
+    el.innerHTML = '<div class="alert alert-danger">Ingresa un monto válido</div>';
+    return;
+  }
+  el.innerHTML = '<div class="alert alert-info">Registrando...</div>';
+  try {
+    const r = await api('POST', '/pagos/registrar', {
+      odoo_order_name: document.getElementById('mp-orden').value.trim().toUpperCase() || null,
+      monto,
+      moneda: document.getElementById('mp-moneda').value,
+      metodo: document.getElementById('mp-metodo').value,
+      referencia: document.getElementById('mp-ref').value || null,
+      fecha_pago: document.getElementById('mp-fecha').value || null,
+    });
+    el.innerHTML = `<div class="alert alert-success">✓ Pago #${r.id} registrado${r.equivalente_usd ? ' · $'+r.equivalente_usd.toFixed(2)+' USD' : ''}</div>`;
+    document.getElementById('mp-monto').value = '';
+    document.getElementById('mp-ref').value = '';
+    loadMisPagos();
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function loadMisPagos() {
+  const el = document.getElementById('mis-pagos');
+  el.innerHTML = '<div class="empty-state"><div class="ico">⏳</div>Cargando...</div>';
+  try {
+    const rows = await api('GET', '/pagos') || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state"><div class="ico">💳</div>No tienes pagos registrados</div>';
+      return;
+    }
+    el.innerHTML = rows.slice(0, 20).map(p => `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${p.odoo_order_name || 'Venta interna'} · ${p.moneda}</div>
+            <div class="card-sub">${p.metodo} · ${(p.fecha_pago||'').substring(0,10)}</div>
+          </div>
+          <span class="badge b-${p.estado.replace('_','-')}">${p.estado}</span>
+        </div>
+        <table class="mini-table">
+          <tr><td>Monto</td><td><strong>${p.monto} ${p.moneda}</strong></td></tr>
+          ${p.equivalente_usd ? `<tr><td>Equiv USD</td><td>$${p.equivalente_usd.toFixed(2)}</td></tr>` : ''}
+          ${p.referencia ? `<tr><td>Ref.</td><td>${p.referencia}</td></tr>` : ''}
+        </table>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// ── ESTADO ────────────────────────────────────────────────────────────────────
+async function loadEstado() {
+  const [notas, pagos] = await Promise.all([
+    api('GET', '/notas-credito').catch(() => []),
+    api('GET', '/pagos').catch(() => [])
+  ]);
+
+  const enEl = document.getElementById('estado-notas');
+  const statColors = { borrador:'b-pendiente', enviada:'b-enviada', aprobada:'b-aprobada', rechazada:'b-rechazada' };
+
+  enEl.innerHTML = `<p class="section-title">Notas de Crédito (${(notas||[]).length})</p>` +
+    (notas||[]).slice(0,10).map(n => `
+      <div class="card" style="padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700">${n.odoo_order_name}</span>
+          <span class="badge ${statColors[n.estado]||'b-pendiente'}">${n.estado}</span>
+        </div>
+        ${n.rechazado_motivo ? `<div style="font-size:.78rem;color:var(--danger);margin-top:4px">✗ ${n.rechazado_motivo}</div>` : ''}
+      </div>`).join('') ||
+    '<div class="empty-state" style="padding:20px"><div class="ico">📋</div>Sin notas</div>';
+
+  const epEl = document.getElementById('estado-pagos');
+  epEl.innerHTML = `<p class="section-title">Pagos (${(pagos||[]).length})</p>` +
+    (pagos||[]).slice(0,10).map(p => `
+      <div class="card" style="padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700">${p.monto} ${p.moneda}</span>
+          <span class="badge b-${p.estado.replace('_','-')}">${p.estado}</span>
+        </div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:3px">
+          ${p.odoo_order_name||'Venta interna'} · ${p.metodo}
+        </div>
+      </div>`).join('') ||
+    '<div class="empty-state" style="padding:20px"><div class="ico">💳</div>Sin pagos</div>';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('mp-fecha').value = new Date().toISOString().split('T')[0];
+initApp();
+</script>
+</body>
+</html>

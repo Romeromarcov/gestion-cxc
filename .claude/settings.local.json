@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(extract-text GestionCxC_Especificaciones.docx)",
+      "Bash(pandoc GestionCxC_Especificaciones.docx -t markdown)",
+      "Bash(python \"C:/Users/PC/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/037cc788-aa07-46de-9806-1fd07be4c39f/690a8b95-ac03-466c-af3c-d991394363d2/skills/docx/scripts/office/unpack.py\" GestionCxC_Especificaciones.docx unpacked_spec/)",
+      "Bash(python3 -c ' *)",
+      "Read(//tmp/**)",
+      "Bash(pip install *)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import main; print\\('main OK'\\)\")",
+      "Bash(python -c \"from routers.pagos import _registrar_en_maestro; print\\('pagos OK'\\)\")",
+      "Bash(python -c \"from routers import maestro; print\\('maestro OK'\\)\")",
+      "Bash(python -c \"from routers import maestro; print\\('OK'\\)\")",
+      "Bash(python -m py_compile database.py odoo_client.py main.py)",
+      "Bash(python -m py_compile routers/auth.py routers/ventas.py routers/pagos.py routers/descuentos.py routers/inventario.py routers/maestro.py routers/config_app.py routers/reportes.py routers/precios.py routers/promociones.py routers/ventas_internas.py)",
+      "Bash(python -m py_compile models/operaciones.py models/schemas.py services/tasas_cambio.py services/google_sheets.py services/validaciones.py)",
+      "Bash(node -e ' *)",
+      "Bash(node \"C:/Users/PC/Proyectos/GestionCxC/check_routes.js\")",
+      "Bash(pip freeze *)"
+    ]
+  }
+}
