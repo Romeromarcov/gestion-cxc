@@ -14,7 +14,9 @@ from services.tasas_cambio import obtener_tasa_bcv
 from routers import (auth, ventas, descuentos, promociones,
                      pagos, inventario,
                      precios, reportes, config_app, maestro,
-                     cobranza, acuerdos_pago)
+                     cobranza, acuerdos_pago, replicas, creditos,
+                     cambios_divisa, pagos_fiscales, requisiciones,
+                     zelle_terceros)
 
 scheduler = AsyncIOScheduler()
 
@@ -78,7 +80,9 @@ app.add_middleware(
 # Registrar todos los routers
 for r in [auth, ventas, descuentos, promociones, pagos,
           inventario, precios, reportes, config_app, maestro,
-          cobranza, acuerdos_pago]:
+          cobranza, acuerdos_pago, replicas, creditos,
+          cambios_divisa, pagos_fiscales, requisiciones,
+          zelle_terceros]:
     app.include_router(r.router)
 
 # Frontend estático

@@ -157,3 +157,30 @@ def eliminar_nc_condicion(cid: int, user=Depends(require_roles('admin'))):
     con.commit()
     con.close()
     return {'ok': True}
+
+
+# ── CONFIGURACIÓN GENERAL DE LA APP ──────────────────────────────────────────
+
+@router.get('/app')
+def get_config_app(user=Depends(get_current_user)):
+    """Retorna todas las claves de configuración general como dict {clave: valor}."""
+    con = get_con()
+    rows = rows_to_list(con.execute("SELECT * FROM config_app ORDER BY clave").fetchall())
+    con.close()
+    return {r['clave']: r['valor'] for r in rows}
+
+
+@router.put('/app')
+def update_config_app(body: dict, user=Depends(require_roles('admin'))):
+    """Actualiza una o varias claves: {clave: valor}.
+    Crea la clave si no existe (upsert)."""
+    con = get_con()
+    for clave, valor in body.items():
+        con.execute("""
+            INSERT INTO config_app(clave, valor)
+            VALUES(?,?)
+            ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor
+        """, (str(clave), str(valor) if valor is not None else ''))
+    con.commit()
+    con.close()
+    return {'mensaje': 'Configuración guardada', 'claves_actualizadas': list(body.keys())}

@@ -600,6 +600,80 @@ def saldos_por_banco(desde: str = None, hasta: str = None,
     return rows
 
 
+# ── IMPORTAR COMISIONES BANCARIAS DESDE ODOO ─────────────────────────────────
+
+@router.post('/importar-comisiones')
+def importar_comisiones_bancarias(body: dict,
+                                   user=Depends(require_roles('admin', 'gerente'))):
+    """
+    Importa comisiones bancarias de Odoo (asientos de banco con cuentas de gasto)
+    que NO estén ya registradas en el maestro.
+
+    body: { "fecha_desde": "YYYY-MM-DD", "fecha_hasta": "YYYY-MM-DD" }
+    """
+    from routers.ventas import get_odoo
+    hoy = date.today().isoformat()
+    fecha_desde = body.get('fecha_desde', hoy[:8] + '01')
+    fecha_hasta = body.get('fecha_hasta', hoy)
+
+    odoo = get_odoo()
+    try:
+        comisiones = odoo.get_comisiones_bancarias(fecha_desde, fecha_hasta)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f'Error Odoo: {e}')
+
+    if not comisiones:
+        return {'importados': 0, 'omitidos': 0, 'mensaje': 'Sin comisiones en ese período'}
+
+    con = get_con()
+    # Ya importados por odoo_ref
+    ya_refs = {r[0] for r in con.execute(
+        "SELECT odoo_ref FROM maestro_operaciones "
+        "WHERE odoo_ref IS NOT NULL AND origen='odoo_comision'"
+    ).fetchall()}
+
+    tasa_bcv = tasa_bcv_hoy()
+    tasa_real = tasa_custom_hoy()
+    importados = 0
+    omitidos = 0
+
+    for c in comisiones:
+        ref = c.get('name') or str(c.get('id'))
+        if ref in ya_refs:
+            omitidos += 1
+            continue
+
+        monto = float(c.get('monto_comision', 0) or 0)
+        if monto <= 0:
+            continue
+
+        journal_nombre = c.get('journal_nombre', '')
+        desc = c.get('ref') or c.get('name') or 'Comisión bancaria Odoo'
+
+        con.execute("""
+            INSERT INTO maestro_operaciones
+                (fecha, nro_documento, monto, moneda, tipo, categoria, subcategoria,
+                 descripcion, tasa_bcv, monto_usd_bcv, tasa_real, monto_real_usd,
+                 origen, odoo_ref, journal_nombre, estado, creado_por)
+            VALUES (?,?,?,?,'egreso','Gasto','Comisión Bancaria',?,?,?,?,?,'odoo_comision',?,?,'confirmado',?)
+        """, (
+            c.get('date', hoy),
+            c.get('name'),
+            monto,
+            'USD',
+            desc,
+            tasa_bcv, monto, tasa_real, monto,
+            ref, journal_nombre,
+            user['id']
+        ))
+        importados += 1
+
+    con.commit()
+    con.close()
+    return {'importados': importados, 'omitidos': omitidos,
+            'mensaje': f'{importados} comisiones importadas, {omitidos} ya existían'}
+
+
 # ── ACTUALIZAR CATEGORÍA (mapeo Odoo) ─────────────────────────────────────────
 
 @router.put('/categorias/{cat_id}')

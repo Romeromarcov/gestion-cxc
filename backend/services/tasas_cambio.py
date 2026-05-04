@@ -103,6 +103,23 @@ def tasa_custom_hoy(par: str = 'USD_VES') -> float | None:
     return row['tasa_custom'] if row else None
 
 
+def tasa_bcv_en_fecha(par: str = 'USD_VES', fecha: str = None) -> float | None:
+    """Tasa BCV más cercana (igual o anterior) a la fecha dada.
+    Si fecha es None, equivale a tasa_bcv_hoy()."""
+    con = get_con()
+    if fecha:
+        row = con.execute("""SELECT tasa_bcv FROM tasas_cambio
+                             WHERE par=? AND tasa_bcv IS NOT NULL AND fecha <= ?
+                             ORDER BY fecha DESC, id DESC LIMIT 1""",
+                          (par, fecha)).fetchone()
+    else:
+        row = con.execute("""SELECT tasa_bcv FROM tasas_cambio
+                             WHERE par=? AND tasa_bcv IS NOT NULL
+                             ORDER BY fecha DESC, id DESC LIMIT 1""", (par,)).fetchone()
+    con.close()
+    return row['tasa_bcv'] if row else None
+
+
 def convertir(monto: float, moneda_origen: str, moneda_destino: str,
               fecha: str = None) -> float | None:
     if moneda_origen == moneda_destino:

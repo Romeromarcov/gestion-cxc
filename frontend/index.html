@@ -72,6 +72,31 @@
   .b-done { background: #d1e7dd; color: #0a3622; }
   .b-sale { background: #cff4fc; color: #0c5460; }
 
+  /* Estado cobro */
+  .b-pendiente        { background: #fff3cd; color: #856404; }
+  .b-pago-parcial     { background: #ffe0b2; color: #7c4700; }
+  .b-subtotal-cobrado { background: #fff9c4; color: #6b5900; }
+  .b-pagado-completo  { background: #d1e7dd; color: #0a3622; }
+  .b-sobrepagado      { background: #f8d7da; color: #842029; }
+  .b-en-proceso-odoo  { background: #cff4fc; color: #0c5460; }
+  .b-cerrado          { background: #d1e7dd; color: #0a3622; }
+
+  /* Créditos */
+  .b-disponible { background: #d1e7dd; color: #0a3622; }
+  .b-aplicado   { background: #cff4fc; color: #0c5460; }
+  .b-devuelto   { background: #e2e3e5; color: #383d41; }
+  .b-anulado    { background: #f8d7da; color: #842029; }
+
+  /* Requisiciones y fiscal */
+  .b-solicitada  { background: #fff3cd; color: #856404; }
+  .b-aprobada    { background: #d1e7dd; color: #0a3622; }
+  .b-rechazada   { background: #f8d7da; color: #842029; }
+  .b-ejecutada   { background: #cff4fc; color: #0c5460; }
+  .b-borrador    { background: #e9ecef; color: #495057; }
+  .b-validado    { background: #d1e7dd; color: #0a3622; }
+  .b-enviado-odoo { background: #cff4fc; color: #0c5460; }
+  .b-registrado  { background: #d1e7dd; color: #0a3622; }
+
   /* ── FORMS ── */
   .form-section { background: var(--card); border-radius: 10px; padding: 20px;
     box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
@@ -165,10 +190,19 @@
       <span class="ico">🛒</span> Ventas Odoo
     </a>
     <a href="#" onclick="showView('pagos-odoo')" data-roles="gerente,admin">
-      <span class="ico">🏦</span> Pagos Odoo
+      <span class="ico">🏦</span> Pagos Clientes
     </a>
     <a href="#" onclick="showView('pagos-prov')" data-roles="gerente,admin">
-      <span class="ico">🧾</span> Pagos Proveedores
+      <span class="ico">🧾</span> Pagos Proveedores Odoo
+    </a>
+    <a href="#" onclick="showView('cambios-divisa')" data-roles="gerente,admin">
+      <span class="ico">💱</span> Cambios de Divisa
+    </a>
+    <a href="#" onclick="showView('pagos-fiscales')" data-roles="gerente,admin">
+      <span class="ico">🏛️</span> Pagos Fiscales
+    </a>
+    <a href="#" onclick="showView('requisiciones')" data-roles="gerente,admin,vendedor">
+      <span class="ico">📋</span> Requisiciones
     </a>
     <a href="#" onclick="showView('notas')" data-roles="gerente,admin,vendedor">
       <span class="ico">📋</span> Notas de Crédito
@@ -197,6 +231,12 @@
     <a href="#" onclick="showView('acuerdos')" data-roles="gerente,admin">
       <span class="ico">🤝</span> Acuerdos de Pago
     </a>
+    <a href="#" onclick="showView('creditos')" data-roles="gerente,admin">
+      <span class="ico">💳</span> Créditos Cliente
+    </a>
+    <a href="#" onclick="showView('zelle-terceros')" data-roles="gerente,admin">
+      <span class="ico">💲</span> Zelle de Terceros
+    </a>
     <a href="#" onclick="showView('config')" data-roles="admin">
       <span class="ico">⚙️</span> Configuración
     </a>
@@ -223,7 +263,24 @@
       <div class="card"><div class="num" id="d-aprobaciones">—</div><div class="lbl">Aprobaciones pendientes</div></div>
       <div class="card"><div class="num" id="d-pagos-p">—</div><div class="lbl">Pagos por recibir</div></div>
       <div class="card"><div class="num" id="d-pagos-r">—</div><div class="lbl">Pagos listos para Odoo</div></div>
+      <div class="card" id="card-replicas-error" style="cursor:pointer" onclick="showView('cxc')">
+        <div class="num" id="d-replicas-error" style="color:var(--danger)">—</div>
+        <div class="lbl">Réplicas con error</div>
+      </div>
+      <div class="card" style="cursor:pointer;border-left:4px solid var(--warning)" onclick="showView('cxc')">
+        <div class="num" id="d-subtotal-cobrado" style="color:#856404">—</div>
+        <div class="lbl">⚡ Subtotal cobrado (posible retención)</div>
+      </div>
+      <div class="card" style="cursor:pointer;border-left:4px solid var(--danger)" onclick="showView('cxc')">
+        <div class="num" id="d-sobrepago" style="color:var(--danger)">—</div>
+        <div class="lbl">⚠ Sobrepagos detectados</div>
+      </div>
+      <div class="card" style="cursor:pointer;border-left:4px solid var(--success)" onclick="showView('creditos')">
+        <div class="num" id="d-creditos" style="color:var(--success)">—</div>
+        <div class="lbl">💳 Créditos disponibles</div>
+      </div>
     </div>
+    <div id="alert-pagadas-sin-factura" style="margin-bottom:16px"></div>
     <div id="odoo-status" class="alert alert-info">Verificando conexión Odoo...</div>
   </div>
 
@@ -267,19 +324,26 @@
 
   <!-- ── PAGOS PROVEEDORES ── -->
   <div id="view-pagos-prov" class="view">
+    <div class="alert alert-info" style="margin-bottom:14px">
+      <strong>ℹ Flujo:</strong> Carga los pagos de proveedores registrados en Odoo.
+      Usa <strong>"Importar al Maestro"</strong> para que aparezcan en el consolidado de operaciones.
+      Los pagos ya importados no se duplican.
+    </div>
     <div class="filters">
       <input type="date" id="pp-desde">
       <input type="date" id="pp-hasta">
-      <button class="btn btn-primary" onclick="loadPagosProveedores()">↺ Cargar de Odoo</button>
-      <span style="font-size:.82rem;color:var(--muted)">Pagos a proveedores en Odoo no importados aún</span>
+      <button class="btn btn-primary" onclick="loadPagosProveedores()">↺ Cargar desde Odoo</button>
+      <button class="btn btn-success" onclick="showModal('modal-importar-pagos-proveedor')" id="btn-importar-prov" style="display:none">
+        ⬇ Importar seleccionados al Maestro
+      </button>
     </div>
     <div id="pagos-prov-resumen" style="margin-bottom:12px"></div>
     <div class="table-wrap">
       <table><thead><tr>
         <th>ID Odoo</th><th>Proveedor</th><th>Monto</th><th>Moneda</th>
-        <th>Fecha</th><th>Diario</th><th>Estado</th><th>Referencia</th><th>Acciones</th>
+        <th>Fecha</th><th>Diario</th><th>Estado</th><th>Referencia</th><th>En Maestro</th>
       </tr></thead>
-      <tbody id="tb-pagos-prov"><tr><td colspan="9" class="loader">Presiona "Cargar de Odoo"</td></tr></tbody>
+      <tbody id="tb-pagos-prov"><tr><td colspan="9" class="loader">Presiona "Cargar desde Odoo"</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -406,15 +470,54 @@
     <div class="filters">
       <button class="btn btn-primary" onclick="loadCxC()">↺ Actualizar</button>
       <button class="btn btn-success" onclick="exportarExcel()">⬇ Exportar Excel</button>
+      <button class="btn btn-outline" onclick="syncReplicas()" style="margin-left:8px">⟳ Sincronizar Réplicas</button>
     </div>
     <div id="cxc-resumen" class="cards-row" style="margin-bottom:20px"></div>
-    <div class="table-wrap">
-      <table><thead><tr>
-        <th>Fuente</th><th>Código</th><th>Cliente</th><th>Total USD</th>
-        <th>Pagado USD</th><th>Saldo USD</th><th>Saldo (BCV)</th><th>Estado CxC</th>
-      </tr></thead>
-      <tbody id="tb-cxc"><tr><td colspan="8" class="loader">Cargando...</td></tr></tbody>
+    <div id="alert-pagadas-pendientes" style="display:none;margin-bottom:16px"></div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table><thead>
+        <tr>
+          <th rowspan="2">Orden</th>
+          <th rowspan="2">Cliente</th>
+          <th rowspan="2">Mon.</th>
+          <th colspan="3" style="text-align:center;background:#1a4f82">Odoo</th>
+          <th rowspan="2" style="background:#1a5c3a">Pagado</th>
+          <th rowspan="2" style="background:#1a5c3a">Saldo</th>
+          <th colspan="5" style="text-align:center;background:#5c3a1a">Lista VES</th>
+          <th colspan="5" style="text-align:center;background:#1a3a5c">Lista USD</th>
+          <th rowspan="2">Estado</th>
+          <th rowspan="2">Factura</th>
+        </tr>
+        <tr>
+          <th style="background:#1a4f82;font-weight:normal;font-size:.78rem">Sub</th>
+          <th style="background:#1a4f82;font-weight:normal;font-size:.78rem">Imp.</th>
+          <th style="background:#1a4f82;font-weight:normal;font-size:.78rem">Total</th>
+          <th style="background:#5c3a1a;font-weight:normal;font-size:.78rem">Sub</th>
+          <th style="background:#5c3a1a;font-weight:normal;font-size:.78rem">Imp.</th>
+          <th style="background:#5c3a1a;font-weight:normal;font-size:.78rem">Total</th>
+          <th style="background:#5c3a1a;font-weight:normal;font-size:.78rem">NC</th>
+          <th style="background:#5c3a1a;font-weight:normal;font-size:.78rem">A pagar ✓</th>
+          <th style="background:#1a3a5c;font-weight:normal;font-size:.78rem">Sub</th>
+          <th style="background:#1a3a5c;font-weight:normal;font-size:.78rem">Imp.</th>
+          <th style="background:#1a3a5c;font-weight:normal;font-size:.78rem">Total</th>
+          <th style="background:#1a3a5c;font-weight:normal;font-size:.78rem">NC</th>
+          <th style="background:#1a3a5c;font-weight:normal;font-size:.78rem">A pagar ✓</th>
+        </tr>
+      </thead>
+      <tbody id="tb-cxc"><tr><td colspan="20" class="loader">Cargando...</td></tr></tbody>
       </table>
+    </div>
+
+    <!-- Réplicas con error -->
+    <div id="replicas-errores-section" style="margin-top:24px;display:none">
+      <h3 style="font-size:1rem;color:var(--danger);margin-bottom:12px">Réplicas con error</h3>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Orden</th><th>Error</th><th>Última actualización</th><th>Acción</th>
+        </tr></thead>
+        <tbody id="tb-replicas-errores"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -513,6 +616,29 @@
         </div>
         <button class="btn btn-primary" onclick="crearUsuario()">Crear Usuario</button>
       </div>
+      <!-- Configuración General de la App -->
+      <div class="form-section" style="grid-column:1/-1">
+        <h3>Configuración General</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+          Parámetros globales de la aplicación. Los nombres de listas deben coincidir exactamente con los configurados en Odoo.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Lista de precios VES (nombre en Odoo)</label>
+            <input id="cfg-pricelist-ves" placeholder="Precio USD Pago VES">
+          </div>
+          <div class="form-group">
+            <label>Lista de precios USD (nombre en Odoo)</label>
+            <input id="cfg-pricelist-usd" placeholder="Lista USD">
+          </div>
+          <div class="form-group" style="max-width:200px">
+            <label>Tolerancia pago (USD)</label>
+            <input id="cfg-tolerancia" type="number" step="0.01" placeholder="0.01">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="guardarConfigApp()">Guardar Configuración</button>
+      </div>
+
       <!-- Notas de Crédito — Condiciones múltiples -->
       <div class="form-section" style="grid-column:1/-1">
         <h3>Condiciones para Notas de Crédito</h3>
@@ -584,8 +710,9 @@
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="loadMaestro()">Filtrar</button>
           <button class="btn btn-success" onclick="abrirNuevaOperacion()">+ Nueva</button>
-          <button class="btn btn-outline" onclick="showModal('modal-importar-pagos-proveedor')" title="Importar pagos de proveedor de Odoo">⬇ Proveedores</button>
+          <button class="btn btn-outline" onclick="showView('pagos-prov')" title="Ver e importar pagos de proveedores desde Odoo">🧾 Pagos Prov.</button>
           <button class="btn btn-outline" style="color:var(--success);border-color:var(--success)" onclick="syncConciliacion(this)" title="Actualizar estado de conciliación desde Odoo">⟳ Conciliación</button>
+          <button class="btn btn-outline" style="color:#8b5cf6;border-color:#8b5cf6" onclick="showModal('modal-importar-comisiones')" title="Importar comisiones bancarias desde Odoo">🏦 Comisiones</button>
           <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="abrirMapeoCats()" title="Mapeo categorías → Odoo">⚙ Cuentas Odoo</button>
           <button class="btn btn-outline" style="color:var(--primary)" onclick="abrirSaldosBanco()" title="Ver saldos por banco/caja">🏦 Saldos</button>
         </div>
@@ -668,6 +795,166 @@
           <tbody id="mdia-tbody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ── CRÉDITOS CLIENTE ── -->
+  <div id="view-creditos" class="view">
+    <!-- Resumen KPIs -->
+    <div class="cards-row" id="cred-kpis" style="margin-bottom:16px"></div>
+
+    <div class="filters">
+      <select id="cred-f-estado" onchange="loadCreditos()">
+        <option value="">Todos los estados</option>
+        <option value="disponible">Disponibles</option>
+        <option value="aplicado">Aplicados</option>
+        <option value="devuelto">Devueltos</option>
+        <option value="anulado">Anulados</option>
+      </select>
+      <select id="cred-f-motivo" onchange="loadCreditos()">
+        <option value="">Todos los motivos</option>
+        <option value="sobrepago">Sobrepago</option>
+        <option value="ajuste">Ajuste</option>
+        <option value="devolucion">Devolución</option>
+      </select>
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-credito')">+ Nuevo Crédito</button>
+      <button class="btn btn-outline" onclick="loadCreditos()">↺ Actualizar</button>
+    </div>
+
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Cliente</th><th>Orden origen</th>
+        <th>Motivo</th><th>Monto</th><th>Mon.</th><th>Equiv. USD</th>
+        <th>Estado</th><th>Aplicado a</th><th>Creado</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-creditos"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CAMBIOS DE DIVISA ── -->
+  <div id="view-cambios-divisa" class="view">
+    <div class="filters">
+      <select id="cd-f-estado" onchange="loadCambiosDivisa()">
+        <option value="">Todos</option>
+        <option value="borrador">Borrador</option>
+        <option value="validado">Validado</option>
+        <option value="enviado_odoo">Enviado Odoo</option>
+      </select>
+      <input type="date" id="cd-f-desde">
+      <input type="date" id="cd-f-hasta">
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-cambio-divisa')">+ Nuevo Cambio</button>
+      <button class="btn btn-outline" onclick="loadCambiosDivisa()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Fecha</th><th>Descripción</th>
+        <th>Egreso</th><th>Banco salida</th>
+        <th>Ingreso</th><th>Banco entrada</th>
+        <th>Tasa</th><th>Estado</th><th>Odoo</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-cambios-divisa"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PAGOS FISCALES ── -->
+  <div id="view-pagos-fiscales" class="view">
+    <div class="filters">
+      <select id="pf-f-estado" onchange="loadPagosFiscales()">
+        <option value="">Todos</option>
+        <option value="borrador">Borrador</option>
+        <option value="validado">Validado</option>
+        <option value="enviado_odoo">Enviado Odoo</option>
+      </select>
+      <select id="pf-f-tipo" onchange="loadPagosFiscales()">
+        <option value="">Todos los tipos</option>
+        <option value="alcaldia">Alcaldía</option>
+        <option value="inces">INCES</option>
+        <option value="aseo">Aseo Urbano</option>
+        <option value="iva">IVA</option>
+        <option value="islr">ISLR</option>
+        <option value="seniat">SENIAT</option>
+        <option value="sso">Seguro Social</option>
+        <option value="otro">Otro</option>
+      </select>
+      <input type="date" id="pf-f-desde">
+      <button class="btn btn-primary" onclick="abrirNuevoPagoFiscal()">+ Nuevo Pago</button>
+      <button class="btn btn-outline" onclick="loadPagosFiscales()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Tipo</th><th>Descripción</th><th>Período</th>
+        <th>Fecha</th><th>Monto</th><th>Moneda</th><th>Equiv. USD</th>
+        <th>Referencia</th><th>Estado</th><th>Odoo</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-pagos-fiscales"><tr><td colspan="12" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── REQUISICIONES ── -->
+  <div id="view-requisiciones" class="view">
+    <div class="filters">
+      <select id="req-f-estado" onchange="loadRequisiciones()">
+        <option value="">Todos</option>
+        <option value="solicitada">Solicitadas</option>
+        <option value="aprobada">Aprobadas</option>
+        <option value="rechazada">Rechazadas</option>
+        <option value="ejecutada">Ejecutadas</option>
+      </select>
+      <select id="req-f-motivo" onchange="loadRequisiciones()">
+        <option value="">Todos los motivos</option>
+        <option value="muestra">Muestra</option>
+        <option value="obsequio">Obsequio</option>
+        <option value="daño">Daño</option>
+        <option value="uso_empleado">Uso Empleado</option>
+        <option value="uso_empresa">Uso Empresa</option>
+      </select>
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-requisicion')">+ Nueva Requisición</button>
+      <button class="btn btn-outline" onclick="loadRequisiciones()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Empleado</th><th>Depto.</th><th>Motivo</th>
+        <th>Descripción</th><th>Estado</th><th>Costo Total</th>
+        <th>Odoo Move</th><th>Fecha</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-requisiciones"><tr><td colspan="10" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── ZELLE DE TERCEROS ── -->
+  <div id="view-zelle-terceros" class="view">
+    <div class="alert alert-info" style="margin-bottom:14px">
+      <strong>💲 Zelle de Terceros:</strong> Control de pagos Zelle recibidos en cuentas de proveedores.
+      Por cada registro puedes <strong>Abonar</strong> (reduce la cuenta por pagar al proveedor en Odoo)
+      o <strong>Solicitar Reintegro</strong> (registra que el proveedor te debe ese monto).
+    </div>
+    <div class="filters">
+      <select id="zt-f-estado" onchange="loadZelleTerceros()">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Pendientes</option>
+        <option value="abonado">Abonados</option>
+        <option value="reintegro_pendiente">Reintegro Pendiente</option>
+        <option value="reintegrado">Reintegrados</option>
+        <option value="anulado">Anulados</option>
+      </select>
+      <input type="date" id="zt-f-desde" onchange="loadZelleTerceros()">
+      <input type="date" id="zt-f-hasta" onchange="loadZelleTerceros()">
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-zelle')">+ Nuevo Registro</button>
+      <button class="btn btn-outline" onclick="loadZelleTerceros()">↺ Actualizar</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>ID</th><th>Fecha</th><th>Proveedor</th><th>Cliente</th>
+        <th>Orden</th><th style="text-align:right">Monto USD</th>
+        <th>Referencia</th><th>Estado</th><th>Tipo Acción</th>
+        <th>Odoo</th><th>Acciones</th>
+      </tr></thead>
+      <tbody id="tb-zelle"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1317,6 +1604,564 @@
   </div>
 </div>
 
+<!-- Modal: Nuevo Crédito Cliente -->
+<div id="modal-nuevo-credito" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Nuevo Crédito de Cliente</h3>
+    <div class="form-row">
+      <div class="form-group" style="flex:2;position:relative">
+        <label>Cliente (buscar)</label>
+        <input id="nc-cliente-q" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+               oninput="buscarClienteCredito()" style="width:100%">
+        <div id="nc-cliente-drop" style="position:absolute;top:100%;left:0;right:0;background:#fff;
+          border:1px solid var(--border);border-radius:0 0 6px 6px;z-index:200;display:none;
+          max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+        <input type="hidden" id="nc-partner-id">
+        <input type="hidden" id="nc-partner-nom">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Orden relacionada (opcional)</label>
+        <input id="nc-orden" placeholder="S00123">
+      </div>
+      <div class="form-group">
+        <label>Motivo</label>
+        <select id="nc-motivo">
+          <option value="ajuste">Ajuste</option>
+          <option value="sobrepago">Sobrepago</option>
+          <option value="devolucion">Devolución</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto</label>
+        <input id="nc-monto" type="number" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="nc-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Equiv. USD (opcional)</label>
+        <input id="nc-equiv-usd" type="number" step="0.0001" placeholder="auto">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Notas</label>
+      <textarea id="nc-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearCredito()">Crear Crédito</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-credito')">Cancelar</button>
+    </div>
+    <div id="nc-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Aplicar Crédito -->
+<div id="modal-aplicar-credito" class="modal-bg">
+  <div class="modal">
+    <h3>Aplicar Crédito <span id="ac-cred-id" style="color:var(--primary)"></span></h3>
+    <p style="font-size:.88rem;margin-bottom:14px">Indique la orden a la que se aplicará este crédito.</p>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Orden</label>
+      <input id="ac-orden" placeholder="S00123" style="width:100%">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Notas (opcional)</label>
+      <textarea id="ac-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="aplicarCredito()">Aplicar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-aplicar-credito')">Cancelar</button>
+    </div>
+    <div id="ac-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Crear Crédito desde Sobrepago (CxC) -->
+<div id="modal-sobrepago-credito" class="modal-bg">
+  <div class="modal">
+    <h3>Registrar Crédito por Sobrepago</h3>
+    <div id="sp-cred-info" style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.88rem"></div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Notas</label>
+      <textarea id="sp-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"
+                placeholder="Aclarar motivo del sobrepago si se conoce..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-warning" onclick="confirmarCreditoSobrepago()">Crear Crédito</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-sobrepago-credito')">Cancelar</button>
+    </div>
+    <div id="sp-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo Cambio de Divisa -->
+<div id="modal-nuevo-cambio-divisa" class="modal-bg">
+  <div class="modal" style="max-width:680px">
+    <h3>Nuevo Cambio de Divisa</h3>
+    <div class="form-row">
+      <div class="form-group" style="min-width:140px">
+        <label>Fecha</label><input type="date" id="ncd-fecha">
+      </div>
+      <div class="form-group">
+        <label>Descripción</label><input id="ncd-descripcion" placeholder="Cambio USD → VES">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+      <div style="background:#fff3cd;border-radius:8px;padding:12px">
+        <div style="font-weight:700;margin-bottom:8px;color:#856404">⬆ Sale (Egreso)</div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Monto</label>
+          <input id="ncd-monto-egr" type="number" step="0.01" placeholder="0.00" oninput="calcTasaCambio()">
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Moneda</label>
+          <select id="ncd-mon-egr" onchange="calcTasaCambio()">
+            <option value="USD">USD</option><option value="VES">VES</option>
+            <option value="EUR">EUR</option><option value="USDT">USDT</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Banco/Caja origen</label>
+          <input id="ncd-banco-egr" placeholder="Banesco USD">
+        </div>
+      </div>
+      <div style="background:#d1e7dd;border-radius:8px;padding:12px">
+        <div style="font-weight:700;margin-bottom:8px;color:#0a3622">⬇ Entra (Ingreso)</div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Monto</label>
+          <input id="ncd-monto-ing" type="number" step="0.01" placeholder="0.00" oninput="calcTasaCambio()">
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Moneda</label>
+          <select id="ncd-mon-ing" onchange="calcTasaCambio()">
+            <option value="VES">VES</option><option value="USD">USD</option>
+            <option value="EUR">EUR</option><option value="USDT">USDT</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Banco/Caja destino</label>
+          <input id="ncd-banco-ing" placeholder="Banesco VES">
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="max-width:200px">
+        <label>Tasa de cambio <span id="ncd-tasa-label" style="font-size:.75rem;color:var(--muted)"></span></label>
+        <input id="ncd-tasa" type="number" step="0.0001" placeholder="calculada automáticamente" oninput="recalcMontoIng()">
+      </div>
+      <div class="form-group">
+        <label>Notas</label>
+        <input id="ncd-notas" placeholder="Observaciones...">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearCambioDivisa()">Guardar Borrador</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-cambio-divisa')">Cancelar</button>
+    </div>
+    <div id="ncd-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Enviar Cambio Divisa a Odoo -->
+<div id="modal-enviar-cambio-odoo" class="modal-bg">
+  <div class="modal">
+    <h3>Enviar Asiento a Odoo</h3>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">
+      Se creará un asiento contable con débito en la cuenta destino y crédito en la cuenta origen.
+    </p>
+    <div id="eco-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cuenta banco/caja origen (crédito)</label>
+        <select id="eco-cta-egr" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></select>
+      </div>
+      <div class="form-group">
+        <label>Cuenta banco/caja destino (débito)</label>
+        <select id="eco-cta-ing" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="confirmarEnviarCambioOdoo()">Crear Asiento</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-enviar-cambio-odoo')">Cancelar</button>
+    </div>
+    <div id="eco-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo Pago Fiscal -->
+<div id="modal-nuevo-pago-fiscal" class="modal-bg">
+  <div class="modal" style="max-width:620px">
+    <h3>Nuevo Pago Fiscal</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="npf-tipo">
+          <option value="alcaldia">Alcaldía</option>
+          <option value="inces">INCES</option>
+          <option value="aseo">Aseo Urbano</option>
+          <option value="iva">IVA</option>
+          <option value="islr">ISLR</option>
+          <option value="seniat">SENIAT</option>
+          <option value="sso">Seguro Social</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:2">
+        <label>Descripción</label>
+        <input id="npf-descripcion" placeholder="Ej: Alcaldía enero 2025">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto</label>
+        <input id="npf-monto" type="number" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="npf-moneda">
+          <option value="VES">VES</option><option value="USD">USD</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Equiv. USD (opcional)</label>
+        <input id="npf-equiv-usd" type="number" step="0.0001">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fecha</label>
+        <input id="npf-fecha" type="date">
+      </div>
+      <div class="form-group">
+        <label>Período (ej: 2025-01)</label>
+        <input id="npf-periodo" placeholder="2025-01">
+      </div>
+      <div class="form-group">
+        <label>Referencia/Planilla</label>
+        <input id="npf-referencia" placeholder="PLANILLA-001">
+      </div>
+    </div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px">
+      Las cuentas contables se configuran al enviar a Odoo. También puede preconfigurarlas aquí:
+    </p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cuenta de gasto (Odoo)</label>
+        <select id="npf-cta-gasto" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— configurar al validar —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Banco/Caja que paga</label>
+        <select id="npf-cta-haber" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— configurar al validar —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Notas</label>
+      <textarea id="npf-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearPagoFiscal()">Guardar Borrador</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-pago-fiscal')">Cancelar</button>
+    </div>
+    <div id="npf-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Validar y Enviar Pago Fiscal a Odoo -->
+<div id="modal-enviar-fiscal-odoo" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Enviar Pago Fiscal a Odoo</h3>
+    <div id="efo-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cuenta de gasto (débito)</label>
+        <select id="efo-cta-gasto" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></select>
+      </div>
+      <div class="form-group">
+        <label>Banco/Caja que paga (crédito)</label>
+        <select id="efo-cta-haber" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Diario contable</label>
+      <select id="efo-journal" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="confirmarEnviarFiscalOdoo()">Crear Asiento en Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-enviar-fiscal-odoo')">Cancelar</button>
+    </div>
+    <div id="efo-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Requisición -->
+<div id="modal-nueva-requisicion" class="modal-bg">
+  <div class="modal" style="max-width:700px">
+    <h3>Nueva Requisición de Mercancía</h3>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Nombre del empleado</label>
+        <input id="nreq-empleado" placeholder="Juan Pérez">
+      </div>
+      <div class="form-group">
+        <label>Departamento</label>
+        <input id="nreq-depto" placeholder="Ventas">
+      </div>
+      <div class="form-group">
+        <label>Motivo</label>
+        <select id="nreq-motivo">
+          <option value="muestra">Muestra comercial</option>
+          <option value="obsequio">Obsequio/Cortesía</option>
+          <option value="daño">Producto dañado</option>
+          <option value="uso_empleado">Uso empleado</option>
+          <option value="uso_empresa">Uso empresa</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Descripción / Justificación</label>
+      <textarea id="nreq-descripcion" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"
+                placeholder="Detalle el propósito de la requisición..."></textarea>
+    </div>
+    <!-- Tabla de productos -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:.9rem">Productos solicitados</strong>
+        <button class="btn btn-sm btn-outline" onclick="agregarLineaReq()">+ Línea</button>
+      </div>
+      <table style="width:100%;font-size:.85rem;border-collapse:collapse">
+        <thead><tr>
+          <th style="background:var(--primary);color:#fff;padding:6px 10px;text-align:left">Producto</th>
+          <th style="background:var(--primary);color:#fff;padding:6px 10px">Ref/ID Odoo</th>
+          <th style="background:var(--primary);color:#fff;padding:6px 10px">Cant.</th>
+          <th style="background:var(--primary);color:#fff;padding:6px 10px">Unidad</th>
+          <th style="background:var(--primary);color:#fff;padding:6px 10px">Costo Unit.</th>
+          <th style="background:var(--primary);color:#fff;padding:6px 4px"></th>
+        </tr></thead>
+        <tbody id="req-lineas-body"></tbody>
+      </table>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Notas adicionales</label>
+        <input id="nreq-notas" placeholder="Opcional...">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearRequisicion()">Enviar Solicitud</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-requisicion')">Cancelar</button>
+    </div>
+    <div id="nreq-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Aprobar/Ejecutar Requisición -->
+<div id="modal-aprobar-requisicion" class="modal-bg">
+  <div class="modal" style="max-width:580px">
+    <h3>Aprobar Requisición <span id="ar-req-id" style="color:var(--primary)"></span></h3>
+    <div id="ar-req-info" style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Notas de aprobación (opcional)</label>
+      <textarea id="ar-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="aprobarRequisicion()">✓ Aprobar</button>
+      <button class="btn btn-danger" onclick="rechazarRequisicion()">✗ Rechazar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-aprobar-requisicion')">Cancelar</button>
+    </div>
+    <div id="ar-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Ejecutar Requisición en Odoo -->
+<div id="modal-ejecutar-requisicion" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Ejecutar Requisición en Odoo</h3>
+    <div id="ereq-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">
+      Se crearán los movimientos de stock (scrap) y el asiento contable en Odoo.
+    </p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cuenta de gasto/costo</label>
+        <select id="ereq-cuenta" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— sin asiento contable —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ubicación almacén</label>
+        <select id="ereq-ubicacion" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— default —</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-warning" onclick="confirmarEjecutarRequisicion()">Ejecutar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-ejecutar-requisicion')">Cancelar</button>
+    </div>
+    <div id="ereq-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo Zelle de Terceros -->
+<div id="modal-nuevo-zelle" class="modal-bg">
+  <div class="modal" style="max-width:580px">
+    <h3>💲 Nuevo Zelle de Terceros</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha *</label>
+        <input type="date" id="nz-fecha">
+      </div>
+      <div class="form-group"><label>Monto USD *</label>
+        <input type="number" id="nz-monto" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <!-- Proveedor (buscar en Odoo) -->
+    <div class="form-group" style="margin-bottom:10px;position:relative">
+      <label>Proveedor (cuya cuenta Zelle lo recibió) *</label>
+      <input id="nz-prov-q" placeholder="Buscar proveedor..." autocomplete="off"
+             oninput="buscarProvZelle()" style="width:100%">
+      <div id="nz-prov-drop" style="display:none;position:absolute;z-index:200;background:#fff;
+           border:1px solid var(--border);border-radius:6px;width:100%;max-height:160px;
+           overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+      <input type="hidden" id="nz-prov-id">
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Cliente que pagó</label>
+        <input id="nz-cliente" placeholder="Nombre del cliente...">
+      </div>
+      <div class="form-group"><label>Orden Cobrada</label>
+        <input id="nz-orden" placeholder="S00123">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Referencia Zelle</label>
+        <input id="nz-ref" placeholder="Nro. confirmación">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:10px"><label>Descripción</label>
+      <input id="nz-desc" placeholder="Descripción opcional">
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Notas</label>
+      <textarea id="nz-notas" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="crearZelle()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-zelle')">Cancelar</button>
+    </div>
+    <div id="nz-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Abonar Zelle (pago al proveedor) -->
+<div id="modal-abonar-zelle" class="modal-bg">
+  <div class="modal" style="max-width:480px">
+    <h3>✅ Abonar — Reducir AP en Odoo</h3>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+      Crea un pago outbound al proveedor en Odoo como si se hubiera pagado en USD efectivo/Zelle.
+      Esto reduce la cuenta por pagar al proveedor.
+    </p>
+    <input type="hidden" id="az-zelle-id">
+    <div id="az-info" style="background:#f8f9fa;border-radius:6px;padding:10px;margin-bottom:12px;font-size:.88rem"></div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Diario de banco/caja USD *</label>
+      <select id="az-journal" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— cargando diarios —</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="confirmarAbonarZelle()">Abonar en Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-abonar-zelle')">Cancelar</button>
+    </div>
+    <div id="az-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Solicitar Reintegro Zelle -->
+<div id="modal-reintegro-zelle" class="modal-bg">
+  <div class="modal" style="max-width:540px">
+    <h3>🔄 Solicitar Reintegro</h3>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+      Registra que el proveedor debe devolverte el monto (menos comisión si aplica).
+      Crea un asiento contable en Odoo.
+    </p>
+    <input type="hidden" id="rz-zelle-id">
+    <div id="rz-info" style="background:#f8f9fa;border-radius:6px;padding:10px;margin-bottom:12px;font-size:.88rem"></div>
+    <div class="form-row">
+      <div class="form-group"><label>% Comisión del proveedor</label>
+        <input type="number" id="rz-comision-pct" step="0.1" min="0" max="100" value="0"
+               oninput="calcularReintegro()" placeholder="0">
+      </div>
+      <div class="form-group"><label>Monto a reintegrar (calculado)</label>
+        <input id="rz-monto-reintegro" readonly style="background:#f8f9fa;font-weight:600">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Cuenta "Cxc Proveedores" (débito) *</label>
+      <select id="rz-cta-cobrar" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— cargando cuentas —</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Cuenta Caja/Banco USD (crédito — donde "entró" el Zelle) *</label>
+      <select id="rz-cta-caja" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— cargando cuentas —</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:10px" id="rz-cta-comision-wrap" style="display:none">
+      <label>Cuenta Gasto Comisión (opcional)</label>
+      <select id="rz-cta-comision" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— ninguna —</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Diario contable (opcional)</label>
+      <select id="rz-journal" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">— predeterminado —</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-warning" onclick="confirmarReintegroZelle()">Crear Asiento Reintegro</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-reintegro-zelle')">Cancelar</button>
+    </div>
+    <div id="rz-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Importar Comisiones Bancarias -->
+<div id="modal-importar-comisiones" class="modal-bg">
+  <div class="modal" style="max-width:480px">
+    <h3>🏦 Importar Comisiones Bancarias</h3>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+      Busca en Odoo asientos contables de banco/caja que contengan líneas de gasto
+      (comisiones bancarias) y los importa al Maestro de Operaciones.
+    </p>
+    <div class="form-row">
+      <div class="form-group"><label>Desde</label>
+        <input type="date" id="ic-desde">
+      </div>
+      <div class="form-group"><label>Hasta</label>
+        <input type="date" id="ic-hasta">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="importarComisiones(this)">Importar desde Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-importar-comisiones')">Cancelar</button>
+    </div>
+    <div id="ic-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <script>
 const API = '';
 let token = localStorage.getItem('token') || '';
@@ -1414,7 +2259,7 @@ function showView(name) {
 
   const titles = {
     dashboard: 'Dashboard', ventas: 'Ventas Odoo',
-    'pagos-odoo': 'Pagos de Odoo',
+    'pagos-odoo': 'Pagos Clientes (Odoo)',
     'pagos-prov': 'Pagos a Proveedores (Odoo)',
     notas: 'Notas de Crédito', pagos: 'Pagos', cxc: 'Reporte CxC',
     catalogo: 'Catálogo de Productos',
@@ -1422,6 +2267,11 @@ function showView(name) {
     maestro: 'Maestro de Operaciones',
     cobranza: 'CRM Cobranza',
     acuerdos: 'Acuerdos de Pago Especiales',
+    creditos: 'Créditos de Cliente',
+    'cambios-divisa': 'Cambios de Divisa',
+    'pagos-fiscales': 'Pagos Fiscales',
+    requisiciones: 'Requisiciones de Mercancía',
+    'zelle-terceros': 'Zelle de Terceros',
     config: 'Configuración'
   };
   document.getElementById('view-title').textContent = titles[name] || name;
@@ -1436,6 +2286,11 @@ function showView(name) {
     maestro: initMaestroView,
     cobranza: loadCobranza,
     acuerdos: loadAcuerdos,
+    creditos: loadCreditos,
+    'cambios-divisa': loadCambiosDivisa,
+    'pagos-fiscales': loadPagosFiscales,
+    requisiciones: loadRequisiciones,
+    'zelle-terceros': loadZelleTerceros,
     config: loadConfig
   };
   if (loaders[name]) loaders[name]();
@@ -1449,6 +2304,36 @@ async function loadDashboard() {
     document.getElementById('d-aprobaciones').textContent = r.aprobaciones_pendientes;
     document.getElementById('d-pagos-p').textContent = r.pagos_pendientes_recepcion;
     document.getElementById('d-pagos-r').textContent = r.pagos_listos_para_odoo;
+    const errCard = document.getElementById('d-replicas-error');
+    if (errCard) errCard.textContent = r.replicas_con_error ?? '—';
+  } catch(e) {}
+
+  // Alertas de cobro (DB-only, rápido)
+  try {
+    const a = await api('GET', '/reportes/alertas');
+    if (a) {
+      const dSub = document.getElementById('d-subtotal-cobrado');
+      const dSob = document.getElementById('d-sobrepago');
+      const dCred = document.getElementById('d-creditos');
+      if (dSub) dSub.textContent = a.subtotal_cobrado_count ?? 0;
+      if (dSob) dSob.textContent = a.sobrepago_count ?? 0;
+      if (dCred) dCred.textContent = a.creditos_disponibles ?? 0;
+    }
+  } catch(e) {}
+
+  try {
+    const pp = await api('GET', '/reportes/ordenes-pagadas-pendientes');
+    const alertEl = document.getElementById('alert-pagadas-sin-factura');
+    if (alertEl && pp && pp.length > 0) {
+      alertEl.innerHTML = `<div class="alert alert-warning">
+        <strong>⚠ ${pp.length} orden(es) pagada(s) sin factura publicada:</strong>
+        ${pp.map(o => `<span style="margin-left:8px;font-weight:600">${o.orden}</span>`).join('')}
+        <button class="btn btn-sm btn-warning" style="margin-left:12px" onclick="showView('cxc')">Ver en CxC</button>
+      </div>`;
+      alertEl.style.display = '';
+    } else if (alertEl) {
+      alertEl.innerHTML = '';
+    }
   } catch(e) {}
 
   try {
@@ -2088,34 +2973,929 @@ async function exportarSheets() {
 // ── CxC ───────────────────────────────────────────────────────────────────────
 async function loadCxC() {
   const tb = document.getElementById('tb-cxc');
-  tb.innerHTML = '<tr><td colspan="8" class="loader">Cargando...</td></tr>';
+  tb.innerHTML = '<tr><td colspan="20" class="loader">Cargando...</td></tr>';
   try {
-    const r = await api('GET', '/reportes/cxc');
+    const [r, pagadas] = await Promise.all([
+      api('GET', '/reportes/cxc'),
+      api('GET', '/reportes/ordenes-pagadas-pendientes').catch(()=>[])
+    ]);
     const res = document.getElementById('cxc-resumen');
     res.innerHTML = `
-      <div class="card"><div class="num">$${fmtNum(r.total_saldo_usd||0, 2)}</div><div class="lbl">Saldo Total USD</div></div>
-      <div class="card"><div class="num">Bs.${fmtNum(r.tasa_bcv||0, 2)}</div><div class="lbl">Tasa BCV</div></div>
+      <div class="card"><div class="num">$${fmtNum(r.total_saldo_usd||0,2)}</div><div class="lbl">Saldo Total USD</div></div>
+      <div class="card"><div class="num">Bs.${fmtNum(r.tasa_bcv||0,2)}</div><div class="lbl">Tasa BCV</div></div>
       <div class="card"><div class="num">Bs.${(r.total_saldo_ves_bcv||0).toLocaleString('es-VE',{maximumFractionDigits:0})}</div><div class="lbl">Saldo Total (BCV)</div></div>
     `;
-    tb.innerHTML = (r.ventas||[]).map(v => `
-      <tr>
-        <td><span class="badge b-${v.fuente==='odoo'?'sale':'propuesto'}">${v.fuente}</span></td>
-        <td><strong>${v.codigo}</strong></td>
-        <td>${v.cliente}</td>
-        <td>$${fmtNum(v.total_usd||0, 2)}</td>
-        <td>$${fmtNum(v.pagado_usd||0, 2)}</td>
-        <td>$${fmtNum(v.saldo_usd||0, 2)}</td>
-        <td>Bs.${(v.saldo_ves_bcv||0).toLocaleString('es-VE',{maximumFractionDigits:0})}</td>
-        <td><span class="badge b-${v.estado_cxc.replace('_','-')}">${v.estado_cxc}</span></td>
-      </tr>`).join('') || '<tr><td colspan="8" class="loader">Sin datos</td></tr>';
+    const alertEl = document.getElementById('alert-pagadas-pendientes');
+    if (alertEl && pagadas && pagadas.length > 0) {
+      const nombres = pagadas.map(o => `<strong>${o.orden}</strong>`).join(', ');
+      alertEl.innerHTML = `<div class="alert alert-warning" style="padding:10px 14px;border-radius:8px;background:#fff3cd;border:1px solid #ffc107">
+        ⚠ <strong>${pagadas.length} orden(es) pagada(s) con factura pendiente de publicar:</strong> ${nombres}
+      </div>`;
+      alertEl.style.display = '';
+    } else if (alertEl) {
+      alertEl.style.display = 'none';
+    }
+
+    // Cargar errores de réplicas
+    try {
+      const errores = await api('GET', '/replicas/errores');
+      const errSec = document.getElementById('replicas-errores-section');
+      const errTb = document.getElementById('tb-replicas-errores');
+      if (errores && errores.length > 0) {
+        errTb.innerHTML = errores.map(e => `<tr>
+          <td><strong>${e.odoo_order_name}</strong></td>
+          <td style="color:var(--danger);font-size:.83rem">${e.error_detalle||'Error desconocido'}</td>
+          <td style="font-size:.8rem;color:var(--muted)">${(e.actualizado_en||'').slice(0,16).replace('T',' ')}</td>
+          <td><button class="btn btn-sm btn-warning" onclick="reintentarReplica('${e.odoo_order_name}',this)">Reintentar</button></td>
+        </tr>`).join('');
+        errSec.style.display = '';
+      } else {
+        errSec.style.display = 'none';
+      }
+    } catch(_) {}
+
+    const pagadasSet = new Set((pagadas||[]).map(o => o.orden));
+    const N = 19; // número de columnas
+    const fmtD = (v, sym='$') => v != null ? `${sym}${fmtNum(v,2)}` : '<span style="color:var(--muted);font-size:.75rem">—</span>';
+    const fmtNoR = () => '<span style="color:var(--muted);font-size:.75rem">sin réplica</span>';
+    const okIcon = '<span style="color:var(--success);font-weight:700">✓</span>';
+
+    // Labels legibles para estado_cobro
+    const estadoCobroLabel = {
+      pendiente:         'Pendiente',
+      pago_parcial:      'Parcial',
+      subtotal_cobrado:  'Subtotal ✓',
+      pagado_completo:   'Pagado ✓',
+      sobrepagado:       'Sobrepago ⚠',
+      en_proceso_odoo:   'En Odoo',
+      cerrado:           'Cerrado ✓',
+    };
+
+    tb.innerHTML = (r.ventas||[]).map(v => {
+      const esPagadaPendiente = pagadasSet.has(v.codigo);
+      const estadoCobro = v.estado_cobro || v.estado_cxc || 'pendiente';
+      const rowBg = v.sobrepagado ? 'background:#fff0f0' :
+                    esPagadaPendiente ? 'background:#fff3cd' :
+                    estadoCobro === 'subtotal_cobrado' ? 'background:#fffde7' : '';
+      const alertIcon = esPagadaPendiente ? ' ⚠' : '';
+      const badgeCobro = estadoCobro.replace(/_/g,'-');
+      const monBadge = v.moneda_orden === 'EUR' ? 'b-enviada' : 'b-sale';
+      const saldoColor = (v.saldo_usd||0) > 0 ? 'color:var(--danger)' : 'color:var(--success)';
+
+      // Factura: mostrar residual si hay factura, si no invoice_status
+      let facturaCell = '';
+      if (v.has_invoice) {
+        const factNombres = (v.facturas_odoo||[]).map(f => f.nombre||f.name).join(', ') || '—';
+        const resColor = (v.residual_odoo||0) <= 0.01 ? 'var(--success)' : 'var(--danger)';
+        facturaCell = `<span title="Facturas: ${factNombres}" style="cursor:help">
+          📄 <span style="color:${resColor};font-size:.8rem">$${fmtNum(v.residual_odoo||0,2)}</span>
+        </span>`;
+      } else if (v.invoice_status === 'to invoice') {
+        facturaCell = '<span style="color:var(--muted);font-size:.8rem">📋 Por facturar</span>';
+      } else {
+        facturaCell = '<span style="color:var(--muted);font-size:.8rem">—</span>';
+      }
+
+      // Botón crear crédito si hay sobrepago
+      const crearCreditoBtn = v.sobrepagado
+        ? `<button class="btn btn-sm btn-warning" style="margin-top:3px"
+             onclick="abrirModalSobrepago('${v.codigo}','${(v.cliente||'').replace(/'/g,"\\'")}',${v.sobrepago_usd||0},${v.partner_id||0})"
+           >💳 Crédito</button>`
+        : '';
+
+      // Lista VES — solo si hay réplica
+      const hasVes = v.total_lista_ves != null;
+      const subVes   = hasVes ? fmtD(v.subtotal_lista_ves) : fmtNoR();
+      const taxVes   = hasVes ? fmtD(v.tax_lista_ves)      : '—';
+      const totVes   = hasVes ? fmtD(v.total_lista_ves)    : '—';
+      const ncVes    = hasVes ? fmtD(v.nc_lista_ves||0)    : '—';
+      const aPagarVes = hasVes
+        ? `${fmtD(v.a_pagar_lista_ves)}${v.pagado_lista_ves ? ' '+okIcon : ''}`
+        : fmtNoR();
+
+      // Lista USD — réplica o directo desde Odoo
+      const hasUsd = v.total_lista_usd != null;
+      const directTag = v.lista_usd_directo ? '<span style="font-size:.7rem;color:var(--muted)"> (Odoo)</span>' : '';
+      const subUsd   = hasUsd ? fmtD(v.subtotal_lista_usd) + directTag : fmtNoR();
+      const taxUsd   = hasUsd ? fmtD(v.tax_lista_usd)                  : '—';
+      const totUsd   = hasUsd ? fmtD(v.total_lista_usd)   + directTag  : '—';
+      const ncUsd    = hasUsd ? fmtD(v.nc_lista_usd||0)                : '—';
+      const aPagarUsd = hasUsd
+        ? `${fmtD(v.a_pagar_lista_usd)}${v.pagado_lista_usd ? ' '+okIcon : ''}`
+        : fmtNoR();
+
+      return `<tr style="${rowBg}">
+        <td><strong>${v.codigo}</strong>${alertIcon}</td>
+        <td style="white-space:nowrap">${v.cliente||''}</td>
+        <td><span class="badge ${monBadge}">${v.moneda_orden||'USD'}</span></td>
+        <td style="text-align:right">${fmtD(v.subtotal_odoo)}</td>
+        <td style="text-align:right;color:var(--muted)">${fmtD(v.tax_odoo)}</td>
+        <td style="text-align:right;font-weight:600">${fmtD(v.total_odoo)}</td>
+        <td style="text-align:right">${fmtD(v.pagado_usd)}</td>
+        <td style="text-align:right;${saldoColor}">${fmtD(v.saldo_usd)}</td>
+        <td style="text-align:right">${subVes}</td>
+        <td style="text-align:right;color:var(--muted)">${taxVes}</td>
+        <td style="text-align:right;font-weight:600">${totVes}</td>
+        <td style="text-align:right;color:#856404">${ncVes}</td>
+        <td style="text-align:right">${aPagarVes}</td>
+        <td style="text-align:right">${subUsd}</td>
+        <td style="text-align:right;color:var(--muted)">${taxUsd}</td>
+        <td style="text-align:right;font-weight:600">${totUsd}</td>
+        <td style="text-align:right;color:#856404">${ncUsd}</td>
+        <td style="text-align:right">${aPagarUsd}</td>
+        <td>
+          <span class="badge b-${badgeCobro}">${estadoCobroLabel[estadoCobro]||estadoCobro}</span>
+          ${crearCreditoBtn}
+        </td>
+        <td style="text-align:center;min-width:90px">${facturaCell}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="${N+1}" class="loader">Sin datos</td></tr>`;
   } catch(e) {
-    tb.innerHTML = `<tr><td colspan="8" style="color:red;padding:12px">${e.message}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="20" style="color:red;padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+async function syncReplicas() {
+  try {
+    const r = await api('POST', '/replicas/sync');
+    const msgs = [
+      `Réplicas creadas/actualizadas: ${r.sincronizadas}`,
+      `Errores: ${r.errores}`,
+      `Desactivadas: ${r.desactivadas}`,
+      r.sin_replica_lista_usd > 0 ? `Órdenes con Lista USD directo (sin réplica): ${r.sin_replica_lista_usd}` : null
+    ].filter(Boolean);
+    alert(msgs.join('\n'));
+    loadCxC();
+  } catch(e) { alert('Error sincronizando réplicas: ' + e.message); }
+}
+
+async function reintentarReplica(orderName, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await api('POST', `/replicas/${encodeURIComponent(orderName)}/reintentar`);
+    alert(`Réplica creada: Lista VES $${fmtNum(r.total_lista_ves||0,2)} | Lista USD $${fmtNum(r.total_lista_usd||0,2)}`);
+    loadCxC();
+  } catch(e) {
+    alert('Error: ' + (e.message || 'No se pudo crear la réplica'));
+    btn.disabled = false;
+    btn.textContent = 'Reintentar';
   }
 }
 
 async function exportarExcel() {
   window.open('/reportes/ventas/exportar-excel', '_blank');
 }
+
+// ── CRÉDITOS CLIENTE ──────────────────────────────────────────────────────────
+
+let _creditosData = [];
+
+async function loadCreditos() {
+  const tb = document.getElementById('tb-creditos');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
+  try {
+    const estado = document.getElementById('cred-f-estado')?.value || '';
+    const motivo = document.getElementById('cred-f-motivo')?.value || '';
+    let qs = [];
+    if (estado) qs.push(`estado=${estado}`);
+    if (motivo) qs.push(`motivo=${motivo}`);
+    const path = '/creditos' + (qs.length ? '?' + qs.join('&') : '');
+    _creditosData = await api('GET', path) || [];
+
+    // KPIs
+    try {
+      const kpis = await api('GET', '/creditos/resumen');
+      const kpiEl = document.getElementById('cred-kpis');
+      if (kpiEl && kpis) {
+        kpiEl.innerHTML = kpis.map(k =>
+          `<div class="card"><div class="num" style="font-size:1.3rem">${fmtNum(k.total_usd,2)}</div>
+           <div class="lbl"><span class="badge b-${k.estado}">${k.estado}</span> ${k.moneda} · ${k.cantidad} créd.</div></div>`
+        ).join('');
+      }
+    } catch(_) {}
+
+    if (!_creditosData.length) {
+      tb.innerHTML = '<tr><td colspan="11" class="loader">Sin créditos</td></tr>';
+      return;
+    }
+    tb.innerHTML = _creditosData.map(c => {
+      const fechaCorta = (c.creado_en||'').slice(0,10);
+      const motLabel = {sobrepago:'Sobrepago',ajuste:'Ajuste',devolucion:'Devolución'}[c.motivo] || c.motivo;
+      return `<tr>
+        <td>${c.id}</td>
+        <td style="white-space:nowrap">${c.partner_nombre||'—'}</td>
+        <td>${c.odoo_order_name||'—'}</td>
+        <td>${motLabel}</td>
+        <td style="text-align:right;font-weight:600">$${fmtNum(c.monto,2)}</td>
+        <td><span class="badge b-sale">${c.moneda||'USD'}</span></td>
+        <td style="text-align:right">${c.equivalente_usd != null ? '$'+fmtNum(c.equivalente_usd,2) : '—'}</td>
+        <td><span class="badge b-${c.estado}">${c.estado}</span></td>
+        <td>${c.aplicado_a_orden||'—'}</td>
+        <td style="font-size:.8rem;color:var(--muted)">${fechaCorta}</td>
+        <td>
+          ${c.estado==='disponible' ? `
+            <button class="btn btn-sm btn-success" onclick="abrirAplicarCredito(${c.id})">Aplicar</button>
+            <button class="btn btn-sm btn-outline" onclick="devolverCredito(${c.id})" style="margin-left:4px">Devolver</button>
+            <button class="btn btn-sm btn-danger" onclick="anularCredito(${c.id})" style="margin-left:4px">Anular</button>
+          ` : '—'}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="11" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+// Buscar cliente para nuevo crédito
+let _buscarClienteCreditoTimer = null;
+async function buscarClienteCredito() {
+  clearTimeout(_buscarClienteCreditoTimer);
+  const q = document.getElementById('nc-cliente-q').value.trim();
+  const drop = document.getElementById('nc-cliente-drop');
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  _buscarClienteCreditoTimer = setTimeout(async () => {
+    try {
+      const clientes = await api('GET', `/odoo/clientes/buscar?q=${encodeURIComponent(q)}`);
+      if (!clientes?.length) { drop.style.display = 'none'; return; }
+      drop.innerHTML = clientes.map(c =>
+        `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)"
+              onmousedown="selClienteCredito(${c.id},'${(c.name||'').replace(/'/g,"\\'")}')"
+              onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
+          <strong>${c.name}</strong>${c.phone ? ' · ' + c.phone : ''}
+        </div>`
+      ).join('');
+      drop.style.display = '';
+    } catch(_) {}
+  }, 300);
+}
+function selClienteCredito(id, nombre) {
+  document.getElementById('nc-partner-id').value = id;
+  document.getElementById('nc-partner-nom').value = nombre;
+  document.getElementById('nc-cliente-q').value = nombre;
+  document.getElementById('nc-cliente-drop').style.display = 'none';
+}
+
+async function crearCredito() {
+  const partnerId = document.getElementById('nc-partner-id').value;
+  const partnerNom = document.getElementById('nc-partner-nom').value ||
+                     document.getElementById('nc-cliente-q').value;
+  const monto = parseFloat(document.getElementById('nc-monto').value);
+  const moneda = document.getElementById('nc-moneda').value;
+  const motivo = document.getElementById('nc-motivo').value;
+  const notas = document.getElementById('nc-notas').value;
+  const orden = document.getElementById('nc-orden').value.trim() || null;
+  const equivRaw = document.getElementById('nc-equiv-usd').value;
+  const equiv = equivRaw ? parseFloat(equivRaw) : null;
+  const res = document.getElementById('nc-result');
+
+  if (!partnerId || !partnerNom) { res.innerHTML = `<div class="alert alert-danger">Seleccione un cliente</div>`; return; }
+  if (!monto || monto <= 0) { res.innerHTML = `<div class="alert alert-danger">Monto inválido</div>`; return; }
+
+  try {
+    await api('POST', '/creditos', {
+      partner_id: parseInt(partnerId),
+      partner_nombre: partnerNom,
+      monto, moneda, motivo, notas,
+      odoo_order_name: orden,
+      equivalente_usd: equiv
+    });
+    closeModal('modal-nuevo-credito');
+    loadCreditos();
+    loadDashboard();
+    // limpiar
+    ['nc-cliente-q','nc-partner-id','nc-partner-nom','nc-orden','nc-monto','nc-notas','nc-equiv-usd'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+let _currentCreditoId = null;
+function abrirAplicarCredito(creditoId) {
+  _currentCreditoId = creditoId;
+  document.getElementById('ac-cred-id').textContent = `#${creditoId}`;
+  document.getElementById('ac-orden').value = '';
+  document.getElementById('ac-notas').value = '';
+  document.getElementById('ac-result').innerHTML = '';
+  showModal('modal-aplicar-credito');
+}
+
+async function aplicarCredito() {
+  const orden = document.getElementById('ac-orden').value.trim();
+  const notas = document.getElementById('ac-notas').value;
+  const res = document.getElementById('ac-result');
+  if (!orden) { res.innerHTML = `<div class="alert alert-danger">Ingrese la orden</div>`; return; }
+  try {
+    await api('PUT', `/creditos/${_currentCreditoId}/aplicar`, { aplicado_a_orden: orden, notas });
+    closeModal('modal-aplicar-credito');
+    loadCreditos();
+    loadDashboard();
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function devolverCredito(creditoId) {
+  if (!confirm(`¿Marcar crédito #${creditoId} como devuelto al cliente?`)) return;
+  try {
+    await api('PUT', `/creditos/${creditoId}/devolver`, {});
+    loadCreditos();
+    loadDashboard();
+  } catch(e) { alert(e.message); }
+}
+
+async function anularCredito(creditoId) {
+  if (!confirm(`¿Anular crédito #${creditoId}? Esta acción no se puede deshacer.`)) return;
+  try {
+    await api('PUT', `/creditos/${creditoId}/anular`, {});
+    loadCreditos();
+    loadDashboard();
+  } catch(e) { alert(e.message); }
+}
+
+// Abrir modal de crédito por sobrepago desde la tabla CxC
+let _sobrepagoData = null;
+function abrirModalSobrepago(orden, cliente, montoSobrepago, partnerId) {
+  _sobrepagoData = { orden, cliente, montoSobrepago, partnerId };
+  const info = document.getElementById('sp-cred-info');
+  info.innerHTML = `
+    <strong>Orden:</strong> ${orden}<br>
+    <strong>Cliente:</strong> ${cliente}<br>
+    <strong>Monto sobrepago (USD):</strong> <span style="color:var(--danger);font-weight:700">$${fmtNum(montoSobrepago,4)}</span>
+  `;
+  document.getElementById('sp-notas').value = '';
+  document.getElementById('sp-result').innerHTML = '';
+  showModal('modal-sobrepago-credito');
+}
+
+async function confirmarCreditoSobrepago() {
+  if (!_sobrepagoData) return;
+  const notas = document.getElementById('sp-notas').value;
+  const res = document.getElementById('sp-result');
+  try {
+    await api('POST', '/creditos', {
+      partner_id: _sobrepagoData.partnerId,
+      partner_nombre: _sobrepagoData.cliente,
+      monto: _sobrepagoData.montoSobrepago,
+      moneda: 'USD',
+      equivalente_usd: _sobrepagoData.montoSobrepago,
+      motivo: 'sobrepago',
+      odoo_order_name: _sobrepagoData.orden,
+      notas: notas || `Sobrepago detectado en orden ${_sobrepagoData.orden}`
+    });
+    closeModal('modal-sobrepago-credito');
+    loadCxC();
+    loadDashboard();
+    _sobrepagoData = null;
+  } catch(e) {
+    res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// ── CAMBIOS DE DIVISA ────────────────────────────────────────────────────────
+
+let _cambiosDivisaData = [];
+
+async function loadCambiosDivisa() {
+  const tb = document.getElementById('tb-cambios-divisa');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
+  try {
+    const estado = document.getElementById('cd-f-estado')?.value || '';
+    const desde  = document.getElementById('cd-f-desde')?.value  || '';
+    const hasta  = document.getElementById('cd-f-hasta')?.value  || '';
+    let qs = [];
+    if (estado) qs.push(`estado=${estado}`);
+    if (desde)  qs.push(`fecha_desde=${desde}`);
+    if (hasta)  qs.push(`fecha_hasta=${hasta}`);
+    const path = '/cambios-divisa' + (qs.length ? '?' + qs.join('&') : '');
+    _cambiosDivisaData = await api('GET', path) || [];
+    if (!_cambiosDivisaData.length) {
+      tb.innerHTML = '<tr><td colspan="11" class="loader">Sin registros</td></tr>'; return;
+    }
+    const estadoBadge = {borrador:'b-pendiente',validado:'b-confirmado',enviado_odoo:'b-recibido'};
+    tb.innerHTML = _cambiosDivisaData.map(c => `<tr>
+      <td>${c.id}</td>
+      <td>${c.fecha||''}</td>
+      <td>${c.descripcion||'—'}</td>
+      <td style="text-align:right;color:var(--danger)"><strong>${fmtNum(c.monto_egreso,2)}</strong> ${c.moneda_egreso}</td>
+      <td style="font-size:.82rem">${c.banco_egreso||'—'}</td>
+      <td style="text-align:right;color:var(--success)"><strong>${fmtNum(c.monto_ingreso,2)}</strong> ${c.moneda_ingreso}</td>
+      <td style="font-size:.82rem">${c.banco_ingreso||'—'}</td>
+      <td style="text-align:right">${fmtNum(c.tasa_cambio,4)}</td>
+      <td><span class="badge ${estadoBadge[c.estado]||'b-pendiente'}">${c.estado}</span></td>
+      <td style="font-size:.8rem;color:var(--muted)">${c.odoo_move_id ? `#${c.odoo_move_id}` : '—'}</td>
+      <td>
+        ${c.estado==='borrador' ? `
+          <button class="btn btn-sm btn-success" onclick="validarCambioDivisa(${c.id})">Validar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarCambioDivisa(${c.id})" style="margin-left:4px">🗑</button>
+        ` : ''}
+        ${c.estado==='validado' ? `
+          <button class="btn btn-sm btn-primary" onclick="abrirEnviarCambioOdoo(${c.id})">→ Odoo</button>
+        ` : ''}
+      </td>
+    </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="11" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function calcTasaCambio() {
+  const e = parseFloat(document.getElementById('ncd-monto-egr').value) || 0;
+  const i = parseFloat(document.getElementById('ncd-monto-ing').value) || 0;
+  const me = document.getElementById('ncd-mon-egr').value;
+  const mi = document.getElementById('ncd-mon-ing').value;
+  const tLabel = document.getElementById('ncd-tasa-label');
+  if (e > 0 && i > 0) {
+    const tasa = i / e;
+    document.getElementById('ncd-tasa').value = tasa.toFixed(4);
+    if (tLabel) tLabel.textContent = `(${mi}/${me})`;
+  }
+}
+
+function recalcMontoIng() {
+  const e = parseFloat(document.getElementById('ncd-monto-egr').value) || 0;
+  const t = parseFloat(document.getElementById('ncd-tasa').value) || 0;
+  if (e > 0 && t > 0) {
+    document.getElementById('ncd-monto-ing').value = (e * t).toFixed(2);
+  }
+}
+
+async function crearCambioDivisa() {
+  const res = document.getElementById('ncd-result');
+  const body = {
+    fecha:          document.getElementById('ncd-fecha').value,
+    descripcion:    document.getElementById('ncd-descripcion').value,
+    monto_egreso:   parseFloat(document.getElementById('ncd-monto-egr').value),
+    moneda_egreso:  document.getElementById('ncd-mon-egr').value,
+    banco_egreso:   document.getElementById('ncd-banco-egr').value,
+    monto_ingreso:  parseFloat(document.getElementById('ncd-monto-ing').value),
+    moneda_ingreso: document.getElementById('ncd-mon-ing').value,
+    banco_ingreso:  document.getElementById('ncd-banco-ing').value,
+    tasa_cambio:    parseFloat(document.getElementById('ncd-tasa').value),
+    notas:          document.getElementById('ncd-notas').value,
+  };
+  if (!body.fecha || !body.monto_egreso || !body.monto_ingreso || !body.tasa_cambio) {
+    res.innerHTML = `<div class="alert alert-danger">Complete todos los campos requeridos</div>`; return;
+  }
+  try {
+    await api('POST', '/cambios-divisa', body);
+    closeModal('modal-nuevo-cambio-divisa');
+    loadCambiosDivisa();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+async function validarCambioDivisa(id) {
+  try {
+    const r = await api('POST', `/cambios-divisa/${id}/validar`);
+    alert(`Cambio validado ✓\nMaestro egreso #${r.maestro_egreso_id} | ingreso #${r.maestro_ingreso_id}`);
+    loadCambiosDivisa();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarCambioDivisa(id) {
+  if (!confirm('¿Eliminar este cambio de divisa?')) return;
+  try {
+    await api('DELETE', `/cambios-divisa/${id}`);
+    loadCambiosDivisa();
+  } catch(e) { alert(e.message); }
+}
+
+let _currentCambioId = null;
+async function abrirEnviarCambioOdoo(id) {
+  _currentCambioId = id;
+  const c = _cambiosDivisaData.find(x => x.id === id);
+  document.getElementById('eco-info').innerHTML = c
+    ? `<strong>${c.descripcion}</strong><br>
+       Egreso: ${fmtNum(c.monto_egreso,2)} ${c.moneda_egreso} desde ${c.banco_egreso||'—'}<br>
+       Ingreso: ${fmtNum(c.monto_ingreso,2)} ${c.moneda_ingreso} hacia ${c.banco_ingreso||'—'}`
+    : '';
+  document.getElementById('eco-result').innerHTML = '';
+
+  // Cargar cuentas de liquidez
+  try {
+    const cuentas = await api('GET', '/cambios-divisa/helpers/cuentas?tipo=liquidez');
+    const opts = (cuentas||[]).map(ct =>
+      `<option value="${ct.id}">[${ct.code}] ${ct.name}</option>`).join('');
+    ['eco-cta-egr','eco-cta-ing'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.innerHTML = '<option value="">— seleccionar —</option>' + opts;
+    });
+  } catch(_) {}
+  showModal('modal-enviar-cambio-odoo');
+}
+
+async function confirmarEnviarCambioOdoo() {
+  const ctaEgr = document.getElementById('eco-cta-egr').value;
+  const ctaIng = document.getElementById('eco-cta-ing').value;
+  const res = document.getElementById('eco-result');
+  if (!ctaEgr || !ctaIng) { res.innerHTML = `<div class="alert alert-danger">Seleccione ambas cuentas</div>`; return; }
+  try {
+    const r = await api('POST', `/cambios-divisa/${_currentCambioId}/enviar-odoo`,
+      { cuenta_egreso_id: parseInt(ctaEgr), cuenta_ingreso_id: parseInt(ctaIng) });
+    closeModal('modal-enviar-cambio-odoo');
+    alert(`Asiento Odoo creado: #${r.odoo_move_id}`);
+    loadCambiosDivisa();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+
+// ── PAGOS FISCALES ────────────────────────────────────────────────────────────
+
+let _pagosFiscalesData = [];
+
+const FISCAL_LABELS = {
+  alcaldia:'Alcaldía', inces:'INCES', aseo:'Aseo Urbano',
+  iva:'IVA', islr:'ISLR', seniat:'SENIAT', sso:'Seg. Social', otro:'Otro'
+};
+
+async function loadPagosFiscales() {
+  const tb = document.getElementById('tb-pagos-fiscales');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="12" class="loader">Cargando...</td></tr>';
+  try {
+    const estado = document.getElementById('pf-f-estado')?.value || '';
+    const tipo   = document.getElementById('pf-f-tipo')?.value   || '';
+    const desde  = document.getElementById('pf-f-desde')?.value  || '';
+    let qs = [];
+    if (estado) qs.push(`estado=${estado}`);
+    if (tipo)   qs.push(`tipo=${tipo}`);
+    if (desde)  qs.push(`fecha_desde=${desde}`);
+    const path = '/pagos-fiscales' + (qs.length ? '?' + qs.join('&') : '');
+    _pagosFiscalesData = await api('GET', path) || [];
+    if (!_pagosFiscalesData.length) {
+      tb.innerHTML = '<tr><td colspan="12" class="loader">Sin registros</td></tr>'; return;
+    }
+    const estadoBadge = {borrador:'b-pendiente',validado:'b-confirmado',enviado_odoo:'b-recibido'};
+    tb.innerHTML = _pagosFiscalesData.map(p => `<tr>
+      <td>${p.id}</td>
+      <td><strong>${FISCAL_LABELS[p.tipo]||p.tipo}</strong></td>
+      <td>${p.descripcion||''}</td>
+      <td style="font-size:.8rem">${p.periodo||'—'}</td>
+      <td>${p.fecha||''}</td>
+      <td style="text-align:right;font-weight:600">${fmtNum(p.monto,2)}</td>
+      <td><span class="badge b-sale">${p.moneda}</span></td>
+      <td style="text-align:right">${p.equivalente_usd ? '$'+fmtNum(p.equivalente_usd,2) : '—'}</td>
+      <td style="font-size:.8rem">${p.referencia||'—'}</td>
+      <td><span class="badge ${estadoBadge[p.estado]||'b-pendiente'}">${p.estado}</span></td>
+      <td style="font-size:.8rem">${p.odoo_move_id ? `#${p.odoo_move_id}` : '—'}</td>
+      <td>
+        ${p.estado==='borrador' ? `
+          <button class="btn btn-sm btn-success" onclick="validarPagoFiscal(${p.id})">Validar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarPagoFiscal(${p.id})" style="margin-left:4px">🗑</button>
+        ` : ''}
+        ${p.estado==='validado' ? `
+          <button class="btn btn-sm btn-primary" onclick="abrirEnviarFiscalOdoo(${p.id})">→ Odoo</button>
+        ` : ''}
+      </td>
+    </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="12" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+async function crearPagoFiscal() {
+  const res = document.getElementById('npf-result');
+  const ctaGastoSel = document.getElementById('npf-cta-gasto');
+  const ctaHaberSel = document.getElementById('npf-cta-haber');
+  const ctaGastoOpt = ctaGastoSel?.options[ctaGastoSel.selectedIndex];
+  const ctaHaberOpt = ctaHaberSel?.options[ctaHaberSel.selectedIndex];
+  const body = {
+    tipo:          document.getElementById('npf-tipo').value,
+    descripcion:   document.getElementById('npf-descripcion').value,
+    monto:         parseFloat(document.getElementById('npf-monto').value),
+    moneda:        document.getElementById('npf-moneda').value,
+    fecha:         document.getElementById('npf-fecha').value,
+    periodo:       document.getElementById('npf-periodo').value,
+    referencia:    document.getElementById('npf-referencia').value,
+    notas:         document.getElementById('npf-notas').value,
+    equivalente_usd: parseFloat(document.getElementById('npf-equiv-usd').value) || null,
+    odoo_cuenta_gasto_id: ctaGastoSel?.value ? parseInt(ctaGastoSel.value) : null,
+    odoo_cuenta_gasto_codigo: ctaGastoOpt?.dataset.codigo || '',
+    odoo_cuenta_haber_id: ctaHaberSel?.value ? parseInt(ctaHaberSel.value) : null,
+    odoo_cuenta_haber_codigo: ctaHaberOpt?.dataset.codigo || '',
+  };
+  if (!body.tipo || !body.descripcion || !body.monto || !body.fecha) {
+    res.innerHTML = `<div class="alert alert-danger">Complete los campos requeridos</div>`; return;
+  }
+  try {
+    await api('POST', '/pagos-fiscales', body);
+    closeModal('modal-nuevo-pago-fiscal');
+    loadPagosFiscales();
+    // limpiar
+    ['npf-descripcion','npf-monto','npf-periodo','npf-referencia','npf-notas','npf-equiv-usd'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+// Cargar cuentas al abrir el modal
+async function abrirNuevoPagoFiscal() {
+  showModal('modal-nuevo-pago-fiscal');
+  try {
+    const [gastos, liquidez] = await Promise.all([
+      api('GET', '/pagos-fiscales/helpers/cuentas-gasto'),
+      api('GET', '/pagos-fiscales/helpers/cuentas-liquidez'),
+    ]);
+    const mkOpts = (arr) => (arr||[]).map(c =>
+      `<option value="${c.id}" data-codigo="${c.code||''}">[${c.code||''}] ${c.name}</option>`).join('');
+    const gastoSel = document.getElementById('npf-cta-gasto');
+    const haberSel = document.getElementById('npf-cta-haber');
+    if (gastoSel) gastoSel.innerHTML = '<option value="">— configurar —</option>' + mkOpts(gastos);
+    if (haberSel) haberSel.innerHTML = '<option value="">— configurar —</option>' + mkOpts(liquidez);
+  } catch(_) {}
+}
+
+async function validarPagoFiscal(id) {
+  try {
+    const r = await api('POST', `/pagos-fiscales/${id}/validar`);
+    alert(`Pago fiscal validado ✓\nRegistrado en Maestro #${r.maestro_op_id}`);
+    loadPagosFiscales();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarPagoFiscal(id) {
+  if (!confirm('¿Eliminar este pago fiscal?')) return;
+  try {
+    await api('DELETE', `/pagos-fiscales/${id}`);
+    loadPagosFiscales();
+  } catch(e) { alert(e.message); }
+}
+
+let _currentPfId = null;
+async function abrirEnviarFiscalOdoo(id) {
+  _currentPfId = id;
+  const p = _pagosFiscalesData.find(x => x.id === id);
+  document.getElementById('efo-info').innerHTML = p
+    ? `<strong>${FISCAL_LABELS[p.tipo]||p.tipo}</strong>: ${p.descripcion}<br>
+       Monto: <strong>${fmtNum(p.monto,2)} ${p.moneda}</strong> | Fecha: ${p.fecha}`
+    : '';
+  document.getElementById('efo-result').innerHTML = '';
+
+  try {
+    const [gastos, liquidez, journals] = await Promise.all([
+      api('GET', '/pagos-fiscales/helpers/cuentas-gasto'),
+      api('GET', '/pagos-fiscales/helpers/cuentas-liquidez'),
+      api('GET', '/pagos-fiscales/helpers/journals'),
+    ]);
+    const mkOpts = (arr) => (arr||[]).map(c =>
+      `<option value="${c.id}">[${c.code||c.id}] ${c.name}</option>`).join('');
+    const mkJOpts = (arr) => (arr||[]).map(j =>
+      `<option value="${j.id}">${j.name}</option>`).join('');
+    document.getElementById('efo-cta-gasto').innerHTML = '<option value="">—</option>' + mkOpts(gastos);
+    document.getElementById('efo-cta-haber').innerHTML = '<option value="">—</option>' + mkOpts(liquidez);
+    document.getElementById('efo-journal').innerHTML   = '<option value="">— opcional —</option>' + mkJOpts(journals);
+    // Pre-seleccionar si ya están configuradas
+    if (p?.odoo_cuenta_gasto_id) document.getElementById('efo-cta-gasto').value = p.odoo_cuenta_gasto_id;
+    if (p?.odoo_cuenta_haber_id) document.getElementById('efo-cta-haber').value = p.odoo_cuenta_haber_id;
+    if (p?.odoo_journal_id)      document.getElementById('efo-journal').value    = p.odoo_journal_id;
+  } catch(_) {}
+  showModal('modal-enviar-fiscal-odoo');
+}
+
+async function confirmarEnviarFiscalOdoo() {
+  const ctaG = document.getElementById('efo-cta-gasto').value;
+  const ctaH = document.getElementById('efo-cta-haber').value;
+  const jrnl = document.getElementById('efo-journal').value;
+  const res  = document.getElementById('efo-result');
+  if (!ctaG || !ctaH) { res.innerHTML = `<div class="alert alert-danger">Seleccione ambas cuentas</div>`; return; }
+  try {
+    const r = await api('POST', `/pagos-fiscales/${_currentPfId}/enviar-odoo`,
+      { cuenta_gasto_id: parseInt(ctaG), cuenta_haber_id: parseInt(ctaH),
+        journal_id: jrnl ? parseInt(jrnl) : null });
+    closeModal('modal-enviar-fiscal-odoo');
+    alert(`Asiento contable creado en Odoo: #${r.odoo_move_id}`);
+    loadPagosFiscales();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+
+// ── REQUISICIONES ─────────────────────────────────────────────────────────────
+
+let _requisicionesData = [];
+let _currentReqId = null;
+let _reqLineasCount = 0;
+
+const MOTIVO_LABELS = {
+  muestra:'Muestra', obsequio:'Obsequio', daño:'Daño',
+  uso_empleado:'Uso Empleado', uso_empresa:'Uso Empresa'
+};
+const REQ_ESTADO_BADGE = {
+  solicitada:'b-pendiente', aprobada:'b-sale', rechazada:'b-rechazada', ejecutada:'b-recibido'
+};
+
+async function loadRequisiciones() {
+  const tb = document.getElementById('tb-requisiciones');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td colspan="10" class="loader">Cargando...</td></tr>';
+  try {
+    const estado = document.getElementById('req-f-estado')?.value || '';
+    const motivo = document.getElementById('req-f-motivo')?.value || '';
+    let qs = [];
+    if (estado) qs.push(`estado=${estado}`);
+    if (motivo) qs.push(`motivo=${motivo}`);
+    const path = '/requisiciones' + (qs.length ? '?' + qs.join('&') : '');
+    _requisicionesData = await api('GET', path) || [];
+    if (!_requisicionesData.length) {
+      tb.innerHTML = '<tr><td colspan="10" class="loader">Sin requisiciones</td></tr>'; return;
+    }
+    tb.innerHTML = _requisicionesData.map(r => {
+      const badge = REQ_ESTADO_BADGE[r.estado] || 'b-pendiente';
+      const fecha = (r.creado_en||'').slice(0,10);
+      return `<tr>
+        <td>${r.id}</td>
+        <td><strong>${r.empleado_nombre}</strong></td>
+        <td style="font-size:.82rem">${r.departamento||'—'}</td>
+        <td><span class="badge ${badge}">${MOTIVO_LABELS[r.motivo]||r.motivo}</span></td>
+        <td style="font-size:.83rem">${r.descripcion||'—'}</td>
+        <td><span class="badge ${badge}">${r.estado}</span></td>
+        <td style="text-align:right;font-size:.82rem">—</td>
+        <td style="font-size:.8rem;color:var(--muted)">${r.odoo_move_id ? `#${r.odoo_move_id}` : '—'}</td>
+        <td style="font-size:.8rem">${fecha}</td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="verRequisicion(${r.id})">Ver</button>
+          ${r.estado==='solicitada' ? `
+            <button class="btn btn-sm btn-success" onclick="abrirAprobarReq(${r.id})" style="margin-left:4px">Aprobar</button>
+          ` : ''}
+          ${r.estado==='aprobada' ? `
+            <button class="btn btn-sm btn-primary" onclick="abrirEjecutarReq(${r.id})" style="margin-left:4px">Ejecutar</button>
+            <button class="btn btn-sm btn-danger" onclick="rechazarReqDirecto(${r.id})" style="margin-left:4px">Rechazar</button>
+          ` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="10" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function agregarLineaReq() {
+  _reqLineasCount++;
+  const tbody = document.getElementById('req-lineas-body');
+  const tr = document.createElement('tr');
+  tr.id = `req-linea-${_reqLineasCount}`;
+  tr.innerHTML = `
+    <td><input style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
+               placeholder="Nombre producto" id="rl-nom-${_reqLineasCount}"></td>
+    <td><input style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
+               placeholder="REF-001 / ID" id="rl-ref-${_reqLineasCount}"></td>
+    <td><input type="number" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
+               value="1" id="rl-qty-${_reqLineasCount}"></td>
+    <td><input style="width:70px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
+               value="unidades" id="rl-uni-${_reqLineasCount}"></td>
+    <td><input type="number" step="0.01" style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
+               placeholder="0.00" id="rl-cos-${_reqLineasCount}"></td>
+    <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">×</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+async function crearRequisicion() {
+  const res = document.getElementById('nreq-result');
+  const lineasEls = document.querySelectorAll('#req-lineas-body tr');
+  const lineas = [];
+  lineasEls.forEach(tr => {
+    const id = tr.id.replace('req-linea-', '');
+    const nom = document.getElementById(`rl-nom-${id}`)?.value?.trim();
+    const qty = parseFloat(document.getElementById(`rl-qty-${id}`)?.value) || 0;
+    if (!nom || !qty) return;
+    const refVal = document.getElementById(`rl-ref-${id}`)?.value?.trim() || '';
+    const odooId = parseInt(refVal) || null;
+    lineas.push({
+      producto_nombre: nom,
+      producto_ref: isNaN(parseInt(refVal)) ? refVal : '',
+      producto_odoo_id: odooId,
+      cantidad: qty,
+      unidad: document.getElementById(`rl-uni-${id}`)?.value || 'unidades',
+      costo_unitario: parseFloat(document.getElementById(`rl-cos-${id}`)?.value) || null,
+    });
+  });
+  const body = {
+    empleado_nombre: document.getElementById('nreq-empleado').value,
+    departamento:    document.getElementById('nreq-depto').value,
+    motivo:          document.getElementById('nreq-motivo').value,
+    descripcion:     document.getElementById('nreq-descripcion').value,
+    notas:           document.getElementById('nreq-notas').value,
+    lineas,
+  };
+  if (!body.empleado_nombre) { res.innerHTML = `<div class="alert alert-danger">Ingrese el nombre del empleado</div>`; return; }
+  if (!lineas.length) { res.innerHTML = `<div class="alert alert-danger">Agregue al menos un producto</div>`; return; }
+  try {
+    await api('POST', '/requisiciones', body);
+    closeModal('modal-nueva-requisicion');
+    loadRequisiciones();
+    document.getElementById('req-lineas-body').innerHTML = '';
+    _reqLineasCount = 0;
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+async function verRequisicion(id) {
+  try {
+    const r = await api('GET', `/requisiciones/${id}`);
+    const req = r.requisicion;
+    const lineas = r.lineas || [];
+    const info = `Requisición #${req.id}\n`
+      + `Empleado: ${req.empleado_nombre} (${req.departamento||'—'})\n`
+      + `Motivo: ${MOTIVO_LABELS[req.motivo]||req.motivo}\n`
+      + `Descripción: ${req.descripcion||'—'}\n`
+      + `Estado: ${req.estado}\n\n`
+      + `Productos:\n`
+      + lineas.map(l => `  • ${l.producto_nombre} x${l.cantidad} ${l.unidad}`
+                         + (l.costo_unitario ? ` @ $${l.costo_unitario}` : '')).join('\n');
+    alert(info);
+  } catch(e) { alert(e.message); }
+}
+
+function abrirAprobarReq(id) {
+  _currentReqId = id;
+  const r = _requisicionesData.find(x => x.id === id);
+  document.getElementById('ar-req-id').textContent = `#${id}`;
+  document.getElementById('ar-req-info').innerHTML = r
+    ? `<strong>${r.empleado_nombre}</strong> — ${MOTIVO_LABELS[r.motivo]||r.motivo}<br>${r.descripcion||''}`
+    : '';
+  document.getElementById('ar-notas').value = '';
+  document.getElementById('ar-result').innerHTML = '';
+  showModal('modal-aprobar-requisicion');
+}
+
+async function aprobarRequisicion() {
+  const notas = document.getElementById('ar-notas').value;
+  const res = document.getElementById('ar-result');
+  try {
+    await api('POST', `/requisiciones/${_currentReqId}/aprobar`, { notas_aprobacion: notas });
+    closeModal('modal-aprobar-requisicion');
+    loadRequisiciones();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+async function rechazarRequisicion() {
+  const notas = document.getElementById('ar-notas').value || 'Sin motivo especificado';
+  const res = document.getElementById('ar-result');
+  try {
+    await api('POST', `/requisiciones/${_currentReqId}/rechazar`, { motivo: notas });
+    closeModal('modal-aprobar-requisicion');
+    loadRequisiciones();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+async function rechazarReqDirecto(id) {
+  const motivo = prompt('Motivo del rechazo:');
+  if (motivo === null) return;
+  try {
+    await api('POST', `/requisiciones/${id}/rechazar`, { motivo });
+    loadRequisiciones();
+  } catch(e) { alert(e.message); }
+}
+
+async function abrirEjecutarReq(id) {
+  _currentReqId = id;
+  const r = _requisicionesData.find(x => x.id === id);
+  document.getElementById('ereq-info').innerHTML = r
+    ? `<strong>#${id} — ${r.empleado_nombre}</strong><br>${MOTIVO_LABELS[r.motivo]||r.motivo}: ${r.descripcion||''}`
+    : '';
+  document.getElementById('ereq-result').innerHTML = '';
+
+  try {
+    const [cuentas, ubicaciones] = await Promise.all([
+      api('GET', '/requisiciones/helpers/cuentas-gasto'),
+      api('GET', '/requisiciones/helpers/ubicaciones').catch(()=>[]),
+    ]);
+    const mkOpts = (arr) => (arr||[]).map(c =>
+      `<option value="${c.id}">[${c.code||''}] ${c.name}</option>`).join('');
+    document.getElementById('ereq-cuenta').innerHTML =
+      '<option value="">— sin asiento —</option>' + mkOpts(cuentas);
+    document.getElementById('ereq-ubicacion').innerHTML =
+      '<option value="">— default —</option>'
+      + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.complete_name||u.name}</option>`).join('');
+    // Pre-seleccionar si ya configurado
+    if (r?.odoo_cuenta_id) document.getElementById('ereq-cuenta').value = r.odoo_cuenta_id;
+    if (r?.odoo_location_id) document.getElementById('ereq-ubicacion').value = r.odoo_location_id;
+  } catch(_) {}
+  showModal('modal-ejecutar-requisicion');
+}
+
+async function confirmarEjecutarRequisicion() {
+  const cuentaId  = document.getElementById('ereq-cuenta').value;
+  const ubicId    = document.getElementById('ereq-ubicacion').value;
+  const res       = document.getElementById('ereq-result');
+  try {
+    const body = {};
+    if (cuentaId) body.odoo_cuenta_id = parseInt(cuentaId);
+    if (ubicId)   body.odoo_location_id = parseInt(ubicId);
+    const r = await api('POST', `/requisiciones/${_currentReqId}/ejecutar`, body);
+    closeModal('modal-ejecutar-requisicion');
+    let msg = `Requisición ejecutada ✓\nScraps creados: ${r.scraps_creados}`;
+    if (r.odoo_move_id) msg += `\nAsiento Odoo: #${r.odoo_move_id}`;
+    if (r.maestro_op_id) msg += `\nMaestro: #${r.maestro_op_id}`;
+    alert(msg);
+    loadRequisiciones();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
 
 // ── CATÁLOGO PRODUCTOS (Odoo) ─────────────────────────────────────────────────
 let _productosOdoo = [];
@@ -2296,7 +4076,35 @@ async function verItemsLista(id, nombre) {
 // ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 async function loadConfig() {
   loadMonedas(); loadMetodos(); loadLimitesDesc(); loadUsuarios();
-  loadNcCondiciones();
+  loadNcCondiciones(); loadConfigApp();
+}
+
+async function loadConfigApp() {
+  try {
+    const cfg = await api('GET', '/config/app');
+    if (!cfg) return;
+    const v = document.getElementById('cfg-pricelist-ves');
+    const u = document.getElementById('cfg-pricelist-usd');
+    const t = document.getElementById('cfg-tolerancia');
+    if (v) v.value = cfg.pricelist_ves_nombre || '';
+    if (u) u.value = cfg.pricelist_usd_nombre || '';
+    if (t) t.value = cfg.tolerancia_pago_usd || '0.01';
+  } catch(e) {}
+}
+
+async function guardarConfigApp() {
+  const ves = document.getElementById('cfg-pricelist-ves')?.value?.trim();
+  const usd = document.getElementById('cfg-pricelist-usd')?.value?.trim();
+  const tol = document.getElementById('cfg-tolerancia')?.value?.trim();
+  if (!ves || !usd) { alert('Los nombres de listas no pueden estar vacíos'); return; }
+  try {
+    await api('PUT', '/config/app', {
+      pricelist_ves_nombre: ves,
+      pricelist_usd_nombre: usd,
+      tolerancia_pago_usd: tol || '0.01'
+    });
+    alert('Configuración guardada');
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function loadMonedas() {
@@ -2544,30 +4352,47 @@ function renderMaestroLista(rows) {
     const ico    = esIng ? '📥' : '📤';
     const eqUsd  = r.monto_usd_bcv != null ? fmtNum(r.monto_usd_bcv) : '—';
 
-    const origenBadge = {
+    const origenMap = {
       pago_sistema:        '<span class="badge b-recibido"  style="font-size:.7rem">Sistema</span>',
-      odoo_pago_proveedor: '<span class="badge b-enviada"   style="font-size:.7rem">Odoo↓</span>',
-      odoo_gasto:          '<span class="badge b-enviada"   style="font-size:.7rem">Odoo↓</span>',
-    }[r.origen] || '<span class="badge b-propuesto" style="font-size:.7rem">Manual</span>';
+      odoo_pago_proveedor: '<span class="badge b-enviada"   style="font-size:.7rem">Odoo↓Prov</span>',
+      odoo_gasto:          '<span class="badge b-enviada"   style="font-size:.7rem">Odoo↓Gasto</span>',
+      odoo_comision:       '<span class="badge" style="font-size:.7rem;background:#ede9fe;color:#5b21b6">Odoo↓Comis</span>',
+      pago_fiscal:         '<span class="badge b-validado"  style="font-size:.7rem">Fiscal</span>',
+      cambio_divisa:       '<span class="badge b-enviada"   style="font-size:.7rem">Cambio</span>',
+      zelle_terceros:      '<span class="badge" style="font-size:.7rem;background:#ecfdf5;color:#065f46">Zelle</span>',
+    };
+    const origenBadge = origenMap[r.origen] || '<span class="badge b-propuesto" style="font-size:.7rem">Manual</span>';
 
-    // Columna Odoo
-    const odooCol = r.odoo_payment_id
-      ? `<span style="color:var(--success);font-size:.85rem" title="ID Odoo: ${r.odoo_payment_id}">✓ #${r.odoo_payment_id}</span>`
-      : (r.tipo === 'egreso' && r.origen === 'manual'
-          ? `<button class="btn btn-sm btn-outline" style="font-size:.72rem;padding:2px 6px"
-               onclick="abrirEnviarEgresoOdoo(${r.id}, '${(r.descripcion||'').replace(/'/g,'')}')"
-               title="Enviar a Odoo">→ Odoo</button>`
-          : '<span style="color:var(--muted);font-size:.8rem">—</span>');
+    // Columna Odoo — muestra pago o asiento según lo que esté disponible
+    const hasOdoo = r.odoo_payment_id || r.odoo_ref?.startsWith?.('move/');
+    let odooCol;
+    if (r.odoo_payment_id) {
+      odooCol = `<span style="color:var(--success);font-size:.82rem" title="Pago Odoo ID: ${r.odoo_payment_id}">✓ Pago #${r.odoo_payment_id}</span>`;
+    } else if (r.odoo_ref && r.odoo_ref.startsWith('move/')) {
+      const mid = r.odoo_ref.replace('move/','');
+      odooCol = `<span style="color:#0891b2;font-size:.82rem" title="Asiento Odoo ID: ${mid}">✓ Asiento #${mid}</span>`;
+    } else if (r.tipo === 'egreso' && r.origen === 'manual') {
+      odooCol = `<button class="btn btn-sm btn-outline" style="font-size:.72rem;padding:2px 6px"
+                   onclick="abrirEnviarEgresoOdoo(${r.id}, '${(r.descripcion||'').replace(/'/g,"'")}')"
+                   title="Enviar a Odoo como pago de egreso">→ Odoo</button>`;
+    } else {
+      odooCol = '<span style="color:var(--muted);font-size:.8rem">—</span>';
+    }
 
-    // Columna conciliación
-    const concCol = r.odoo_conciliado
-      ? '<span style="color:var(--success)" title="Conciliado en Odoo">✔ Sí</span>'
-      : (r.odoo_payment_id
-          ? '<span style="color:var(--warning);font-size:.8rem">Pendiente</span>'
-          : '<span style="color:var(--muted);font-size:.8rem">—</span>');
+    // Columna conciliación — con colores semáforo
+    let concCol, rowBg = '';
+    if (r.odoo_conciliado) {
+      concCol = '<span style="color:var(--success);font-weight:600" title="Conciliado en Odoo">✔ Conc.</span>';
+      rowBg = 'background:rgba(40,167,69,.04)';
+    } else if (hasOdoo) {
+      concCol = '<span style="color:#f59e0b;font-size:.82rem" title="Enviado a Odoo, pendiente de conciliación">⏳ En Odoo</span>';
+      rowBg = 'background:rgba(245,158,11,.04)';
+    } else {
+      concCol = '<span style="color:var(--muted);font-size:.8rem">○ Sin enviar</span>';
+    }
 
     const canEdit = r.origen === 'manual';
-    return `<tr>
+    return `<tr style="${rowBg}">
       <td style="white-space:nowrap">${r.fecha}</td>
       <td style="color:${color};font-weight:600;white-space:nowrap">${ico} ${r.tipo}</td>
       <td style="white-space:nowrap">${r.categoria || '—'}</td>
@@ -3022,11 +4847,19 @@ async function loadPagosProveedores() {
   if (params.length) url += '?' + params.join('&');
   try {
     const r = await api('GET', url);
+    const btnImportar = document.getElementById('btn-importar-prov');
+    const tieneNuevos = (r.nuevos || 0) > 0;
+    if (btnImportar) btnImportar.style.display = tieneNuevos ? '' : 'none';
+
     document.getElementById('pagos-prov-resumen').innerHTML = `
-      <div class="alert alert-info">Total en Odoo: <strong>${r.total_odoo}</strong> pagos ·
-      Nuevos (no importados): <strong>${r.nuevos}</strong></div>`;
+      <div class="alert ${tieneNuevos ? 'alert-warning' : 'alert-success'}">
+        En Odoo: <strong>${r.total_odoo}</strong> pagos ·
+        Pendientes de importar al Maestro: <strong style="color:${tieneNuevos ? 'var(--danger)' : 'var(--success)'}">${r.nuevos}</strong>
+        ${tieneNuevos ? '— usa el botón <strong>Importar</strong> en cada fila para registrarlos en el Maestro' : '— todos importados ✓'}
+      </div>`;
+
     if (!r.pagos?.length) {
-      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Sin pagos nuevos de Odoo en el periodo</td></tr>';
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--muted)">Sin pagos en el periodo seleccionado</td></tr>';
       return;
     }
     tb.innerHTML = r.pagos.map(p => {
@@ -3036,7 +4869,8 @@ async function loadPagosProveedores() {
       const moneda = p.currency_id?.[1] || 'USD';
       const diario = p.journal_id?.[1] || '—';
       const proveedor = p.partner_id?.[1] || '—';
-      return `<tr>
+      const yaImportado = p._importado; // backend puede indicarlo
+      return `<tr style="${yaImportado ? 'background:#f0fff4' : ''}">
         <td>${p.id}</td>
         <td>${proveedor}</td>
         <td><strong>${fmtNum(p.amount, 2)}</strong></td>
@@ -3045,7 +4879,11 @@ async function loadPagosProveedores() {
         <td style="font-size:.82rem">${diario}</td>
         <td>${estado}</td>
         <td style="font-size:.78rem;color:var(--muted)">${p.memo||p.ref||'—'}</td>
-        <td><button class="btn btn-sm btn-success" onclick="importarPagoProveedor(${p.id},this)">Importar</button></td>
+        <td>
+          ${yaImportado
+            ? '<span style="color:var(--success);font-weight:600">✓ En Maestro</span>'
+            : `<button class="btn btn-sm btn-success" onclick="importarPagoProveedor(${p.id},this)">⬇ Importar</button>`}
+        </td>
       </tr>`;
     }).join('');
   } catch(e) {
@@ -3551,6 +5389,257 @@ async function eliminarNcCondicion(id, btn) {
   catch(e) { btn.disabled=false; alert(e.message); }
 }
 
+// ── ZELLE DE TERCEROS ─────────────────────────────────────────────────────────
+let _zelleData = [];
+let _zelleJournals = [];
+let _zelleCuentas = [];
+
+async function loadZelleTerceros() {
+  const estado = document.getElementById('zt-f-estado')?.value || '';
+  const desde  = document.getElementById('zt-f-desde')?.value || '';
+  const hasta  = document.getElementById('zt-f-hasta')?.value || '';
+  let qs = [];
+  if (estado) qs.push(`estado=${estado}`);
+  if (desde)  qs.push(`fecha_desde=${desde}`);
+  if (hasta)  qs.push(`fecha_hasta=${hasta}`);
+  const rows = await api('GET', `/zelle-terceros?${qs.join('&')}`) || [];
+  _zelleData = rows;
+  renderZelleTerceros(rows);
+}
+
+function renderZelleTerceros(rows) {
+  const tbody = document.getElementById('tb-zelle');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="loader">Sin registros</td></tr>';
+    return;
+  }
+  const estadoBadge = {
+    pendiente:           'b-pendiente',
+    abonado:             'b-pagado-completo',
+    reintegro_pendiente: 'b-en-proceso-odoo',
+    reintegrado:         'b-disponible',
+    anulado:             'b-anulado',
+  };
+  const accionLabel = {abonar:'Abono AP', reintegro:'Reintegro'};
+  tbody.innerHTML = rows.map(r => {
+    const bClass = estadoBadge[r.estado] || 'b-pendiente';
+    const odooInfo = r.odoo_payment_id
+      ? `<span style="color:var(--success);font-size:.82rem">✓ Pago #${r.odoo_payment_id}</span>`
+      : (r.odoo_move_id
+        ? `<span style="color:#0891b2;font-size:.82rem">✓ Asiento #${r.odoo_move_id}</span>`
+        : '<span style="color:var(--muted);font-size:.8rem">—</span>');
+    const acciones = r.estado === 'pendiente'
+      ? `<button class="btn btn-sm btn-success" onclick="abrirAbonarZelle(${r.id})" title="Abonar (reduce AP proveedor)">✅ Abonar</button>
+         <button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="abrirReintegroZelle(${r.id})" title="Solicitar reintegro">🔄 Reintegro</button>
+         <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="eliminarZelle(${r.id})" title="Eliminar">✕</button>`
+      : (r.estado === 'reintegro_pendiente'
+        ? `<button class="btn btn-sm btn-outline" onclick="marcarReintegrado(${r.id})">☑ Recibido</button>` : '');
+    return `<tr>
+      <td>${r.id}</td>
+      <td style="white-space:nowrap">${r.fecha}</td>
+      <td style="font-size:.85rem">${r.proveedor_nombre}</td>
+      <td style="font-size:.82rem;color:var(--muted)">${r.cliente_nombre || '—'}</td>
+      <td style="font-size:.82rem">${r.orden_cobrada || '—'}</td>
+      <td style="text-align:right;font-weight:600;color:var(--success)">${fmtNum(r.monto_usd)}</td>
+      <td style="font-size:.78rem;color:var(--muted)">${r.referencia_zelle || '—'}</td>
+      <td><span class="badge ${bClass}">${r.estado}</span></td>
+      <td style="font-size:.82rem">${r.tipo_accion ? accionLabel[r.tipo_accion] || r.tipo_accion : '—'}
+        ${r.monto_reintegro ? `<br><span style="color:var(--success);font-size:.78rem">Reintegro: $${fmtNum(r.monto_reintegro)}</span>` : ''}
+        ${r.monto_comision ? `<br><span style="color:var(--danger);font-size:.78rem">Comis: $${fmtNum(r.monto_comision)}</span>` : ''}
+      </td>
+      <td>${odooInfo}</td>
+      <td style="white-space:nowrap">${acciones}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function crearZelle() {
+  const fecha = document.getElementById('nz-fecha').value;
+  const monto = document.getElementById('nz-monto').value;
+  const provId = document.getElementById('nz-prov-id').value;
+  const provQ  = document.getElementById('nz-prov-q').value;
+  if (!fecha || !monto || !provQ) {
+    showResult('nz-result', 'Fecha, monto y proveedor son requeridos', false);
+    return;
+  }
+  const body = {
+    fecha, monto_usd: parseFloat(monto),
+    proveedor_nombre: provQ,
+    proveedor_id: provId ? parseInt(provId) : null,
+    cliente_nombre: document.getElementById('nz-cliente').value,
+    orden_cobrada:  document.getElementById('nz-orden').value,
+    referencia_zelle: document.getElementById('nz-ref').value,
+    descripcion: document.getElementById('nz-desc').value,
+    notas: document.getElementById('nz-notas').value,
+  };
+  try {
+    await api('POST', '/zelle-terceros', body);
+    showResult('nz-result', 'Registro creado', true);
+    setTimeout(() => { closeModal('modal-nuevo-zelle'); loadZelleTerceros(); }, 1000);
+  } catch(e) { showResult('nz-result', e.message, false); }
+}
+
+async function buscarProvZelle() {
+  const q = document.getElementById('nz-prov-q').value;
+  const drop = document.getElementById('nz-prov-drop');
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  try {
+    const res = await api('GET', `/zelle-terceros/helpers/proveedores?q=${encodeURIComponent(q)}`);
+    if (!res || !res.length) { drop.style.display = 'none'; return; }
+    drop.style.display = 'block';
+    drop.innerHTML = res.map(p =>
+      `<div style="padding:8px 12px;cursor:pointer;font-size:.88rem;border-bottom:1px solid #eee"
+            onmousedown="selProvZelle(${p.id},'${p.name.replace(/'/g,"'")}')">
+        ${p.name}${p.email ? `<small style="color:var(--muted)"> — ${p.email}</small>` : ''}
+      </div>`
+    ).join('');
+  } catch(e) {}
+}
+
+function selProvZelle(id, nombre) {
+  document.getElementById('nz-prov-id').value = id;
+  document.getElementById('nz-prov-q').value = nombre;
+  document.getElementById('nz-prov-drop').style.display = 'none';
+}
+
+async function abrirAbonarZelle(ztId) {
+  const z = _zelleData.find(r => r.id === ztId);
+  if (!z) return;
+  document.getElementById('az-zelle-id').value = ztId;
+  document.getElementById('az-info').innerHTML =
+    `<strong>Proveedor:</strong> ${z.proveedor_nombre}<br>
+     <strong>Monto:</strong> $${fmtNum(z.monto_usd)} USD<br>
+     <strong>Referencia:</strong> ${z.referencia_zelle || '—'}`;
+  // Cargar diarios
+  const jSel = document.getElementById('az-journal');
+  jSel.innerHTML = '<option value="">Cargando...</option>';
+  try {
+    const js = await api('GET', '/zelle-terceros/helpers/journals');
+    _zelleJournals = js || [];
+    jSel.innerHTML = '<option value="">— seleccione diario —</option>' +
+      _zelleJournals.map(j => `<option value="${j.id}">${j.name} (${j.type})</option>`).join('');
+  } catch(e) { jSel.innerHTML = '<option value="">Error cargando</option>'; }
+  showModal('modal-abonar-zelle');
+}
+
+async function confirmarAbonarZelle() {
+  const ztId = document.getElementById('az-zelle-id').value;
+  const journalId = document.getElementById('az-journal').value;
+  if (!journalId) { showResult('az-result', 'Seleccione un diario', false); return; }
+  try {
+    const r = await api('POST', `/zelle-terceros/${ztId}/abonar`, {journal_id: parseInt(journalId)});
+    showResult('az-result', `✓ Pago creado en Odoo #${r.odoo_payment_id}`, true);
+    setTimeout(() => { closeModal('modal-abonar-zelle'); loadZelleTerceros(); }, 1500);
+  } catch(e) { showResult('az-result', e.message, false); }
+}
+
+let _rzMonto = 0;
+async function abrirReintegroZelle(ztId) {
+  const z = _zelleData.find(r => r.id === ztId);
+  if (!z) return;
+  _rzMonto = parseFloat(z.monto_usd);
+  document.getElementById('rz-zelle-id').value = ztId;
+  document.getElementById('rz-comision-pct').value = 0;
+  document.getElementById('rz-monto-reintegro').value = fmtNum(_rzMonto);
+  document.getElementById('rz-info').innerHTML =
+    `<strong>Proveedor:</strong> ${z.proveedor_nombre}<br>
+     <strong>Monto Zelle:</strong> $${fmtNum(z.monto_usd)} USD`;
+  document.getElementById('rz-result').innerHTML = '';
+
+  // Cargar cuentas y diarios
+  const [cActivo, cPasivo, cGasto, jSel] = [
+    document.getElementById('rz-cta-cobrar'),
+    document.getElementById('rz-cta-caja'),
+    document.getElementById('rz-cta-comision'),
+    document.getElementById('rz-journal'),
+  ];
+  [cActivo, cPasivo, cGasto].forEach(s => s.innerHTML = '<option value="">Cargando...</option>');
+  try {
+    const [cuentas, journals] = await Promise.all([
+      api('GET', '/zelle-terceros/helpers/cuentas'),
+      api('GET', '/zelle-terceros/helpers/journals'),
+    ]);
+    _zelleCuentas = cuentas || [];
+    const activo  = _zelleCuentas.filter(c => c.account_type?.includes('asset'));
+    const liquidez = _zelleCuentas.filter(c => c.account_type === 'asset_cash');
+    const gasto   = _zelleCuentas.filter(c => c.account_type?.includes('expense'));
+    const mkOpts = arr => arr.map(c => `<option value="${c.id}">[${c.code}] ${c.name}</option>`).join('');
+    cActivo.innerHTML  = '<option value="">— cuenta por cobrar —</option>' + mkOpts(activo);
+    cPasivo.innerHTML  = '<option value="">— cuenta banco/caja —</option>' + mkOpts(liquidez.length ? liquidez : activo);
+    cGasto.innerHTML   = '<option value="">— ninguna —</option>' + mkOpts(gasto);
+    _zelleJournals = journals || [];
+    jSel.innerHTML = '<option value="">— predeterminado —</option>' +
+      _zelleJournals.map(j => `<option value="${j.id}">${j.name}</option>`).join('');
+  } catch(e) {
+    [cActivo, cPasivo, cGasto].forEach(s => s.innerHTML = '<option value="">Error</option>');
+  }
+  showModal('modal-reintegro-zelle');
+}
+
+function calcularReintegro() {
+  const pct = parseFloat(document.getElementById('rz-comision-pct').value) || 0;
+  const reint = _rzMonto * (1 - pct / 100);
+  document.getElementById('rz-monto-reintegro').value = fmtNum(reint);
+}
+
+async function confirmarReintegroZelle() {
+  const ztId = document.getElementById('rz-zelle-id').value;
+  const ctaCobrar  = document.getElementById('rz-cta-cobrar').value;
+  const ctaCaja    = document.getElementById('rz-cta-caja').value;
+  const ctaComis   = document.getElementById('rz-cta-comision').value;
+  const journalId  = document.getElementById('rz-journal').value;
+  const comisionPct = parseFloat(document.getElementById('rz-comision-pct').value) || 0;
+  if (!ctaCobrar || !ctaCaja) {
+    showResult('rz-result', 'Debe seleccionar cuenta de Cxc y cuenta de caja', false); return;
+  }
+  const body = {
+    odoo_cuenta_cobrar_id: parseInt(ctaCobrar),
+    odoo_cuenta_caja_id:   parseInt(ctaCaja),
+    comision_pct: comisionPct,
+  };
+  if (ctaComis)  body.odoo_cuenta_comision_id = parseInt(ctaComis);
+  if (journalId) body.odoo_journal_id = parseInt(journalId);
+  try {
+    const r = await api('POST', `/zelle-terceros/${ztId}/solicitar-reintegro`, body);
+    showResult('rz-result',
+      `✓ Asiento #${r.odoo_move_id} creado. Reintegro: $${fmtNum(r.monto_reintegro)}`, true);
+    setTimeout(() => { closeModal('modal-reintegro-zelle'); loadZelleTerceros(); }, 1800);
+  } catch(e) { showResult('rz-result', e.message, false); }
+}
+
+async function marcarReintegrado(ztId) {
+  if (!confirm('¿Marcar este reintegro como recibido?')) return;
+  try {
+    await api('POST', `/zelle-terceros/${ztId}/marcar-reintegrado`);
+    loadZelleTerceros();
+  } catch(e) { alert(e.message); }
+}
+
+async function eliminarZelle(ztId) {
+  if (!confirm('¿Eliminar este registro Zelle?')) return;
+  try {
+    await api('DELETE', `/zelle-terceros/${ztId}`);
+    loadZelleTerceros();
+  } catch(e) { alert(e.message); }
+}
+
+// ── COMISIONES BANCARIAS ──────────────────────────────────────────────────────
+async function importarComisiones(btn) {
+  const desde = document.getElementById('ic-desde').value;
+  const hasta  = document.getElementById('ic-hasta').value;
+  if (!desde || !hasta) {
+    showResult('ic-result', 'Ingresa fecha desde y hasta', false); return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  try {
+    const r = await api('POST', '/maestro/importar-comisiones', {fecha_desde: desde, fecha_hasta: hasta});
+    showResult('ic-result', `✓ ${r.mensaje}`, true);
+    if (r.importados > 0) loadMaestro();
+  } catch(e) { showResult('ic-result', e.message, false); }
+  finally { btn.disabled = false; btn.textContent = 'Importar desde Odoo'; }
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('input[type="date"]').forEach(el => {
   if (!el.value) el.value = new Date().toISOString().split('T')[0];
@@ -3564,7 +5653,8 @@ document.addEventListener('click', e => {
   }
   // Cerrar dropdowns de proveedor
   ['eeo-proveedor-q', 'eeo-proveedor-drop',
-   'mo-proveedor-q',  'mo-proveedor-drop'].forEach((id, i) => {
+   'mo-proveedor-q',  'mo-proveedor-drop',
+   'nz-prov-q',       'nz-prov-drop'].forEach((id, i) => {
     if (i % 2 === 1) {
       const inp = document.getElementById(id.replace('-drop','-q'));
       const drp = document.getElementById(id);

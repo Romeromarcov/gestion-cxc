@@ -23,22 +23,52 @@ class OdooClient:
     def get_ventas(self, solo_confirmadas=True):
         dom = [('state', 'in', ['sale', 'done'])] if solo_confirmadas else []
         return self.call('sale.order', 'search_read', [dom], {
-            'fields': ['name', 'partner_id', 'amount_total', 'date_order',
-                       'state', 'invoice_status', 'user_id'],
+            'fields': ['name', 'partner_id', 'amount_untaxed', 'amount_tax', 'amount_total',
+                       'date_order', 'state', 'invoice_status', 'user_id',
+                       'pricelist_id', 'currency_id'],
             'limit': 200
         })
+
+    def get_pricelist_by_name(self, nombre: str):
+        """Busca una lista de precios en Odoo por nombre exacto. Retorna dict o None."""
+        rows = self.call('product.pricelist', 'search_read',
+                         [[['name', '=', nombre], ['active', '=', True]]],
+                         {'fields': ['id', 'name', 'currency_id'], 'limit': 1})
+        return rows[0] if rows else None
+
+    def get_precios_lista(self, pricelist_id: int, product_ids: list,
+                          quantity: float = 1.0, date: str = None):
+        """Obtiene precios de una lista para una lista de product.product IDs.
+        Retorna dict {product_id: precio}.
+        Usa product.pricelist.get_product_price en batch.
+        """
+        precios = {}
+        for pid in product_ids:
+            try:
+                precio = self.call('product.pricelist', 'get_product_price',
+                                   [[pricelist_id]],
+                                   {'product_id': pid, 'quantity': quantity,
+                                    'partner_id': False, 'date': date or False,
+                                    'uom_id': False})
+                precios[pid] = float(precio) if precio is not None else None
+            except Exception:
+                precios[pid] = None
+        return precios
 
     def get_venta_por_nombre(self, nombre):
         return self.call('sale.order', 'search_read',
                          [[['name', '=', nombre]]],
-                         {'fields': ['id', 'name', 'partner_id', 'amount_total',
-                                     'state', 'invoice_status', 'user_id'], 'limit': 1})
+                         {'fields': ['id', 'name', 'partner_id',
+                                     'amount_untaxed', 'amount_tax', 'amount_total',
+                                     'state', 'invoice_status', 'user_id',
+                                     'pricelist_id', 'currency_id'], 'limit': 1})
 
     def get_lineas_venta(self, orden_id):
         lineas = self.call('sale.order.line', 'search_read',
                            [[['order_id', '=', orden_id]]],
                            {'fields': ['id', 'product_id', 'product_uom_qty',
-                                       'price_unit', 'discount', 'price_subtotal']})
+                                       'price_unit', 'discount',
+                                       'price_subtotal', 'price_tax', 'price_total']})
         # Obtener default_code (ref. interna) desde product.product
         if lineas:
             product_ids = [l['product_id'][0] for l in lineas if l.get('product_id')]
@@ -160,7 +190,7 @@ class OdooClient:
             'fields': ['name', 'partner_id', 'amount_total', 'amount_untaxed',
                        'amount_tax', 'date_order',
                        'state', 'invoice_status', 'user_id',
-                       'currency_id', 'payment_term_id'],
+                       'currency_id', 'pricelist_id', 'payment_term_id'],
             'limit': 200
         })
         if not ventas:
@@ -383,6 +413,34 @@ class OdooClient:
                             'limit': limite})
         return socios
 
+    def get_facturas_por_orden(self, order_names: list) -> dict:
+        """Retorna dict {order_name: [facturas]} para un lote de órdenes.
+        Solo facturas publicadas (state='posted') de tipo cliente (out_invoice).
+        Diseñado para soportar múltiples facturas por orden en el futuro.
+        Una sola llamada a Odoo para todo el lote.
+        """
+        if not order_names:
+            return {}
+        try:
+            facturas = self.call('account.move', 'search_read',
+                                 [[['invoice_origin', 'in', list(order_names)],
+                                   ['move_type', '=', 'out_invoice'],
+                                   ['state', '=', 'posted']]],
+                                 {'fields': ['id', 'name', 'invoice_origin', 'state',
+                                             'payment_state', 'amount_total',
+                                             'amount_residual', 'currency_id',
+                                             'invoice_date'],
+                                  'limit': 2000})
+        except Exception:
+            return {}
+        result = {}
+        for f in (facturas or []):
+            origin = (f.get('invoice_origin') or '').strip()
+            if not origin:
+                continue
+            result.setdefault(origin, []).append(f)
+        return result
+
     def get_factura_borrador_con_lineas(self, sale_order_name: str):
         """Retorna la factura borrador con sus líneas y la relación a sale.order.line."""
         facturas = self.call('account.move', 'search_read',
@@ -491,9 +549,11 @@ class OdooClient:
             'partner_type': 'customer',
             'memo': ref or '',   # Odoo 18: 'ref' → 'memo'
         }
-        # XML-RPC no acepta None — eliminar claves vacías por seguridad
         vals = {k: v for k, v in vals.items() if v is not None}
         pago_id = self.call('account.payment', 'create', [vals])
+        if isinstance(pago_id, list):
+            pago_id = pago_id[0]
+        self.call('account.payment', 'action_post', [[pago_id]])
         return pago_id
 
     def confirmar_pago(self, pago_id):
@@ -521,3 +581,185 @@ class OdooClient:
             pago_id = pago_id[0]
         self.call('account.payment', 'action_post', [[pago_id]])
         return pago_id
+
+    def crear_asiento_contable(self, fecha: str, lineas: list,
+                                ref: str = '', diario_id: int = None) -> int:
+        """
+        Crea y confirma un asiento contable manual (account.move) en Odoo.
+
+        lineas: lista de dicts con claves:
+            account_id (int), name (str), debit (float), credit (float)
+            partner_id (int, opcional)
+
+        Retorna el ID del asiento creado.
+        """
+        line_ids = []
+        for l in lineas:
+            line_vals = {
+                'account_id': int(l['account_id']),
+                'name': str(l.get('name', ref or '')),
+                'debit':  float(l.get('debit', 0) or 0),
+                'credit': float(l.get('credit', 0) or 0),
+            }
+            if l.get('partner_id'):
+                line_vals['partner_id'] = int(l['partner_id'])
+            line_ids.append((0, 0, line_vals))
+
+        vals = {
+            'move_type': 'entry',
+            'date': fecha,
+            'ref': ref or '',
+            'line_ids': line_ids,
+        }
+        if diario_id:
+            vals['journal_id'] = int(diario_id)
+        # XML-RPC no acepta None ni cadenas vacías en ciertos campos
+        vals = {k: v for k, v in vals.items() if v is not None and v != ''}
+
+        move_id = self.call('account.move', 'create', [vals])
+        if isinstance(move_id, list):
+            move_id = move_id[0]
+        self.call('account.move', 'action_post', [[move_id]])
+        return move_id
+
+    def get_cuentas(self, tipo=None):
+        """
+        Lista cuentas contables de Odoo.
+        tipo: None → todas | 'gasto' → expenses | 'activo' → assets | 'liquidez' → bank/cash
+        """
+        tipo_map = {
+            'gasto':    ['expense', 'expense_direct_cost', 'expense_depreciation'],
+            'activo':   ['asset_receivable', 'asset_cash', 'asset_current', 'asset_non_current'],
+            'liquidez': ['asset_cash'],
+            'pasivo':   ['liability_payable', 'liability_current'],
+        }
+        domain = []
+        if tipo and tipo in tipo_map:
+            domain = [['account_type', 'in', tipo_map[tipo]]]
+        return self.call('account.account', 'search_read', [domain],
+                         {'fields': ['id', 'code', 'name', 'account_type'], 'limit': 1000})
+
+    def get_diarios_misc(self):
+        """Diarios misceláneos (tipo miscellaneous) para asientos manuales."""
+        return self.call('account.journal', 'search_read',
+                         [[['type', 'in', ['general', 'cash', 'bank']]]],
+                         {'fields': ['id', 'name', 'type', 'currency_id'], 'limit': 100})
+
+    def crear_ajuste_inventario(self, product_id: int, qty: float,
+                                 location_id: int, reason: str = '',
+                                 account_id: int = None) -> int:
+        """
+        Crea un movimiento de stock de pérdida/ajuste de inventario en Odoo.
+        Usa stock.picking con tipo 'outgoing' desde la ubicación interna a virtual.
+
+        Retorna el ID del picking creado.
+        """
+        # Obtener tipo de operación 'Ajuste de inventario' o similar
+        # Usamos stock.inventory si existe, o creamos picking hacia virtual location
+        try:
+            # Odoo 18: stock.lot obsoleto, usar scrap order (stock.scrap) para salidas
+            scrap_vals = {
+                'product_id': int(product_id),
+                'scrap_qty': float(qty),
+                'location_id': int(location_id),
+                'origin': reason or 'Requisición interna',
+            }
+            scrap_id = self.call('stock.scrap', 'create', [scrap_vals])
+            if isinstance(scrap_id, list):
+                scrap_id = scrap_id[0]
+            self.call('stock.scrap', 'action_validate', [[scrap_id]])
+            return scrap_id
+        except Exception:
+            return 0
+
+    def get_comisiones_bancarias(self, fecha_desde=None, fecha_hasta=None, limite=300):
+        """
+        Obtiene asientos contables de comisiones bancarias registradas en Odoo.
+        Busca asientos (account.move type=entry) en diarios de banco/caja
+        que tengan al menos una línea con cuenta de gasto (expense).
+        """
+        # IDs de diarios de banco/caja
+        journal_ids = self.call('account.journal', 'search',
+                                [[['type', 'in', ['bank', 'cash']]]])
+        if not journal_ids:
+            return []
+
+        domain = [
+            ['journal_id', 'in', journal_ids],
+            ['move_type', '=', 'entry'],
+            ['state', '=', 'posted'],
+        ]
+        if fecha_desde:
+            domain.append(['date', '>=', fecha_desde])
+        if fecha_hasta:
+            domain.append(['date', '<=', fecha_hasta])
+
+        moves = self.call('account.move', 'search_read', [domain], {
+            'fields': ['id', 'name', 'date', 'ref', 'journal_id',
+                       'amount_total', 'line_ids'],
+            'limit': limite,
+        })
+        if not moves:
+            return []
+
+        move_ids = [m['id'] for m in moves]
+        # Líneas con cuentas de gasto
+        exp_lines = self.call('account.move.line', 'search_read', [[
+            ['move_id', 'in', move_ids],
+            ['account_type', 'in', ['expense', 'expense_direct_cost']],
+        ]], {'fields': ['move_id', 'account_id', 'name', 'debit', 'credit'], 'limit': 2000})
+
+        # Agrupar por move_id
+        exp_by_move = {}
+        for l in (exp_lines or []):
+            mid = l['move_id'][0] if isinstance(l['move_id'], list) else l['move_id']
+            exp_by_move.setdefault(mid, []).append(l)
+
+        result = []
+        for m in moves:
+            if m['id'] not in exp_by_move:
+                continue
+            lines = exp_by_move[m['id']]
+            monto = round(sum(l.get('debit', 0) or 0 for l in lines), 4)
+            journal = m.get('journal_id')
+            m['journal_nombre'] = journal[1] if isinstance(journal, list) else ''
+            m['monto_comision'] = monto
+            m['cuenta_gasto'] = lines[0]['account_id'][1] if lines else ''
+            result.append(m)
+        return result
+
+    def crear_pago_proveedor_usd(self, partner_id: int, monto: float,
+                                  fecha: str, journal_id: int,
+                                  ref: str = '', currency_id: int = None) -> int:
+        """
+        Crea y confirma pago OUTBOUND al proveedor (reduce AP).
+        Usado para abonar Zelle de terceros como si se pagara en USD efectivo.
+        """
+        vals = {
+            'payment_type': 'outbound',
+            'partner_type': 'supplier',
+            'partner_id': partner_id,
+            'amount': float(monto),
+            'date': fecha,
+            'journal_id': journal_id,
+            'memo': ref or '',
+        }
+        if currency_id:
+            vals['currency_id'] = currency_id
+        vals = {k: v for k, v in vals.items() if v is not None and v != ''}
+        pago_id = self.call('account.payment', 'create', [vals])
+        if isinstance(pago_id, list):
+            pago_id = pago_id[0]
+        self.call('account.payment', 'action_post', [[pago_id]])
+        return pago_id
+
+    def get_ubicaciones_stock(self, tipo: str = 'internal'):
+        """Obtiene ubicaciones de stock. tipo: internal | virtual | customer."""
+        uso_map = {'internal': 'internal', 'virtual': 'virtual',
+                   'customer': 'customer', 'all': False}
+        domain = []
+        if tipo != 'all':
+            domain = [['usage', '=', uso_map.get(tipo, 'internal')],
+                      ['active', '=', True]]
+        return self.call('stock.location', 'search_read', [domain],
+                         {'fields': ['id', 'name', 'complete_name', 'usage'], 'limit': 200})

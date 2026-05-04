@@ -292,6 +292,261 @@ def migrate_v15(con):
     con.commit()
 
 
+def migrate_v16(con):
+    """v1.6 — réplicas de órdenes, config_app, cantidad en NC líneas."""
+    # cantidad en notas_credito_lineas
+    try:
+        con.execute("ALTER TABLE notas_credito_lineas ADD COLUMN cantidad REAL DEFAULT 1")
+        con.commit()
+    except Exception:
+        pass
+
+    # tabla de configuración genérica clave-valor
+    con.execute("""CREATE TABLE IF NOT EXISTS config_app (
+        clave TEXT PRIMARY KEY,
+        valor TEXT,
+        descripcion TEXT
+    )""")
+    config_seeds = [
+        ('pricelist_ves_nombre',  'Precio USD Pago VES',
+         'Nombre exacto de la lista de precios VES en Odoo'),
+        ('pricelist_usd_nombre',  'Lista USD',
+         'Nombre exacto de la lista de precios USD en Odoo'),
+        ('tolerancia_pago_usd',   '0.01',
+         'Tolerancia en USD para considerar una orden como pagada'),
+    ]
+    for clave, valor, desc in config_seeds:
+        con.execute(
+            "INSERT OR IGNORE INTO config_app(clave,valor,descripcion) VALUES(?,?,?)",
+            (clave, valor, desc)
+        )
+    con.commit()
+
+    # réplicas de órdenes Odoo con Lista USD
+    con.execute("""CREATE TABLE IF NOT EXISTS ordenes_replica (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        odoo_order_name TEXT UNIQUE NOT NULL,
+        moneda_orden TEXT,
+        total_lista_ves REAL,
+        total_lista_usd REAL,
+        estado TEXT DEFAULT 'activa',   -- activa | inactiva | error
+        error_detalle TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS ordenes_replica_lineas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        replica_id INTEGER NOT NULL,
+        odoo_line_id INTEGER,
+        producto_ref TEXT,
+        producto_nombre TEXT,
+        cantidad REAL,
+        precio_lista_ves REAL,
+        precio_lista_usd REAL,
+        subtotal_ves REAL,
+        subtotal_usd REAL,
+        FOREIGN KEY(replica_id) REFERENCES ordenes_replica(id)
+    )""")
+    con.commit()
+
+
+def migrate_v17(con):
+    """v1.7 — subtotales e impuestos en réplicas; skip para Lista USD."""
+    # Nuevas columnas en ordenes_replica
+    for col, ddl in [
+        ("subtotal_lista_ves", "REAL"),
+        ("tax_lista_ves",      "REAL"),
+        ("subtotal_lista_usd", "REAL"),
+        ("tax_lista_usd",      "REAL"),
+    ]:
+        try:
+            con.execute(f"ALTER TABLE ordenes_replica ADD COLUMN {col} {ddl}")
+            con.commit()
+        except Exception:
+            pass
+
+    # Nuevas columnas en ordenes_replica_lineas
+    for col, ddl in [
+        ("tax_rate",  "REAL DEFAULT 0"),
+        ("tax_ves",   "REAL"),
+        ("total_ves", "REAL"),
+        ("tax_usd",   "REAL"),
+        ("total_usd", "REAL"),
+    ]:
+        try:
+            con.execute(f"ALTER TABLE ordenes_replica_lineas ADD COLUMN {col} {ddl}")
+            con.commit()
+        except Exception:
+            pass
+
+
+def migrate_v19(con):
+    """v1.9 — cambios de divisas."""
+    con.execute("""CREATE TABLE IF NOT EXISTS cambios_divisa (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        descripcion TEXT,
+        -- Egreso (sale)
+        monto_egreso REAL NOT NULL,
+        moneda_egreso TEXT NOT NULL,
+        banco_egreso TEXT,
+        odoo_journal_egreso INTEGER,
+        -- Ingreso (entra)
+        monto_ingreso REAL NOT NULL,
+        moneda_ingreso TEXT NOT NULL,
+        banco_ingreso TEXT,
+        odoo_journal_ingreso INTEGER,
+        -- Tasa
+        tasa_cambio REAL NOT NULL,
+        -- Estado
+        estado TEXT DEFAULT 'borrador',
+        enviado_odoo INTEGER DEFAULT 0,
+        odoo_move_id INTEGER,
+        maestro_egreso_id INTEGER,
+        maestro_ingreso_id INTEGER,
+        -- Meta
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    con.commit()
+
+
+def migrate_v20(con):
+    """v2.0 — pagos fiscales (alcaldía, INCES, aseo, etc.)."""
+    con.execute("""CREATE TABLE IF NOT EXISTS pagos_fiscales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo TEXT NOT NULL,
+        descripcion TEXT NOT NULL,
+        periodo TEXT,
+        monto REAL NOT NULL,
+        moneda TEXT NOT NULL DEFAULT 'VES',
+        equivalente_usd REAL,
+        fecha TEXT NOT NULL,
+        referencia TEXT,
+        -- Odoo mapping
+        odoo_cuenta_gasto_id INTEGER,
+        odoo_cuenta_gasto_codigo TEXT,
+        odoo_cuenta_haber_id INTEGER,
+        odoo_cuenta_haber_codigo TEXT,
+        odoo_journal_id INTEGER,
+        odoo_move_id INTEGER,
+        -- Maestro
+        maestro_op_id INTEGER,
+        -- Estado
+        estado TEXT DEFAULT 'borrador',
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    con.commit()
+
+
+def migrate_v21(con):
+    """v2.1 — requisiciones de mercancía."""
+    con.execute("""CREATE TABLE IF NOT EXISTS requisiciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empleado_nombre TEXT NOT NULL,
+        departamento TEXT,
+        motivo TEXT NOT NULL,
+        descripcion TEXT,
+        -- Odoo
+        odoo_scrap_id INTEGER,
+        odoo_move_id INTEGER,
+        odoo_cuenta_id INTEGER,
+        odoo_cuenta_codigo TEXT,
+        odoo_journal_id INTEGER,
+        odoo_location_id INTEGER,
+        -- Estado
+        estado TEXT DEFAULT 'solicitada',
+        aprobado_por INTEGER,
+        fecha_aprobacion TEXT,
+        notas_aprobacion TEXT,
+        -- Meta
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id),
+        FOREIGN KEY(aprobado_por) REFERENCES usuarios(id)
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS requisiciones_lineas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        requisicion_id INTEGER NOT NULL,
+        producto_ref TEXT,
+        producto_nombre TEXT NOT NULL,
+        producto_odoo_id INTEGER,
+        cantidad REAL NOT NULL DEFAULT 1,
+        unidad TEXT DEFAULT 'unidades',
+        costo_unitario REAL,
+        FOREIGN KEY(requisicion_id) REFERENCES requisiciones(id)
+    )""")
+    con.commit()
+
+
+def migrate_v22(con):
+    """v2.2 — zelle de terceros (pagos Zelle recibidos en cuentas de proveedores)."""
+    con.execute("""CREATE TABLE IF NOT EXISTS zelle_terceros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        descripcion TEXT,
+        -- Proveedor cuya cuenta Zelle recibió el pago
+        proveedor_id INTEGER,
+        proveedor_nombre TEXT NOT NULL,
+        -- Cliente que realizó el pago Zelle
+        cliente_nombre TEXT,
+        orden_cobrada TEXT,            -- orden de venta que se estaba cobrando
+        -- Monto recibido
+        monto_usd REAL NOT NULL,
+        referencia_zelle TEXT,         -- nro de confirmación / referencia
+        -- Acción tomada
+        tipo_accion TEXT,              -- NULL | 'abonar' | 'reintegro'
+        -- Para "abonar": pago de proveedor en Odoo (reducción de AP)
+        odoo_payment_id INTEGER,
+        odoo_journal_id INTEGER,       -- diario de banco/caja usado
+        -- Para "reintegro": asiento contable
+        odoo_move_id INTEGER,
+        comision_pct REAL DEFAULT 0,   -- % comisión cobrada por el proveedor
+        monto_comision REAL DEFAULT 0,
+        monto_reintegro REAL,          -- monto_usd - monto_comision
+        odoo_cuenta_cobrar_id INTEGER, -- cuenta "por cobrar a proveedor"
+        odoo_cuenta_comision_id INTEGER,
+        -- Maestro
+        maestro_op_id INTEGER,
+        -- Estado
+        estado TEXT DEFAULT 'pendiente',  -- pendiente | abonado | reintegro_pendiente | reintegrado | anulado
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    con.commit()
+
+
+def migrate_v18(con):
+    """v1.8 — créditos a favor de clientes por sobrepago o ajuste."""
+    con.execute("""CREATE TABLE IF NOT EXISTS creditos_cliente (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        partner_id INTEGER,
+        partner_nombre TEXT,
+        odoo_order_name TEXT,        -- orden que originó el crédito
+        monto REAL NOT NULL,         -- monto en la moneda indicada
+        moneda TEXT NOT NULL DEFAULT 'USD',
+        equivalente_usd REAL,        -- equivalente en USD al momento del registro
+        motivo TEXT DEFAULT 'sobrepago',  -- sobrepago | ajuste | devolucion
+        notas TEXT,
+        estado TEXT DEFAULT 'disponible',  -- disponible | aplicado | devuelto | anulado
+        aplicado_a_orden TEXT,       -- orden donde se aplicó el crédito
+        pago_id INTEGER,             -- pago del sistema que originó el sobrepago
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id),
+        FOREIGN KEY(pago_id) REFERENCES pagos(id)
+    )""")
+    con.commit()
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB), exist_ok=True)
     con = sqlite3.connect(DB)
@@ -436,6 +691,13 @@ def init_db():
     _seed(con)
     migrate(con)
     migrate_v15(con)
+    migrate_v16(con)
+    migrate_v17(con)
+    migrate_v18(con)
+    migrate_v19(con)
+    migrate_v20(con)
+    migrate_v21(con)
+    migrate_v22(con)
     con.close()
 
 

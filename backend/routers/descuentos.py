@@ -62,12 +62,13 @@ def crear_nota(body: CrearNotaRequest, user=Depends(get_current_user)):
         con.execute("""
             INSERT INTO notas_credito_lineas
                 (nota_id, odoo_line_id, producto_id, producto_nombre,
-                 producto_ref, precio_original, descuento_maximo)
-            VALUES (?,?,?,?,?,?,?)
+                 producto_ref, precio_original, descuento_maximo, cantidad)
+            VALUES (?,?,?,?,?,?,?,?)
         """, (nota_id, l['id'],
               l['product_id'][0] if l.get('product_id') else None,
               l['product_id'][1] if l.get('product_id') else '',
-              ref, l.get('price_unit', 0), limite))
+              ref, l.get('price_unit', 0), limite,
+              l.get('product_uom_qty', 1)))
 
     con.commit()
     con.close()
@@ -185,63 +186,19 @@ def aprobar_nota(nota_id: int, user=Depends(require_roles('gerente', 'admin'))):
         raise HTTPException(status_code=400,
                             detail=f'Estado actual: {nota["estado"]}')
 
-    # Validar condiciones
+    # Validar condiciones de negocio (pagos, plazos, etc.)
     resultado = validar_condiciones_nota(nota_id, odoo)
     if not resultado['ok']:
         raise HTTPException(status_code=422, detail=resultado)
 
-    # Obtener líneas aprobadas
-    con = get_con()
-    lineas = rows_to_list(con.execute(
-        "SELECT * FROM notas_credito_lineas WHERE nota_id=?", (nota_id,)
-    ).fetchall())
-    con.close()
-
-    lineas_con_descuento = [l for l in lineas if l.get('descuento_propuesto') is not None]
-
-    # Aplicar en Odoo — sale.order.line
-    if lineas_con_descuento:
-        try:
-            odoo.aplicar_descuento_lineas(nota['odoo_order_id'], [
-                {'line_id': l['odoo_line_id'], 'discount': l['descuento_propuesto']}
-                for l in lineas_con_descuento if l.get('odoo_line_id')
-            ])
-        except Exception as e:
-            raise HTTPException(status_code=502,
-                                detail=f'Error aplicando en Odoo: {e}')
-
-    # Intentar aplicar también en factura borrador (solo si no tiene número asignado)
-    aplicado_factura = 0
-    try:
-        factura, inv_lineas = odoo.get_factura_borrador_con_lineas(nota['odoo_order_name'])
-        if factura and inv_lineas:
-            # Construir mapa: sale_order_line_id → move_line_id
-            sol_to_mol = {}
-            for ml in inv_lineas:
-                for sol_id in (ml.get('sale_line_ids') or []):
-                    sol_to_mol[sol_id] = ml['id']
-
-            descuentos_factura = []
-            for l in lineas_con_descuento:
-                if l.get('odoo_line_id') and l['odoo_line_id'] in sol_to_mol:
-                    descuentos_factura.append({
-                        'line_id': sol_to_mol[l['odoo_line_id']],
-                        'discount': l['descuento_propuesto']
-                    })
-
-            if descuentos_factura:
-                odoo.aplicar_descuento_factura(factura['id'], descuentos_factura)
-                aplicado_factura = 1
-    except Exception:
-        pass  # No bloquear si la factura no existe o ya está confirmada
-
+    # Aprobar internamente — NO se escribe nada en Odoo
     con = get_con()
     con.execute("""
         UPDATE notas_credito
         SET estado='aprobada', aprobado_por=?, aprobado_en=?,
-            aplicado_odoo=1, aplicado_factura=?
+            aplicado_odoo=0, aplicado_factura=0
         WHERE id=?
-    """, (user['id'], datetime.utcnow().isoformat(), aplicado_factura, nota_id))
+    """, (user['id'], datetime.utcnow().isoformat(), nota_id))
     con.execute("""
         UPDATE notas_credito_lineas
         SET descuento_aprobado = descuento_propuesto
@@ -249,8 +206,7 @@ def aprobar_nota(nota_id: int, user=Depends(require_roles('gerente', 'admin'))):
     """, (nota_id,))
     con.commit()
     con.close()
-    return {'mensaje': 'Nota aprobada y aplicada en Odoo',
-            'aplicado_factura': bool(aplicado_factura)}
+    return {'mensaje': 'Nota aprobada (aplicación interna, sin modificar Odoo)'}
 
 
 @router.post('/{nota_id}/rechazar')
