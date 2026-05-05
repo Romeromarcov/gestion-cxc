@@ -327,3 +327,50 @@ def historial_tasas(par: str = 'USD_VES', limite: int = 30,
     """, (par, limite)).fetchall())
     con.close()
     return rows
+
+
+# ── Config journals por método de pago ────────────────────────────────────────
+
+METODOS_VALIDOS = {'efectivo', 'transferencia', 'pago_movil', 'zelle',
+                   'zelle_tercero', 'binance'}
+
+
+@router.get('/helpers/journals')
+def listar_journals_pagos(user=Depends(get_current_user)):
+    try:
+        odoo = get_odoo()
+        return odoo.get_journals()
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get('/config-metodos')
+def get_config_metodos(user=Depends(get_current_user)):
+    con = get_con()
+    rows = rows_to_list(con.execute(
+        "SELECT * FROM pagos_metodos_journal ORDER BY metodo"
+    ).fetchall())
+    con.close()
+    return rows
+
+
+@router.put('/config-metodos/{metodo}')
+def update_config_metodo(metodo: str, body: dict,
+                         user=Depends(require_roles('gerente', 'admin'))):
+    if metodo not in METODOS_VALIDOS:
+        raise HTTPException(status_code=400, detail=f'Método desconocido: {metodo}')
+    journal_id = body.get('journal_id')
+    journal_nombre = body.get('journal_nombre', '')
+    con = get_con()
+    con.execute("""
+        UPDATE pagos_metodos_journal
+        SET journal_id=?, journal_nombre=?
+        WHERE metodo=?
+    """, (journal_id, journal_nombre, metodo))
+    con.commit()
+    row = row_to_dict(con.execute(
+        "SELECT * FROM pagos_metodos_journal WHERE metodo=?", (metodo,)
+    ).fetchone())
+    con.close()
+    return row

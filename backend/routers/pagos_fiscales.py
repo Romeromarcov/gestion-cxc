@@ -60,6 +60,51 @@ def tipos_disponibles(user=Depends(get_current_user)):
     return list(TIPOS_FISCAL)
 
 
+# ── CONFIG CUENTAS POR TIPO ───────────────────────────────────────────────────
+
+@router.get('/config')
+def get_config(user=Depends(get_current_user)):
+    """Devuelve la configuración de cuentas Odoo para cada tipo fiscal."""
+    con = get_con()
+    rows = rows_to_list(con.execute(
+        "SELECT * FROM pagos_fiscales_config ORDER BY tipo"
+    ).fetchall())
+    con.close()
+    return rows
+
+
+@router.put('/config/{tipo}')
+def update_config(tipo: str, body: dict,
+                  user=Depends(require_roles('gerente', 'admin'))):
+    """Actualiza la config de cuentas para un tipo fiscal."""
+    if tipo not in TIPOS_FISCAL:
+        raise HTTPException(status_code=400,
+                            detail=f'Tipo inválido. Válidos: {", ".join(TIPOS_FISCAL)}')
+    con = get_con()
+    con.execute("""
+        UPDATE pagos_fiscales_config
+        SET odoo_cuenta_gasto_id=?, odoo_cuenta_gasto_nombre=?,
+            odoo_cuenta_haber_id=?, odoo_cuenta_haber_nombre=?,
+            odoo_journal_id=?, odoo_journal_nombre=?,
+            actualizado_en=?
+        WHERE tipo=?
+    """, (
+        int(body['odoo_cuenta_gasto_id']) if body.get('odoo_cuenta_gasto_id') else None,
+        body.get('odoo_cuenta_gasto_nombre') or '',
+        int(body['odoo_cuenta_haber_id']) if body.get('odoo_cuenta_haber_id') else None,
+        body.get('odoo_cuenta_haber_nombre') or '',
+        int(body['odoo_journal_id']) if body.get('odoo_journal_id') else None,
+        body.get('odoo_journal_nombre') or '',
+        datetime.utcnow().isoformat(), tipo
+    ))
+    con.commit()
+    row = row_to_dict(con.execute(
+        "SELECT * FROM pagos_fiscales_config WHERE tipo=?", (tipo,)
+    ).fetchone())
+    con.close()
+    return row
+
+
 @router.get('/{pf_id}')
 def obtener(pf_id: int, user=Depends(get_current_user)):
     con = get_con()
@@ -100,6 +145,22 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
 
     ahora = datetime.utcnow().isoformat()
     con = get_con()
+
+    # Auto-lookup: si no se enviaron cuentas, intentar desde config del tipo
+    if not body.get('odoo_cuenta_gasto_id') or not body.get('odoo_cuenta_haber_id'):
+        cfg = row_to_dict(con.execute(
+            "SELECT * FROM pagos_fiscales_config WHERE tipo=?", (tipo,)
+        ).fetchone())
+        if cfg:
+            if not body.get('odoo_cuenta_gasto_id') and cfg.get('odoo_cuenta_gasto_id'):
+                body['odoo_cuenta_gasto_id'] = cfg['odoo_cuenta_gasto_id']
+                body['odoo_cuenta_gasto_codigo'] = cfg.get('odoo_cuenta_gasto_nombre', '')
+            if not body.get('odoo_cuenta_haber_id') and cfg.get('odoo_cuenta_haber_id'):
+                body['odoo_cuenta_haber_id'] = cfg['odoo_cuenta_haber_id']
+                body['odoo_cuenta_haber_codigo'] = cfg.get('odoo_cuenta_haber_nombre', '')
+            if not body.get('odoo_journal_id') and cfg.get('odoo_journal_id'):
+                body['odoo_journal_id'] = cfg['odoo_journal_id']
+
     cur = con.execute("""
         INSERT INTO pagos_fiscales
             (tipo, descripcion, periodo, monto, moneda, equivalente_usd,
@@ -317,5 +378,18 @@ def journals(user=Depends(get_current_user)):
     try:
         odoo = get_odoo()
         return odoo.get_journals()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get('/helpers/buscar-cuenta')
+def buscar_cuenta(q: str = '', tipo: Optional[str] = Query(None),
+                  user=Depends(get_current_user)):
+    """Busca cuentas contables en Odoo por nombre o código. Usado en search-as-you-type."""
+    if len(q) < 2:
+        return []
+    try:
+        odoo = get_odoo()
+        return odoo.buscar_cuentas(q, tipo)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))

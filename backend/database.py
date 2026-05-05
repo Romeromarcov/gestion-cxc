@@ -649,6 +649,49 @@ def migrate_v24(con):
     con.commit()
 
 
+def migrate_v26(con):
+    """v2.6 — Configuraciones por tipo: fiscal, cambios divisa, métodos de pago."""
+    # Config cuentas Odoo por tipo de pago fiscal
+    con.execute("""CREATE TABLE IF NOT EXISTS pagos_fiscales_config (
+        tipo TEXT PRIMARY KEY,
+        odoo_cuenta_gasto_id INTEGER,
+        odoo_cuenta_gasto_nombre TEXT,
+        odoo_cuenta_haber_id INTEGER,
+        odoo_cuenta_haber_nombre TEXT,
+        odoo_journal_id INTEGER,
+        odoo_journal_nombre TEXT,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    for t in ('alcaldia','inces','aseo','iva','islr','seniat','sso','otro'):
+        con.execute("INSERT OR IGNORE INTO pagos_fiscales_config(tipo) VALUES(?)", (t,))
+    con.commit()
+
+    # Config default de Cambios de Divisa (singleton id=1)
+    con.execute("""CREATE TABLE IF NOT EXISTS cambios_divisa_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        journal_egreso_id INTEGER,
+        journal_egreso_nombre TEXT,
+        cuenta_egreso_id INTEGER,
+        cuenta_egreso_nombre TEXT,
+        journal_ingreso_id INTEGER,
+        journal_ingreso_nombre TEXT,
+        cuenta_ingreso_id INTEGER,
+        cuenta_ingreso_nombre TEXT
+    )""")
+    con.execute("INSERT OR IGNORE INTO cambios_divisa_config(id) VALUES(1)")
+    con.commit()
+
+    # Config journal Odoo por método de pago (para Pagos vendedores → envío a Odoo)
+    con.execute("""CREATE TABLE IF NOT EXISTS pagos_metodos_journal (
+        metodo TEXT PRIMARY KEY,
+        journal_id INTEGER,
+        journal_nombre TEXT
+    )""")
+    for m in ('efectivo','transferencia','pago_movil','zelle','zelle_tercero','binance'):
+        con.execute("INSERT OR IGNORE INTO pagos_metodos_journal(metodo) VALUES(?)", (m,))
+    con.commit()
+
+
 def migrate_v25(con):
     """v2.5 — Zelle terceros integrado en Pagos; CxP separado."""
     # pago_id: enlaza zelle_terceros con el pago que lo originó (metodo=zelle_tercero)
@@ -881,6 +924,7 @@ def init_db():
     migrate_v23(con)
     migrate_v24(con)
     migrate_v25(con)
+    migrate_v26(con)
     con.close()
 
 

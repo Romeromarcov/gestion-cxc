@@ -323,3 +323,33 @@ def listar_cuentas(tipo: Optional[str] = Query(None), user=Depends(get_current_u
         return odoo.get_cuentas(tipo)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# ── Config de journals y cuentas por defecto ─────────────────────────────────
+
+@router.get('/config')
+def get_config(user=Depends(get_current_user)):
+    con = get_con()
+    row = row_to_dict(con.execute("SELECT * FROM cambios_divisa_config WHERE id=1").fetchone())
+    con.close()
+    return row or {}
+
+
+@router.put('/config')
+def update_config(body: dict, user=Depends(require_roles('gerente', 'admin'))):
+    allowed = {
+        'journal_egreso_id', 'journal_egreso_nombre',
+        'cuenta_egreso_id',  'cuenta_egreso_nombre',
+        'journal_ingreso_id', 'journal_ingreso_nombre',
+        'cuenta_ingreso_id', 'cuenta_ingreso_nombre',
+    }
+    updates = {k: v for k, v in body.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail='Sin campos válidos')
+    con = get_con()
+    sets = ', '.join(f"{k}=?" for k in updates)
+    con.execute(f"UPDATE cambios_divisa_config SET {sets} WHERE id=1", list(updates.values()))
+    con.commit()
+    row = row_to_dict(con.execute("SELECT * FROM cambios_divisa_config WHERE id=1").fetchone())
+    con.close()
+    return row

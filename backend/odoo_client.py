@@ -639,6 +639,25 @@ class OdooClient:
         return self.call('account.account', 'search_read', [domain],
                          {'fields': ['id', 'code', 'name', 'account_type'], 'limit': 1000})
 
+    def buscar_cuentas(self, q: str, tipo: str = None):
+        """Busca cuentas contables por nombre o código (search-as-you-type)."""
+        tipo_map = {
+            'gasto':    ['expense', 'expense_direct_cost', 'expense_depreciation'],
+            'activo':   ['asset_receivable', 'asset_cash', 'asset_current'],
+            'liquidez': ['asset_cash'],
+            'pasivo':   ['liability_payable', 'liability_current'],
+        }
+        domain = [['|', ['name', 'ilike', q], ['code', 'ilike', q]]]
+        if tipo and tipo in tipo_map:
+            domain[0] = ['&'] + domain[0] + [['account_type', 'in', tipo_map[tipo]]]
+        try:
+            rows = self.call('account.account', 'search_read', [domain],
+                             {'fields': ['id', 'code', 'name', 'account_type'], 'limit': 30})
+            return [{'id': r['id'], 'nombre': f"{r['code']} — {r['name']}",
+                     'codigo': r['code']} for r in rows]
+        except Exception:
+            return []
+
     def get_diarios_misc(self):
         """Diarios misceláneos (tipo miscellaneous) para asientos manuales."""
         return self.call('account.journal', 'search_read',

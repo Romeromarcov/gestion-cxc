@@ -446,6 +446,7 @@
       </select>
       <button class="btn btn-success" onclick="exportarSheets()">📊 Exportar Google Sheets</button>
       <button class="btn btn-outline" onclick="generarRecibo()">🖨 Generar Recibo</button>
+      <button class="btn btn-outline" onclick="abrirConfigPagosJournals()" title="Configurar diarios Odoo por método de pago">⚙ Journals</button>
       <button class="btn btn-outline" onclick="loadPagos()">↺ Actualizar</button>
     </div>
     <div id="tasas-row" style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap">
@@ -467,9 +468,9 @@
       <table><thead><tr>
         <th><input type="checkbox" id="chk-all-pagos" onchange="toggleAllPagos(this)"></th>
         <th>ID</th><th>Orden</th><th>Monto</th><th>Moneda</th><th>Método</th>
-        <th>Equiv USD</th><th>Estado</th><th>Fecha</th><th>Acciones</th>
+        <th>Equiv USD</th><th>Equiv Custom</th><th>Estado</th><th>Fecha</th><th>Acciones</th>
       </tr></thead>
-      <tbody id="tb-pagos"><tr><td colspan="10" class="loader">Cargando...</td></tr></tbody>
+      <tbody id="tb-pagos"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -863,7 +864,8 @@
       </select>
       <input type="date" id="cd-f-desde">
       <input type="date" id="cd-f-hasta">
-      <button class="btn btn-primary" onclick="showModal('modal-nuevo-cambio-divisa')">+ Nuevo Cambio</button>
+      <button class="btn btn-primary" onclick="abrirNuevoCambioDivisa()">+ Nuevo Cambio</button>
+      <button class="btn btn-outline" onclick="abrirConfigCambiosDivisa()" title="Configurar diarios y cuentas por defecto">⚙ Config</button>
       <button class="btn btn-outline" onclick="loadCambiosDivisa()">↺ Actualizar</button>
     </div>
     <div class="table-wrap">
@@ -900,6 +902,7 @@
       </select>
       <input type="date" id="pf-f-desde">
       <button class="btn btn-primary" onclick="abrirNuevoPagoFiscal()">+ Nuevo Pago</button>
+      <button class="btn btn-outline" onclick="abrirConfigPagosFiscales()" title="Configurar cuentas y journal por tipo">⚙ Config</button>
       <button class="btn btn-outline" onclick="loadPagosFiscales()">↺ Actualizar</button>
     </div>
     <div class="table-wrap">
@@ -1968,9 +1971,15 @@
             <option value="EUR">EUR</option><option value="USDT">USDT</option>
           </select>
         </div>
-        <div class="form-group" style="margin-bottom:0">
+        <div class="form-group" style="margin-bottom:8px">
           <label>Banco/Caja origen</label>
           <input id="ncd-banco-egr" placeholder="Banesco USD">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Diario Odoo (egreso)</label>
+          <select id="ncd-journal-egr" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <option value="">— opcional —</option>
+          </select>
         </div>
       </div>
       <div style="background:#d1e7dd;border-radius:8px;padding:12px">
@@ -1986,9 +1995,15 @@
             <option value="EUR">EUR</option><option value="USDT">USDT</option>
           </select>
         </div>
-        <div class="form-group" style="margin-bottom:0">
+        <div class="form-group" style="margin-bottom:8px">
           <label>Banco/Caja destino</label>
           <input id="ncd-banco-ing" placeholder="Banesco VES">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Diario Odoo (ingreso)</label>
+          <select id="ncd-journal-ing" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <option value="">— opcional —</option>
+          </select>
         </div>
       </div>
     </div>
@@ -2043,7 +2058,7 @@
     <div class="form-row">
       <div class="form-group">
         <label>Tipo</label>
-        <select id="npf-tipo">
+        <select id="npf-tipo" onchange="onNpfTipoChange()">
           <option value="alcaldia">Alcaldía</option>
           <option value="inces">INCES</option>
           <option value="aseo">Aseo Urbano</option>
@@ -2090,20 +2105,29 @@
       </div>
     </div>
     <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px">
-      Las cuentas contables se configuran al enviar a Odoo. También puede preconfigurarlas aquí:
+      Las cuentas contables se pre-cargan desde la configuración del tipo. Puede buscar y cambiar:
     </p>
+    <div id="npf-cfg-hint" style="display:none;font-size:.78rem;color:var(--success);margin-bottom:6px">
+      ✓ Cuentas pre-cargadas desde configuración del tipo
+    </div>
     <div class="form-row">
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label>Cuenta de gasto (Odoo)</label>
-        <select id="npf-cta-gasto" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
-          <option value="">— configurar al validar —</option>
-        </select>
+        <input id="npf-cta-gasto-q" placeholder="Buscar cuenta…" autocomplete="off"
+               oninput="buscarCtaFiscal('gasto',this.value)"
+               style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        <div id="npf-cta-gasto-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;z-index:900;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        <input type="hidden" id="npf-cta-gasto-id">
+        <div id="npf-cta-gasto-sel" style="font-size:.75rem;color:var(--success);margin-top:2px"></div>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label>Banco/Caja que paga</label>
-        <select id="npf-cta-haber" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
-          <option value="">— configurar al validar —</option>
-        </select>
+        <input id="npf-cta-haber-q" placeholder="Buscar cuenta…" autocomplete="off"
+               oninput="buscarCtaFiscal('liquidez',this.value)"
+               style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        <div id="npf-cta-haber-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;z-index:900;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        <input type="hidden" id="npf-cta-haber-id">
+        <div id="npf-cta-haber-sel" style="font-size:.75rem;color:var(--success);margin-top:2px"></div>
       </div>
     </div>
     <div class="form-group" style="margin-bottom:14px">
@@ -2443,6 +2467,87 @@
       <button class="btn btn-outline" onclick="closeModal('modal-importar-pagos-proveedor')">Cancelar</button>
     </div>
     <div id="ipp-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Config Journals por Método de Pago -->
+<div id="modal-config-pagos-journals" class="modal-bg">
+  <div class="modal" style="max-width:600px">
+    <h3>⚙ Diarios Odoo por Método de Pago</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Asigna el diario contable de Odoo que se usará al enviar cada tipo de pago.
+    </p>
+    <div id="cpj-list" style="margin-bottom:14px">
+      <div class="loader">Cargando...</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" onclick="closeModal('modal-config-pagos-journals')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Config Cambios de Divisa (journals y cuentas por defecto) -->
+<div id="modal-config-cambios-divisa" class="modal-bg">
+  <div class="modal" style="max-width:620px">
+    <h3>⚙ Configuración de Cambios de Divisa</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Define el diario y cuenta por defecto para cada lado de la operación.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="background:#fff3cd;border-radius:8px;padding:12px">
+        <div style="font-weight:700;margin-bottom:10px;color:#856404">⬆ Egreso (Sale)</div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label style="font-size:.8rem">Diario</label>
+          <select id="ccd-journal-egr" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <option value="">—</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="font-size:.8rem">Cuenta contable</label>
+          <select id="ccd-cuenta-egr" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <option value="">—</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:#d1e7dd;border-radius:8px;padding:12px">
+        <div style="font-weight:700;margin-bottom:10px;color:#0a3622">⬇ Ingreso (Entra)</div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label style="font-size:.8rem">Diario</label>
+          <select id="ccd-journal-ing" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <option value="">—</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="font-size:.8rem">Cuenta contable</label>
+          <select id="ccd-cuenta-ing" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <option value="">—</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="guardarConfigCambiosDivisa()">💾 Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-config-cambios-divisa')">Cancelar</button>
+    </div>
+    <div id="ccd-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Config Pagos Fiscales (cuenta gasto / haber / journal por tipo) -->
+<div id="modal-config-pagos-fiscales" class="modal-bg">
+  <div class="modal" style="max-width:860px">
+    <h3>⚙ Configuración de Cuentas por Tipo Fiscal</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Define la cuenta de gasto, banco/caja y diario por defecto para cada tipo de pago fiscal.
+      Se aplicarán automáticamente al crear un nuevo pago.
+    </p>
+    <div id="cpf-table-wrap" style="margin-bottom:14px">
+      <div class="loader">Cargando...</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" onclick="closeModal('modal-config-pagos-fiscales')">Cerrar</button>
+    </div>
+    <div id="cpf-result" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -3356,12 +3461,21 @@ let _pagosData = [];
 async function loadPagos() {
   const estado = document.getElementById('f-estado-pago')?.value || '';
   const tb = document.getElementById('tb-pagos');
-  tb.innerHTML = '<tr><td colspan="10" class="loader">Cargando...</td></tr>';
+  tb.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
   try {
     const url = estado ? `/pagos?estado=${estado}` : '/pagos';
     _pagosData = await api('GET', url) || [];
-    tb.innerHTML = _pagosData.map(p => `
-      <tr>
+    tb.innerHTML = _pagosData.map(p => {
+      // Equiv Custom: si moneda VES → monto/tasa_custom; si USD/USDT → monto; otros → equiv_usd
+      let equivCustom = '—';
+      if (p.tasa_custom && p.moneda === 'VES') {
+        equivCustom = '$' + fmtNum(p.monto / p.tasa_custom, 2);
+      } else if (['USD','USDT'].includes(p.moneda)) {
+        equivCustom = '$' + fmtNum(p.monto || 0, 2);
+      } else if (p.equivalente_usd) {
+        equivCustom = '$' + fmtNum(p.equivalente_usd, 2);
+      }
+      return `<tr>
         <td><input type="checkbox" class="chk-pago" data-id="${p.id}" value="${p.id}"></td>
         <td>${p.id}</td>
         <td>${p.odoo_order_name||p.venta_interna_id||'—'}</td>
@@ -3369,6 +3483,7 @@ async function loadPagos() {
         <td>${p.moneda}</td>
         <td>${p.metodo}${p.banco ? ' · '+p.banco : ''}</td>
         <td>${p.equivalente_usd ? '$'+fmtNum(p.equivalente_usd, 2) : '—'}</td>
+        <td style="color:var(--success);font-weight:600">${equivCustom}</td>
         <td><span class="badge b-${p.estado.replace(/_/g,'-')}">${p.estado}</span></td>
         <td>${(p.fecha_pago||'').substring(0,10)}</td>
         <td style="display:flex;gap:4px;flex-wrap:wrap">
@@ -3377,9 +3492,10 @@ async function loadPagos() {
           ${p.estado==='recibido' && ['gerente','admin'].includes(currentUser?.rol) ?
             `<button class="btn btn-sm btn-primary" onclick="prepEnviarOdoo(${p.id})">→ Odoo</button>` : ''}
         </td>
-      </tr>`).join('') || '<tr><td colspan="10" class="loader">Sin pagos</td></tr>';
+      </tr>`;
+    }).join('') || '<tr><td colspan="11" class="loader">Sin pagos</td></tr>';
   } catch(e) {
-    tb.innerHTML = `<tr><td colspan="10" style="color:red;padding:12px">${e.message}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="11" style="color:red;padding:12px">${e.message}</td></tr>`;
   }
 }
 
@@ -4078,6 +4194,8 @@ function recalcMontoIng() {
 
 async function crearCambioDivisa() {
   const res = document.getElementById('ncd-result');
+  const jEgr = document.getElementById('ncd-journal-egr');
+  const jIng = document.getElementById('ncd-journal-ing');
   const body = {
     fecha:          document.getElementById('ncd-fecha').value,
     descripcion:    document.getElementById('ncd-descripcion').value,
@@ -4089,6 +4207,8 @@ async function crearCambioDivisa() {
     banco_ingreso:  document.getElementById('ncd-banco-ing').value,
     tasa_cambio:    parseFloat(document.getElementById('ncd-tasa').value),
     notas:          document.getElementById('ncd-notas').value,
+    journal_egreso_id:  jEgr?.value ? parseInt(jEgr.value) : null,
+    journal_ingreso_id: jIng?.value ? parseInt(jIng.value) : null,
   };
   if (!body.fecha || !body.monto_egreso || !body.monto_ingreso || !body.tasa_cambio) {
     res.innerHTML = `<div class="alert alert-danger">Complete todos los campos requeridos</div>`; return;
@@ -4155,6 +4275,149 @@ async function confirmarEnviarCambioOdoo() {
 }
 
 
+// ── CONFIG JOURNALS PAGOS ─────────────────────────────────────────────────────
+
+const METODO_LABELS_PG = {
+  efectivo:'Efectivo', transferencia:'Transferencia', pago_movil:'Pago Móvil',
+  zelle:'Zelle', zelle_tercero:'Zelle Tercero', binance:'Binance'
+};
+
+let _cpjJournals = [];
+
+async function abrirConfigPagosJournals() {
+  showModal('modal-config-pagos-journals');
+  const wrap = document.getElementById('cpj-list');
+  wrap.innerHTML = '<div class="loader">Cargando...</div>';
+  try {
+    const [metodos, journals] = await Promise.all([
+      api('GET', '/pagos/config-metodos'),
+      api('GET', '/pagos/helpers/journals').catch(() => []),
+    ]);
+    _cpjJournals = journals || [];
+    const jOpts = ['<option value="">— sin asignar —</option>',
+      ..._cpjJournals.map(j => `<option value="${j.id}">${j.name}</option>`)
+    ].join('');
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">Método</th>
+        <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">Diario Odoo</th>
+        <th style="padding:8px;border-bottom:2px solid var(--border)"></th>
+      </tr></thead>
+      <tbody>${(metodos||[]).map(m => `<tr>
+        <td style="padding:8px;font-weight:600">${METODO_LABELS_PG[m.metodo]||m.metodo}</td>
+        <td style="padding:8px">
+          <select id="cpj-${m.metodo}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">
+            ${jOpts}
+          </select>
+        </td>
+        <td style="padding:8px">
+          <button class="btn btn-sm btn-primary" onclick="guardarJournalMetodo('${m.metodo}')">💾</button>
+        </td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+    // Pre-seleccionar
+    (metodos||[]).forEach(m => {
+      const sel = document.getElementById(`cpj-${m.metodo}`);
+      if (sel && m.journal_id) sel.value = m.journal_id;
+    });
+  } catch(e) { wrap.innerHTML = `<div style="color:var(--danger)">${e.message}</div>`; }
+}
+
+async function guardarJournalMetodo(metodo) {
+  const sel = document.getElementById(`cpj-${metodo}`);
+  if (!sel) return;
+  const journalId = sel.value ? parseInt(sel.value) : null;
+  const journal = _cpjJournals.find(j => j.id === journalId);
+  try {
+    await api('PUT', `/pagos/config-metodos/${metodo}`, {
+      journal_id: journalId,
+      journal_nombre: journal?.name || ''
+    });
+    sel.style.border = '2px solid var(--success)';
+    setTimeout(() => sel.style.border = '', 1500);
+  } catch(e) { alert(e.message); }
+}
+
+
+// ── CONFIG CAMBIOS DE DIVISA ──────────────────────────────────────────────────
+
+async function abrirNuevoCambioDivisa() {
+  // Pre-cargar journals desde config
+  try {
+    const [journals, cfg] = await Promise.all([
+      api('GET', '/cambios-divisa/helpers/journals').catch(() => []),
+      api('GET', '/cambios-divisa/config').catch(() => ({})),
+    ]);
+    const jOpts = ['<option value="">— opcional —</option>',
+      ...(journals||[]).map(j => `<option value="${j.id}">${j.name}</option>`)
+    ].join('');
+    ['ncd-journal-egr','ncd-journal-ing'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.innerHTML = jOpts;
+    });
+    if (cfg.journal_egreso_id) {
+      const s = document.getElementById('ncd-journal-egr');
+      if (s) s.value = cfg.journal_egreso_id;
+    }
+    if (cfg.journal_ingreso_id) {
+      const s = document.getElementById('ncd-journal-ing');
+      if (s) s.value = cfg.journal_ingreso_id;
+    }
+  } catch(_) {}
+  showModal('modal-nuevo-cambio-divisa');
+}
+
+async function abrirConfigCambiosDivisa() {
+  showModal('modal-config-cambios-divisa');
+  try {
+    const [journals, cuentas, cfg] = await Promise.all([
+      api('GET', '/cambios-divisa/helpers/journals').catch(() => []),
+      api('GET', '/cambios-divisa/helpers/cuentas?tipo=liquidez').catch(() => []),
+      api('GET', '/cambios-divisa/config').catch(() => ({})),
+    ]);
+    const jOpts = ['<option value="">—</option>',
+      ...(journals||[]).map(j => `<option value="${j.id}">${j.name}</option>`)
+    ].join('');
+    const cOpts = ['<option value="">—</option>',
+      ...(cuentas||[]).map(c => `<option value="${c.id}">[${c.code}] ${c.name}</option>`)
+    ].join('');
+    ['ccd-journal-egr','ccd-journal-ing'].forEach(id => {
+      const s = document.getElementById(id); if (s) s.innerHTML = jOpts;
+    });
+    ['ccd-cuenta-egr','ccd-cuenta-ing'].forEach(id => {
+      const s = document.getElementById(id); if (s) s.innerHTML = cOpts;
+    });
+    if (cfg.journal_egreso_id)  document.getElementById('ccd-journal-egr').value = cfg.journal_egreso_id;
+    if (cfg.journal_ingreso_id) document.getElementById('ccd-journal-ing').value = cfg.journal_ingreso_id;
+    if (cfg.cuenta_egreso_id)   document.getElementById('ccd-cuenta-egr').value = cfg.cuenta_egreso_id;
+    if (cfg.cuenta_ingreso_id)  document.getElementById('ccd-cuenta-ing').value = cfg.cuenta_ingreso_id;
+  } catch(e) {
+    document.getElementById('ccd-result').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function guardarConfigCambiosDivisa() {
+  const getVal = id => { const el = document.getElementById(id); return el?.value || null; };
+  const getText = id => { const el = document.getElementById(id); return el?.options[el.selectedIndex]?.text || ''; };
+  const body = {
+    journal_egreso_id:  getVal('ccd-journal-egr') ? parseInt(getVal('ccd-journal-egr')) : null,
+    journal_egreso_nombre: getText('ccd-journal-egr'),
+    cuenta_egreso_id:   getVal('ccd-cuenta-egr')  ? parseInt(getVal('ccd-cuenta-egr'))  : null,
+    cuenta_egreso_nombre: getText('ccd-cuenta-egr'),
+    journal_ingreso_id: getVal('ccd-journal-ing') ? parseInt(getVal('ccd-journal-ing')) : null,
+    journal_ingreso_nombre: getText('ccd-journal-ing'),
+    cuenta_ingreso_id:  getVal('ccd-cuenta-ing')  ? parseInt(getVal('ccd-cuenta-ing'))  : null,
+    cuenta_ingreso_nombre: getText('ccd-cuenta-ing'),
+  };
+  const res = document.getElementById('ccd-result');
+  try {
+    await api('PUT', '/cambios-divisa/config', body);
+    res.innerHTML = '<div class="alert alert-success">✓ Configuración guardada</div>';
+    setTimeout(() => closeModal('modal-config-cambios-divisa'), 1200);
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+
 // ── PAGOS FISCALES ────────────────────────────────────────────────────────────
 
 let _pagosFiscalesData = [];
@@ -4211,10 +4474,8 @@ async function loadPagosFiscales() {
 
 async function crearPagoFiscal() {
   const res = document.getElementById('npf-result');
-  const ctaGastoSel = document.getElementById('npf-cta-gasto');
-  const ctaHaberSel = document.getElementById('npf-cta-haber');
-  const ctaGastoOpt = ctaGastoSel?.options[ctaGastoSel.selectedIndex];
-  const ctaHaberOpt = ctaHaberSel?.options[ctaHaberSel.selectedIndex];
+  const ctaGastoId = document.getElementById('npf-cta-gasto-id')?.value;
+  const ctaHaberId = document.getElementById('npf-cta-haber-id')?.value;
   const body = {
     tipo:          document.getElementById('npf-tipo').value,
     descripcion:   document.getElementById('npf-descripcion').value,
@@ -4225,10 +4486,8 @@ async function crearPagoFiscal() {
     referencia:    document.getElementById('npf-referencia').value,
     notas:         document.getElementById('npf-notas').value,
     equivalente_usd: parseFloat(document.getElementById('npf-equiv-usd').value) || null,
-    odoo_cuenta_gasto_id: ctaGastoSel?.value ? parseInt(ctaGastoSel.value) : null,
-    odoo_cuenta_gasto_codigo: ctaGastoOpt?.dataset.codigo || '',
-    odoo_cuenta_haber_id: ctaHaberSel?.value ? parseInt(ctaHaberSel.value) : null,
-    odoo_cuenta_haber_codigo: ctaHaberOpt?.dataset.codigo || '',
+    odoo_cuenta_gasto_id: ctaGastoId ? parseInt(ctaGastoId) : null,
+    odoo_cuenta_haber_id: ctaHaberId ? parseInt(ctaHaberId) : null,
   };
   if (!body.tipo || !body.descripcion || !body.monto || !body.fecha) {
     res.innerHTML = `<div class="alert alert-danger">Complete los campos requeridos</div>`; return;
@@ -4244,21 +4503,23 @@ async function crearPagoFiscal() {
   } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
 }
 
-// Cargar cuentas al abrir el modal
+// Cargar cuentas al abrir el modal (desde config del tipo)
 async function abrirNuevoPagoFiscal() {
+  // Limpiar campos de búsqueda
+  ['npf-cta-gasto-q','npf-cta-haber-q'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['npf-cta-gasto-id','npf-cta-haber-id'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['npf-cta-gasto-sel','npf-cta-haber-sel'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '';
+  });
+  const hint = document.getElementById('npf-cfg-hint');
+  if (hint) hint.style.display = 'none';
   showModal('modal-nuevo-pago-fiscal');
-  try {
-    const [gastos, liquidez] = await Promise.all([
-      api('GET', '/pagos-fiscales/helpers/cuentas-gasto'),
-      api('GET', '/pagos-fiscales/helpers/cuentas-liquidez'),
-    ]);
-    const mkOpts = (arr) => (arr||[]).map(c =>
-      `<option value="${c.id}" data-codigo="${c.code||''}">[${c.code||''}] ${c.name}</option>`).join('');
-    const gastoSel = document.getElementById('npf-cta-gasto');
-    const haberSel = document.getElementById('npf-cta-haber');
-    if (gastoSel) gastoSel.innerHTML = '<option value="">— configurar —</option>' + mkOpts(gastos);
-    if (haberSel) haberSel.innerHTML = '<option value="">— configurar —</option>' + mkOpts(liquidez);
-  } catch(_) {}
+  // Pre-cargar desde config del tipo actual
+  await onNpfTipoChange();
 }
 
 async function validarPagoFiscal(id) {
@@ -4322,6 +4583,189 @@ async function confirmarEnviarFiscalOdoo() {
     alert(`Asiento contable creado en Odoo: #${r.odoo_move_id}`);
     loadPagosFiscales();
   } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+
+// ── PAGOS FISCALES — search-as-you-type + config ──────────────────────────────
+
+let _npfGastoTimer = null, _npfHaberTimer = null;
+
+function buscarCtaFiscal(campo, q) {
+  // campo = 'gasto' o 'liquidez'
+  const dropId = campo === 'gasto' ? 'npf-cta-gasto-drop' : 'npf-cta-haber-drop';
+  const hidId  = campo === 'gasto' ? 'npf-cta-gasto-id'   : 'npf-cta-haber-id';
+  const selId  = campo === 'gasto' ? 'npf-cta-gasto-sel'  : 'npf-cta-haber-sel';
+  const tipoMap = { gasto:'gasto', liquidez:'liquidez' };
+  const drop = document.getElementById(dropId);
+  if (!drop) return;
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  clearTimeout(campo === 'gasto' ? _npfGastoTimer : _npfHaberTimer);
+  const t = setTimeout(async () => {
+    try {
+      const res = await api('GET', `/pagos-fiscales/helpers/buscar-cuenta?q=${encodeURIComponent(q)}&tipo=${tipoMap[campo]||''}`);
+      if (!res || !res.length) { drop.innerHTML = '<div style="padding:8px;color:var(--muted)">Sin resultados</div>'; drop.style.display='block'; return; }
+      drop.innerHTML = res.map(c => `
+        <div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:.85rem"
+             onmousedown="selCtaFiscal('${campo}','${c.id}',${JSON.stringify(c.nombre)})">
+          ${c.nombre}
+        </div>`).join('');
+      drop.style.display = 'block';
+    } catch(_) {}
+  }, 280);
+  if (campo === 'gasto') _npfGastoTimer = t; else _npfHaberTimer = t;
+}
+
+function selCtaFiscal(campo, id, nombre) {
+  const qId   = campo === 'gasto' ? 'npf-cta-gasto-q'   : 'npf-cta-haber-q';
+  const hidId = campo === 'gasto' ? 'npf-cta-gasto-id'  : 'npf-cta-haber-id';
+  const selId = campo === 'gasto' ? 'npf-cta-gasto-sel' : 'npf-cta-haber-sel';
+  const dropId= campo === 'gasto' ? 'npf-cta-gasto-drop': 'npf-cta-haber-drop';
+  const q    = document.getElementById(qId);   if (q)   q.value = nombre;
+  const hid  = document.getElementById(hidId); if (hid) hid.value = id;
+  const selEl= document.getElementById(selId); if (selEl) selEl.textContent = '✓ ' + nombre;
+  const drop = document.getElementById(dropId);if (drop) drop.style.display = 'none';
+}
+
+async function onNpfTipoChange() {
+  const tipo = document.getElementById('npf-tipo')?.value;
+  if (!tipo) return;
+  try {
+    const cfg = await api('GET', '/pagos-fiscales/config');
+    const row = (cfg||[]).find(c => c.tipo === tipo);
+    if (!row) return;
+    const hint = document.getElementById('npf-cfg-hint');
+    let preloaded = false;
+    if (row.odoo_cuenta_gasto_id && row.odoo_cuenta_gasto_nombre) {
+      document.getElementById('npf-cta-gasto-q').value = row.odoo_cuenta_gasto_nombre;
+      document.getElementById('npf-cta-gasto-id').value = row.odoo_cuenta_gasto_id;
+      document.getElementById('npf-cta-gasto-sel').textContent = '✓ ' + row.odoo_cuenta_gasto_nombre;
+      preloaded = true;
+    }
+    if (row.odoo_cuenta_haber_id && row.odoo_cuenta_haber_nombre) {
+      document.getElementById('npf-cta-haber-q').value = row.odoo_cuenta_haber_nombre;
+      document.getElementById('npf-cta-haber-id').value = row.odoo_cuenta_haber_id;
+      document.getElementById('npf-cta-haber-sel').textContent = '✓ ' + row.odoo_cuenta_haber_nombre;
+      preloaded = true;
+    }
+    if (hint) hint.style.display = preloaded ? 'block' : 'none';
+  } catch(_) {}
+}
+
+// Config Pagos Fiscales modal
+async function abrirConfigPagosFiscales() {
+  showModal('modal-config-pagos-fiscales');
+  const wrap = document.getElementById('cpf-table-wrap');
+  wrap.innerHTML = '<div class="loader">Cargando...</div>';
+  try {
+    const [cfgList, journals] = await Promise.all([
+      api('GET', '/pagos-fiscales/config'),
+      api('GET', '/pagos-fiscales/helpers/journals').catch(() => []),
+    ]);
+    const jOpts = ['<option value="">—</option>',
+      ...(journals||[]).map(j => `<option value="${j.id}">${j.name}</option>`)
+    ].join('');
+    wrap.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.83rem">
+      <thead><tr style="background:var(--primary);color:#fff">
+        <th style="padding:8px">Tipo</th>
+        <th style="padding:8px">Cuenta Gasto</th>
+        <th style="padding:8px">Banco/Caja</th>
+        <th style="padding:8px">Diario</th>
+        <th style="padding:8px"></th>
+      </tr></thead>
+      <tbody>${(cfgList||[]).map(row => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px;font-weight:700">${FISCAL_LABELS[row.tipo]||row.tipo}</td>
+        <td style="padding:8px">
+          <div style="position:relative">
+            <input id="cpf-gasto-q-${row.tipo}" value="${row.odoo_cuenta_gasto_nombre||''}"
+                   placeholder="Buscar cuenta…" autocomplete="off"
+                   oninput="buscarCtaConfig('gasto','${row.tipo}',this.value)"
+                   style="width:100%;padding:5px;border:1px solid var(--border);border-radius:5px;font-size:.82rem">
+            <div id="cpf-gasto-drop-${row.tipo}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:5px;max-height:150px;overflow-y:auto;z-index:950;box-shadow:0 4px 8px rgba(0,0,0,.15)"></div>
+            <input type="hidden" id="cpf-gasto-id-${row.tipo}" value="${row.odoo_cuenta_gasto_id||''}">
+          </div>
+        </td>
+        <td style="padding:8px">
+          <div style="position:relative">
+            <input id="cpf-haber-q-${row.tipo}" value="${row.odoo_cuenta_haber_nombre||''}"
+                   placeholder="Buscar cuenta…" autocomplete="off"
+                   oninput="buscarCtaConfig('haber','${row.tipo}',this.value)"
+                   style="width:100%;padding:5px;border:1px solid var(--border);border-radius:5px;font-size:.82rem">
+            <div id="cpf-haber-drop-${row.tipo}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:5px;max-height:150px;overflow-y:auto;z-index:950;box-shadow:0 4px 8px rgba(0,0,0,.15)"></div>
+            <input type="hidden" id="cpf-haber-id-${row.tipo}" value="${row.odoo_cuenta_haber_id||''}">
+          </div>
+        </td>
+        <td style="padding:8px">
+          <select id="cpf-journal-${row.tipo}" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:5px;font-size:.82rem">
+            ${jOpts}
+          </select>
+        </td>
+        <td style="padding:8px;text-align:center">
+          <button class="btn btn-sm btn-primary" onclick="guardarConfigFiscal('${row.tipo}')">💾</button>
+        </td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+    // Pre-seleccionar journals
+    (cfgList||[]).forEach(row => {
+      const sel = document.getElementById(`cpf-journal-${row.tipo}`);
+      if (sel && row.odoo_journal_id) sel.value = row.odoo_journal_id;
+    });
+  } catch(e) { wrap.innerHTML = `<div style="color:var(--danger)">${e.message}</div>`; }
+}
+
+let _cpfBuscarTimers = {};
+
+function buscarCtaConfig(campo, tipo, q) {
+  const dropId = `cpf-${campo}-drop-${tipo}`;
+  const drop = document.getElementById(dropId);
+  if (!drop) return;
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  const key = `${campo}-${tipo}`;
+  clearTimeout(_cpfBuscarTimers[key]);
+  _cpfBuscarTimers[key] = setTimeout(async () => {
+    const tipoCta = campo === 'gasto' ? 'gasto' : 'liquidez';
+    try {
+      const res = await api('GET', `/pagos-fiscales/helpers/buscar-cuenta?q=${encodeURIComponent(q)}&tipo=${tipoCta}`);
+      if (!res?.length) { drop.innerHTML = '<div style="padding:6px;color:var(--muted);font-size:.8rem">Sin resultados</div>'; drop.style.display='block'; return; }
+      drop.innerHTML = res.map(c => `
+        <div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:.82rem"
+             onmousedown="selCtaConfig('${campo}','${tipo}','${c.id}',${JSON.stringify(c.nombre)})">
+          ${c.nombre}
+        </div>`).join('');
+      drop.style.display = 'block';
+    } catch(_) {}
+  }, 300);
+}
+
+function selCtaConfig(campo, tipo, id, nombre) {
+  const qEl   = document.getElementById(`cpf-${campo}-q-${tipo}`);
+  const hidEl = document.getElementById(`cpf-${campo}-id-${tipo}`);
+  const dropEl= document.getElementById(`cpf-${campo}-drop-${tipo}`);
+  if (qEl)   qEl.value  = nombre;
+  if (hidEl) hidEl.value = id;
+  if (dropEl) dropEl.style.display = 'none';
+}
+
+async function guardarConfigFiscal(tipo) {
+  const gastoId    = document.getElementById(`cpf-gasto-id-${tipo}`)?.value;
+  const gastoNombre= document.getElementById(`cpf-gasto-q-${tipo}`)?.value || '';
+  const haberId    = document.getElementById(`cpf-haber-id-${tipo}`)?.value;
+  const haberNombre= document.getElementById(`cpf-haber-q-${tipo}`)?.value || '';
+  const jSel       = document.getElementById(`cpf-journal-${tipo}`);
+  const journalId  = jSel?.value ? parseInt(jSel.value) : null;
+  const journalNom = jSel?.options[jSel.selectedIndex]?.text || '';
+  const body = {
+    odoo_cuenta_gasto_id:    gastoId   ? parseInt(gastoId)   : null,
+    odoo_cuenta_gasto_nombre: gastoNombre,
+    odoo_cuenta_haber_id:    haberId   ? parseInt(haberId)   : null,
+    odoo_cuenta_haber_nombre: haberNombre,
+    odoo_journal_id:         journalId,
+    odoo_journal_nombre:     journalNom,
+  };
+  try {
+    await api('PUT', `/pagos-fiscales/config/${tipo}`, body);
+    const res = document.getElementById('cpf-result');
+    if (res) { res.innerHTML = `<div class="alert alert-success">✓ ${FISCAL_LABELS[tipo]||tipo} guardado</div>`; setTimeout(()=>res.innerHTML='', 2000); }
+  } catch(e) { alert(e.message); }
 }
 
 
