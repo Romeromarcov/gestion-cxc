@@ -934,7 +934,8 @@
         <option value="uso_empleado">Uso Empleado</option>
         <option value="uso_empresa">Uso Empresa</option>
       </select>
-      <button class="btn btn-primary" onclick="showModal('modal-nueva-requisicion')">+ Nueva Requisición</button>
+      <button class="btn btn-primary" onclick="abrirNuevaRequisicion()">+ Nueva Requisición</button>
+      <button class="btn btn-outline" onclick="abrirConfigRequisiciones()" title="Configurar cuenta/journal/ubicación por defecto">⚙ Config</button>
       <button class="btn btn-outline" onclick="loadRequisiciones()">↺ Actualizar</button>
     </div>
     <div class="table-wrap">
@@ -2171,19 +2172,28 @@
 
 <!-- Modal: Nueva Requisición -->
 <div id="modal-nueva-requisicion" class="modal-bg">
-  <div class="modal" style="max-width:700px">
+  <div class="modal" style="max-width:740px">
     <h3>Nueva Requisición de Mercancía</h3>
-    <div class="form-row">
-      <div class="form-group" style="flex:2">
-        <label>Nombre del empleado</label>
-        <input id="nreq-empleado" placeholder="Juan Pérez">
+    <!-- Empleado search-as-you-type -->
+    <div class="form-row" style="align-items:flex-start">
+      <div class="form-group" style="flex:2;position:relative">
+        <label>Empleado <span style="color:var(--danger)">*</span></label>
+        <input id="nreq-empleado-q" placeholder="Buscar empleado…" autocomplete="off"
+               oninput="buscarEmpleadoReq(this.value)"
+               style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        <div id="nreq-empleado-drop" style="display:none;position:absolute;top:100%;left:0;right:0;
+             background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;
+             overflow-y:auto;z-index:900;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        <input type="hidden" id="nreq-empleado-id">
+        <div id="nreq-empleado-sel" style="font-size:.75rem;color:var(--success);margin-top:2px"></div>
       </div>
       <div class="form-group">
         <label>Departamento</label>
-        <input id="nreq-depto" placeholder="Ventas">
+        <input id="nreq-depto" placeholder="Auto-rellena…" readonly
+               style="background:#f8f9fa;cursor:default">
       </div>
       <div class="form-group">
-        <label>Motivo</label>
+        <label>Motivo <span style="color:var(--danger)">*</span></label>
         <select id="nreq-motivo">
           <option value="muestra">Muestra comercial</option>
           <option value="obsequio">Obsequio/Cortesía</option>
@@ -2198,23 +2208,24 @@
       <textarea id="nreq-descripcion" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px"
                 placeholder="Detalle el propósito de la requisición..."></textarea>
     </div>
-    <!-- Tabla de productos -->
+    <!-- Tabla de productos con búsqueda -->
     <div style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong style="font-size:.9rem">Productos solicitados</strong>
+        <strong style="font-size:.9rem">Productos solicitados <span style="color:var(--danger)">*</span></strong>
         <button class="btn btn-sm btn-outline" onclick="agregarLineaReq()">+ Línea</button>
       </div>
-      <table style="width:100%;font-size:.85rem;border-collapse:collapse">
-        <thead><tr>
-          <th style="background:var(--primary);color:#fff;padding:6px 10px;text-align:left">Producto</th>
-          <th style="background:var(--primary);color:#fff;padding:6px 10px">Ref/ID Odoo</th>
-          <th style="background:var(--primary);color:#fff;padding:6px 10px">Cant.</th>
-          <th style="background:var(--primary);color:#fff;padding:6px 10px">Unidad</th>
-          <th style="background:var(--primary);color:#fff;padding:6px 10px">Costo Unit.</th>
-          <th style="background:var(--primary);color:#fff;padding:6px 4px"></th>
-        </tr></thead>
-        <tbody id="req-lineas-body"></tbody>
-      </table>
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:.85rem;border-collapse:collapse;min-width:560px">
+          <thead><tr>
+            <th style="background:var(--primary);color:#fff;padding:6px 10px;text-align:left;min-width:200px">Producto (buscar)</th>
+            <th style="background:var(--primary);color:#fff;padding:6px 10px">Cant.</th>
+            <th style="background:var(--primary);color:#fff;padding:6px 10px">Unidad</th>
+            <th style="background:var(--primary);color:#fff;padding:6px 10px">Costo Unit. $</th>
+            <th style="background:var(--primary);color:#fff;padding:6px 4px;width:32px"></th>
+          </tr></thead>
+          <tbody id="req-lineas-body"></tbody>
+        </table>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -2250,17 +2261,32 @@
 
 <!-- Modal: Ejecutar Requisición en Odoo -->
 <div id="modal-ejecutar-requisicion" class="modal-bg">
-  <div class="modal" style="max-width:560px">
+  <div class="modal" style="max-width:580px">
     <h3>Ejecutar Requisición en Odoo</h3>
     <div id="ereq-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
     <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">
       Se crearán los movimientos de stock (scrap) y el asiento contable en Odoo.
+      Los valores pre-cargados vienen de la configuración por defecto.
     </p>
     <div class="form-row">
       <div class="form-group">
-        <label>Cuenta de gasto/costo</label>
+        <label>Cuenta de gasto/costo (débito)</label>
         <select id="ereq-cuenta" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
           <option value="">— sin asiento contable —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Banco/Caja que absorbe (crédito)</label>
+        <select id="ereq-cuenta-credito" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— mismo que cuenta gasto —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Diario contable</label>
+        <select id="ereq-journal" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— opcional —</option>
         </select>
       </div>
       <div class="form-group">
@@ -2271,10 +2297,53 @@
       </div>
     </div>
     <div style="display:flex;gap:10px">
-      <button class="btn btn-warning" onclick="confirmarEjecutarRequisicion()">Ejecutar</button>
+      <button class="btn btn-warning" onclick="confirmarEjecutarRequisicion()">⚡ Ejecutar</button>
       <button class="btn btn-outline" onclick="closeModal('modal-ejecutar-requisicion')">Cancelar</button>
     </div>
     <div id="ereq-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Config Requisiciones (cuenta/journal/ubicación por defecto) -->
+<div id="modal-config-requisiciones" class="modal-bg">
+  <div class="modal" style="max-width:580px">
+    <h3>⚙ Configuración por Defecto — Requisiciones</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Estos valores se pre-cargarán automáticamente al ejecutar una requisición en Odoo.
+    </p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cuenta de gasto (débito)</label>
+        <select id="creq-cuenta" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">—</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Banco/Caja (crédito)</label>
+        <select id="creq-cuenta-credito" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— mismo que gasto —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Diario contable</label>
+        <select id="creq-journal" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">—</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Ubicación de almacén</label>
+        <select id="creq-ubicacion" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">—</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-primary" onclick="guardarConfigRequisiciones()">💾 Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-config-requisiciones')">Cancelar</button>
+    </div>
+    <div id="creq-result" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -4808,7 +4877,9 @@ async function loadRequisiciones() {
         <td><span class="badge ${badge}">${MOTIVO_LABELS[r.motivo]||r.motivo}</span></td>
         <td style="font-size:.83rem">${r.descripcion||'—'}</td>
         <td><span class="badge ${badge}">${r.estado}</span></td>
-        <td style="text-align:right;font-size:.82rem">—</td>
+        <td style="text-align:right;font-size:.82rem;color:var(--success);font-weight:600">
+          ${r.costo_total ? '$'+fmtNum(r.costo_total,2) : '—'}
+        </td>
         <td style="font-size:.8rem;color:var(--muted)">${r.odoo_move_id ? `#${r.odoo_move_id}` : '—'}</td>
         <td style="font-size:.8rem">${fecha}</td>
         <td>
@@ -4828,25 +4899,116 @@ async function loadRequisiciones() {
   }
 }
 
+function abrirNuevaRequisicion() {
+  // Reset
+  document.getElementById('nreq-empleado-q').value = '';
+  document.getElementById('nreq-empleado-id').value = '';
+  document.getElementById('nreq-empleado-sel').textContent = '';
+  document.getElementById('nreq-depto').value = '';
+  document.getElementById('nreq-descripcion').value = '';
+  document.getElementById('nreq-notas').value = '';
+  document.getElementById('req-lineas-body').innerHTML = '';
+  _reqLineasCount = 0;
+  showModal('modal-nueva-requisicion');
+  // Agregar primera línea automáticamente
+  agregarLineaReq();
+}
+
+let _reqEmpleadoTimer = null;
+function buscarEmpleadoReq(q) {
+  const drop = document.getElementById('nreq-empleado-drop');
+  if (!drop) return;
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  clearTimeout(_reqEmpleadoTimer);
+  _reqEmpleadoTimer = setTimeout(async () => {
+    try {
+      const res = await api('GET', `/requisiciones/helpers/empleados?q=${encodeURIComponent(q)}`);
+      if (!res?.length) {
+        drop.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:.85rem">Sin resultados en Odoo</div>';
+        drop.style.display = 'block'; return;
+      }
+      drop.innerHTML = res.map(e => `
+        <div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:.85rem"
+             onmousedown="selEmpleadoReq(${e.id},${JSON.stringify(e.nombre)},${JSON.stringify(e.departamento)})">
+          <strong>${e.nombre}</strong>
+          ${e.departamento ? `<span style="color:var(--muted);margin-left:6px;font-size:.78rem">${e.departamento}</span>` : ''}
+          ${e.cargo ? `<span style="color:#6c757d;margin-left:6px;font-size:.78rem">· ${e.cargo}</span>` : ''}
+        </div>`).join('');
+      drop.style.display = 'block';
+    } catch(_) {}
+  }, 280);
+}
+
+function selEmpleadoReq(id, nombre, departamento) {
+  document.getElementById('nreq-empleado-q').value = nombre;
+  document.getElementById('nreq-empleado-id').value = id;
+  document.getElementById('nreq-empleado-sel').textContent = '✓ ' + nombre;
+  document.getElementById('nreq-depto').value = departamento || '';
+  document.getElementById('nreq-empleado-drop').style.display = 'none';
+}
+
 function agregarLineaReq() {
   _reqLineasCount++;
   const tbody = document.getElementById('req-lineas-body');
   const tr = document.createElement('tr');
   tr.id = `req-linea-${_reqLineasCount}`;
+  const idx = _reqLineasCount;
   tr.innerHTML = `
-    <td><input style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
-               placeholder="Nombre producto" id="rl-nom-${_reqLineasCount}"></td>
-    <td><input style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
-               placeholder="REF-001 / ID" id="rl-ref-${_reqLineasCount}"></td>
+    <td style="position:relative;min-width:220px">
+      <input style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:.82rem"
+             placeholder="Buscar producto…" id="rl-nom-${idx}"
+             autocomplete="off" oninput="buscarProdReq(${idx},this.value)">
+      <div id="rl-drop-${idx}" style="display:none;position:absolute;top:100%;left:0;right:0;
+           background:#fff;border:1px solid var(--border);border-radius:5px;max-height:160px;
+           overflow-y:auto;z-index:950;box-shadow:0 4px 8px rgba(0,0,0,.15);font-size:.8rem"></div>
+      <input type="hidden" id="rl-odoo-id-${idx}">
+      <input type="hidden" id="rl-ref-${idx}">
+    </td>
     <td><input type="number" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
-               value="1" id="rl-qty-${_reqLineasCount}"></td>
-    <td><input style="width:70px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
-               value="unidades" id="rl-uni-${_reqLineasCount}"></td>
+               value="1" id="rl-qty-${idx}"></td>
+    <td><input style="width:72px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:.82rem"
+               value="unidades" id="rl-uni-${idx}"></td>
     <td><input type="number" step="0.01" style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"
-               placeholder="0.00" id="rl-cos-${_reqLineasCount}"></td>
+               placeholder="0.00" id="rl-cos-${idx}"></td>
     <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">×</button></td>
   `;
   tbody.appendChild(tr);
+}
+
+const _rlTimers = {};
+async function buscarProdReq(idx, q) {
+  const drop = document.getElementById(`rl-drop-${idx}`);
+  if (!drop) return;
+  if (q.length < 2) { drop.style.display = 'none'; return; }
+  clearTimeout(_rlTimers[idx]);
+  _rlTimers[idx] = setTimeout(async () => {
+    try {
+      const res = await api('GET', `/requisiciones/helpers/buscar-producto?q=${encodeURIComponent(q)}`);
+      if (!res?.length) {
+        drop.innerHTML = '<div style="padding:6px;color:var(--muted)">Sin resultados</div>';
+        drop.style.display = 'block'; return;
+      }
+      drop.innerHTML = res.map(p => `
+        <div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0"
+             onmousedown="selProdReq(${idx},${p.id},${JSON.stringify(p.nombre)},${JSON.stringify(p.ref)},${p.costo},${JSON.stringify(p.unidad)})">
+          <strong>${p.nombre}</strong>
+          ${p.ref ? `<span style="color:var(--muted);margin-left:6px">[${p.ref}]</span>` : ''}
+          <span style="float:right;color:var(--success)">$${fmtNum(p.costo,2)}</span>
+        </div>`).join('');
+      drop.style.display = 'block';
+    } catch(_) {}
+  }, 300);
+}
+
+function selProdReq(idx, odooId, nombre, ref, costo, unidad) {
+  const el = id => document.getElementById(`rl-${id}-${idx}`);
+  el('nom').value = nombre;
+  el('odoo-id').value = odooId;
+  el('ref').value = ref || '';
+  el('cos').value = costo || '';
+  el('uni').value = unidad || 'unidades';
+  const drop = document.getElementById(`rl-drop-${idx}`);
+  if (drop) drop.style.display = 'none';
 }
 
 async function crearRequisicion() {
@@ -4854,37 +5016,40 @@ async function crearRequisicion() {
   const lineasEls = document.querySelectorAll('#req-lineas-body tr');
   const lineas = [];
   lineasEls.forEach(tr => {
-    const id = tr.id.replace('req-linea-', '');
-    const nom = document.getElementById(`rl-nom-${id}`)?.value?.trim();
-    const qty = parseFloat(document.getElementById(`rl-qty-${id}`)?.value) || 0;
+    const idx = tr.id.replace('req-linea-', '');
+    const nom = document.getElementById(`rl-nom-${idx}`)?.value?.trim();
+    const qty = parseFloat(document.getElementById(`rl-qty-${idx}`)?.value) || 0;
     if (!nom || !qty) return;
-    const refVal = document.getElementById(`rl-ref-${id}`)?.value?.trim() || '';
-    const odooId = parseInt(refVal) || null;
     lineas.push({
-      producto_nombre: nom,
-      producto_ref: isNaN(parseInt(refVal)) ? refVal : '',
-      producto_odoo_id: odooId,
-      cantidad: qty,
-      unidad: document.getElementById(`rl-uni-${id}`)?.value || 'unidades',
-      costo_unitario: parseFloat(document.getElementById(`rl-cos-${id}`)?.value) || null,
+      producto_nombre:  nom,
+      producto_ref:     document.getElementById(`rl-ref-${idx}`)?.value?.trim() || '',
+      producto_odoo_id: parseInt(document.getElementById(`rl-odoo-id-${idx}`)?.value) || null,
+      cantidad:         qty,
+      unidad:           document.getElementById(`rl-uni-${idx}`)?.value || 'unidades',
+      costo_unitario:   parseFloat(document.getElementById(`rl-cos-${idx}`)?.value) || null,
     });
   });
+  const empleadoNombre = document.getElementById('nreq-empleado-q').value.trim();
+  const empleadoId     = parseInt(document.getElementById('nreq-empleado-id').value) || null;
   const body = {
-    empleado_nombre: document.getElementById('nreq-empleado').value,
-    departamento:    document.getElementById('nreq-depto').value,
-    motivo:          document.getElementById('nreq-motivo').value,
-    descripcion:     document.getElementById('nreq-descripcion').value,
-    notas:           document.getElementById('nreq-notas').value,
+    empleado_nombre:  empleadoNombre,
+    odoo_employee_id: empleadoId,
+    departamento:     document.getElementById('nreq-depto').value,
+    motivo:           document.getElementById('nreq-motivo').value,
+    descripcion:      document.getElementById('nreq-descripcion').value,
+    notas:            document.getElementById('nreq-notas').value,
     lineas,
   };
-  if (!body.empleado_nombre) { res.innerHTML = `<div class="alert alert-danger">Ingrese el nombre del empleado</div>`; return; }
-  if (!lineas.length) { res.innerHTML = `<div class="alert alert-danger">Agregue al menos un producto</div>`; return; }
+  if (!body.empleado_nombre) {
+    res.innerHTML = `<div class="alert alert-danger">Seleccione o ingrese el empleado</div>`; return;
+  }
+  if (!lineas.length) {
+    res.innerHTML = `<div class="alert alert-danger">Agregue al menos un producto</div>`; return;
+  }
   try {
     await api('POST', '/requisiciones', body);
     closeModal('modal-nueva-requisicion');
     loadRequisiciones();
-    document.getElementById('req-lineas-body').innerHTML = '';
-    _reqLineasCount = 0;
   } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
 }
 
@@ -4893,14 +5058,21 @@ async function verRequisicion(id) {
     const r = await api('GET', `/requisiciones/${id}`);
     const req = r.requisicion;
     const lineas = r.lineas || [];
-    const info = `Requisición #${req.id}\n`
-      + `Empleado: ${req.empleado_nombre} (${req.departamento||'—'})\n`
+    const total = lineas.reduce((s,l) => s + (l.cantidad||0) * (l.costo_unitario||0), 0);
+    const aprobador = req.aprobado_por_nombre || (req.aprobado_por ? `#${req.aprobado_por}` : '—');
+    const info = `═══ Requisición #${req.id} ═══\n`
+      + `Empleado: ${req.empleado_nombre}${req.departamento ? ' · ' + req.departamento : ''}\n`
       + `Motivo: ${MOTIVO_LABELS[req.motivo]||req.motivo}\n`
       + `Descripción: ${req.descripcion||'—'}\n`
-      + `Estado: ${req.estado}\n\n`
-      + `Productos:\n`
-      + lineas.map(l => `  • ${l.producto_nombre} x${l.cantidad} ${l.unidad}`
-                         + (l.costo_unitario ? ` @ $${l.costo_unitario}` : '')).join('\n');
+      + `Estado: ${req.estado}${req.aprobado_por ? ' · Aprobado por: ' + aprobador : ''}\n`
+      + (req.notas_aprobacion ? `Notas aprobación: ${req.notas_aprobacion}\n` : '')
+      + `\nProductos:\n`
+      + lineas.map(l => {
+          const sub = (l.cantidad||0) * (l.costo_unitario||0);
+          return `  • ${l.producto_nombre} x${l.cantidad} ${l.unidad||''}`
+            + (l.costo_unitario ? ` @ $${fmtNum(l.costo_unitario,2)} = $${fmtNum(sub,2)}` : '');
+        }).join('\n')
+      + (total > 0 ? `\n\nTotal estimado: $${fmtNum(total,2)}` : '');
     alert(info);
   } catch(e) { alert(e.message); }
 }
@@ -4950,37 +5122,60 @@ async function abrirEjecutarReq(id) {
   _currentReqId = id;
   const r = _requisicionesData.find(x => x.id === id);
   document.getElementById('ereq-info').innerHTML = r
-    ? `<strong>#${id} — ${r.empleado_nombre}</strong><br>${MOTIVO_LABELS[r.motivo]||r.motivo}: ${r.descripcion||''}`
+    ? `<strong>#${id} — ${r.empleado_nombre}</strong>
+       ${r.departamento ? `<span style="color:var(--muted)"> · ${r.departamento}</span>` : ''}<br>
+       ${MOTIVO_LABELS[r.motivo]||r.motivo}: ${r.descripcion||''}`
     : '';
   document.getElementById('ereq-result').innerHTML = '';
 
   try {
-    const [cuentas, ubicaciones] = await Promise.all([
+    const [cuentas, journals, ubicaciones, cfg] = await Promise.all([
       api('GET', '/requisiciones/helpers/cuentas-gasto'),
+      api('GET', '/requisiciones/helpers/journals').catch(()=>[]),
       api('GET', '/requisiciones/helpers/ubicaciones').catch(()=>[]),
+      api('GET', '/requisiciones/config').catch(()=>({})),
     ]);
-    const mkOpts = (arr) => (arr||[]).map(c =>
+    const mkCOpts = (arr) => (arr||[]).map(c =>
       `<option value="${c.id}">[${c.code||''}] ${c.name}</option>`).join('');
+    const mkJOpts = (arr) => (arr||[]).map(j =>
+      `<option value="${j.id}">${j.name}</option>`).join('');
+    const mkUOpts = (arr) => (arr||[]).map(u =>
+      `<option value="${u.id}">${u.complete_name||u.name}</option>`).join('');
+
     document.getElementById('ereq-cuenta').innerHTML =
-      '<option value="">— sin asiento —</option>' + mkOpts(cuentas);
+      '<option value="">— sin asiento —</option>' + mkCOpts(cuentas);
+    document.getElementById('ereq-cuenta-credito').innerHTML =
+      '<option value="">— mismo que gasto —</option>' + mkCOpts(cuentas);
+    document.getElementById('ereq-journal').innerHTML =
+      '<option value="">— opcional —</option>' + mkJOpts(journals);
     document.getElementById('ereq-ubicacion').innerHTML =
-      '<option value="">— default —</option>'
-      + (ubicaciones||[]).map(u => `<option value="${u.id}">${u.complete_name||u.name}</option>`).join('');
-    // Pre-seleccionar si ya configurado
-    if (r?.odoo_cuenta_id) document.getElementById('ereq-cuenta').value = r.odoo_cuenta_id;
-    if (r?.odoo_location_id) document.getElementById('ereq-ubicacion').value = r.odoo_location_id;
+      '<option value="">— default —</option>' + mkUOpts(ubicaciones);
+
+    // Pre-seleccionar: requisición > config
+    const cuentaVal = r?.odoo_cuenta_id || cfg?.odoo_cuenta_id;
+    const creditoVal = cfg?.odoo_cuenta_credito_id;
+    const journalVal = r?.odoo_journal_id || cfg?.odoo_journal_id;
+    const ubicVal    = r?.odoo_location_id || cfg?.odoo_location_id;
+    if (cuentaVal)  document.getElementById('ereq-cuenta').value = cuentaVal;
+    if (creditoVal) document.getElementById('ereq-cuenta-credito').value = creditoVal;
+    if (journalVal) document.getElementById('ereq-journal').value = journalVal;
+    if (ubicVal)    document.getElementById('ereq-ubicacion').value = ubicVal;
   } catch(_) {}
   showModal('modal-ejecutar-requisicion');
 }
 
 async function confirmarEjecutarRequisicion() {
-  const cuentaId  = document.getElementById('ereq-cuenta').value;
-  const ubicId    = document.getElementById('ereq-ubicacion').value;
-  const res       = document.getElementById('ereq-result');
+  const cuentaId   = document.getElementById('ereq-cuenta').value;
+  const creditoId  = document.getElementById('ereq-cuenta-credito').value;
+  const journalId  = document.getElementById('ereq-journal').value;
+  const ubicId     = document.getElementById('ereq-ubicacion').value;
+  const res        = document.getElementById('ereq-result');
   try {
     const body = {};
-    if (cuentaId) body.odoo_cuenta_id = parseInt(cuentaId);
-    if (ubicId)   body.odoo_location_id = parseInt(ubicId);
+    if (cuentaId)  body.odoo_cuenta_id = parseInt(cuentaId);
+    if (creditoId) body.cuenta_credito_id = parseInt(creditoId);
+    if (journalId) body.odoo_journal_id = parseInt(journalId);
+    if (ubicId)    body.odoo_location_id = parseInt(ubicId);
     const r = await api('POST', `/requisiciones/${_currentReqId}/ejecutar`, body);
     closeModal('modal-ejecutar-requisicion');
     let msg = `Requisición ejecutada ✓\nScraps creados: ${r.scraps_creados}`;
@@ -4988,6 +5183,65 @@ async function confirmarEjecutarRequisicion() {
     if (r.maestro_op_id) msg += `\nMaestro: #${r.maestro_op_id}`;
     alert(msg);
     loadRequisiciones();
+  } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+}
+
+
+// ── REQUISICIONES — Config por defecto ────────────────────────────────────────
+
+async function abrirConfigRequisiciones() {
+  showModal('modal-config-requisiciones');
+  try {
+    const [cuentas, journals, ubicaciones, cfg] = await Promise.all([
+      api('GET', '/requisiciones/helpers/cuentas-gasto').catch(()=>[]),
+      api('GET', '/requisiciones/helpers/journals').catch(()=>[]),
+      api('GET', '/requisiciones/helpers/ubicaciones').catch(()=>[]),
+      api('GET', '/requisiciones/config').catch(()=>({})),
+    ]);
+    const mkCOpts = (arr) => (arr||[]).map(c =>
+      `<option value="${c.id}">[${c.code||''}] ${c.name}</option>`).join('');
+    const mkJOpts = (arr) => (arr||[]).map(j =>
+      `<option value="${j.id}">${j.name}</option>`).join('');
+    const mkUOpts = (arr) => (arr||[]).map(u =>
+      `<option value="${u.id}">${u.complete_name||u.name}</option>`).join('');
+
+    document.getElementById('creq-cuenta').innerHTML =
+      '<option value="">—</option>' + mkCOpts(cuentas);
+    document.getElementById('creq-cuenta-credito').innerHTML =
+      '<option value="">— mismo que gasto —</option>' + mkCOpts(cuentas);
+    document.getElementById('creq-journal').innerHTML =
+      '<option value="">—</option>' + mkJOpts(journals);
+    document.getElementById('creq-ubicacion').innerHTML =
+      '<option value="">—</option>' + mkUOpts(ubicaciones);
+
+    if (cfg?.odoo_cuenta_id)         document.getElementById('creq-cuenta').value = cfg.odoo_cuenta_id;
+    if (cfg?.odoo_cuenta_credito_id) document.getElementById('creq-cuenta-credito').value = cfg.odoo_cuenta_credito_id;
+    if (cfg?.odoo_journal_id)        document.getElementById('creq-journal').value = cfg.odoo_journal_id;
+    if (cfg?.odoo_location_id)       document.getElementById('creq-ubicacion').value = cfg.odoo_location_id;
+    document.getElementById('creq-result').innerHTML = '';
+  } catch(e) {
+    document.getElementById('creq-result').innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+async function guardarConfigRequisiciones() {
+  const getText = id => { const el = document.getElementById(id); return el?.options[el.selectedIndex]?.text || ''; };
+  const getVal  = id => document.getElementById(id)?.value;
+  const body = {
+    odoo_cuenta_id:         getVal('creq-cuenta')         ? parseInt(getVal('creq-cuenta'))         : null,
+    odoo_cuenta_nombre:     getText('creq-cuenta'),
+    odoo_cuenta_credito_id: getVal('creq-cuenta-credito') ? parseInt(getVal('creq-cuenta-credito')) : null,
+    odoo_cuenta_credito_nombre: getText('creq-cuenta-credito'),
+    odoo_journal_id:        getVal('creq-journal')        ? parseInt(getVal('creq-journal'))        : null,
+    odoo_journal_nombre:    getText('creq-journal'),
+    odoo_location_id:       getVal('creq-ubicacion')      ? parseInt(getVal('creq-ubicacion'))      : null,
+    odoo_location_nombre:   getText('creq-ubicacion'),
+  };
+  const res = document.getElementById('creq-result');
+  try {
+    await api('PUT', '/requisiciones/config', body);
+    res.innerHTML = '<div class="alert alert-success">✓ Configuración guardada</div>';
+    setTimeout(() => closeModal('modal-config-requisiciones'), 1200);
   } catch(e) { res.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
 }
 

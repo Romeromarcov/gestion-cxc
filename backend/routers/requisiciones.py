@@ -61,9 +61,12 @@ def listar(
     if fecha_desde: clauses.append("creado_en>=?"); params.append(fecha_desde)
     if fecha_hasta: clauses.append("creado_en<=?"); params.append(fecha_hasta + 'T23:59')
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    rows = rows_to_list(con.execute(
-        f"SELECT * FROM requisiciones {where} ORDER BY creado_en DESC", params
-    ).fetchall())
+    rows = rows_to_list(con.execute(f"""
+        SELECT r.*,
+               (SELECT ROUND(SUM(rl.cantidad * COALESCE(rl.costo_unitario, 0)), 2)
+                FROM requisiciones_lineas rl WHERE rl.requisicion_id = r.id) AS costo_total
+        FROM requisiciones r {where} ORDER BY r.creado_en DESC
+    """, params).fetchall())
     con.close()
     return rows
 
@@ -83,7 +86,8 @@ def crear(body: dict, user=Depends(get_current_user)):
     Body:
     {
       "empleado_nombre": "Juan Pérez",
-      "departamento": "Ventas",       # opcional
+      "odoo_employee_id": 12,         # ID empleado Odoo HR (opcional)
+      "departamento": "Ventas",       # opcional (auto-fill desde Odoo)
       "motivo": "muestra",
       "descripcion": "Muestras para cliente XYZ",
       "notas": "",
@@ -115,12 +119,13 @@ def crear(body: dict, user=Depends(get_current_user)):
     con = get_con()
     cur = con.execute("""
         INSERT INTO requisiciones
-            (empleado_nombre, departamento, motivo, descripcion,
+            (empleado_nombre, odoo_employee_id, departamento, motivo, descripcion,
              odoo_cuenta_id, odoo_cuenta_codigo, odoo_journal_id, odoo_location_id,
              estado, notas, creado_por, creado_en)
-        VALUES (?,?,?,?,?,?,?,?,'solicitada',?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,'solicitada',?,?,?)
     """, (
         body['empleado_nombre'],
+        int(body['odoo_employee_id']) if body.get('odoo_employee_id') else None,
         body.get('departamento') or '',
         body['motivo'],
         body.get('descripcion') or '',
@@ -218,11 +223,13 @@ def aprobar(req_id: int, body: dict = None,
 
     ahora = datetime.utcnow().isoformat()
     notas = body.get('notas_aprobacion') or ''
+    aprobador_nombre = user.get('nombre') or user.get('username') or str(user['id'])
     con.execute("""
         UPDATE requisiciones
-        SET estado='aprobada', aprobado_por=?, fecha_aprobacion=?, notas_aprobacion=?
+        SET estado='aprobada', aprobado_por=?, aprobado_por_nombre=?,
+            fecha_aprobacion=?, notas_aprobacion=?
         WHERE id=?
-    """, (user['id'], ahora, notas, req_id))
+    """, (user['id'], aprobador_nombre, ahora, notas, req_id))
     con.commit()
     req = _get_req_or_404(con, req_id)
     con.close()
@@ -287,9 +294,13 @@ def ejecutar(req_id: int, body: dict = None,
         raise HTTPException(status_code=400, detail='La requisición no tiene líneas')
 
     odoo = get_odoo()
-    cuenta_id  = body.get('odoo_cuenta_id')   or req.get('odoo_cuenta_id')
-    journal_id = body.get('odoo_journal_id')   or req.get('odoo_journal_id')
-    location_id = body.get('odoo_location_id') or req.get('odoo_location_id')
+    # Auto-fill from config when not provided in body or requisicion
+    cfg = row_to_dict(con.execute(
+        "SELECT * FROM requisiciones_config WHERE id=1"
+    ).fetchone()) or {}
+    cuenta_id   = body.get('odoo_cuenta_id')   or req.get('odoo_cuenta_id')   or cfg.get('odoo_cuenta_id')
+    journal_id  = body.get('odoo_journal_id')  or req.get('odoo_journal_id')  or cfg.get('odoo_journal_id')
+    location_id = body.get('odoo_location_id') or req.get('odoo_location_id') or cfg.get('odoo_location_id')
 
     # ── 1. Ajuste de inventario en Odoo por producto ──────────────────────────
     scrap_ids = []
@@ -314,7 +325,9 @@ def ejecutar(req_id: int, body: dict = None,
         for l in lineas if l.get('costo_unitario')
     )
     if total_costo > 0 and cuenta_id:
-        cuenta_credito = body.get('cuenta_credito_id') or cuenta_id
+        cuenta_credito = (body.get('cuenta_credito_id')
+                          or cfg.get('odoo_cuenta_credito_id')
+                          or cuenta_id)
         motivo_label = {
             'muestra': 'Muestras comerciales', 'obsequio': 'Obsequios/Cortesías',
             'daño': 'Pérdidas por daño', 'uso_empleado': 'Uso empleado',
@@ -408,9 +421,58 @@ def journals(user=Depends(get_current_user)):
         raise HTTPException(status_code=502, detail=str(e))
 
 
-@router.get('/helpers/productos')
-def buscar_productos(q: str = '', user=Depends(get_current_user)):
+@router.get('/helpers/empleados')
+def buscar_empleados(q: str = '', user=Depends(get_current_user)):
+    """Búsqueda incremental de empleados Odoo HR por nombre."""
+    if len(q) < 2:
+        return []
     try:
-        return get_odoo().get_productos_odoo(limite=100)
+        return get_odoo().buscar_empleados(q)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get('/helpers/buscar-producto')
+def buscar_producto(q: str = '', user=Depends(get_current_user)):
+    """Búsqueda de productos por nombre o referencia interna."""
+    if len(q) < 2:
+        return []
+    try:
+        return get_odoo().buscar_productos_req(q)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+# ── Config por defecto ────────────────────────────────────────────────────────
+
+@router.get('/config')
+def get_config(user=Depends(get_current_user)):
+    con = get_con()
+    row = row_to_dict(con.execute(
+        "SELECT * FROM requisiciones_config WHERE id=1"
+    ).fetchone())
+    con.close()
+    return row or {}
+
+
+@router.put('/config')
+def update_config(body: dict, user=Depends(require_roles('gerente', 'admin'))):
+    allowed = {
+        'odoo_cuenta_id', 'odoo_cuenta_nombre',
+        'odoo_journal_id', 'odoo_journal_nombre',
+        'odoo_location_id', 'odoo_location_nombre',
+        'odoo_cuenta_credito_id', 'odoo_cuenta_credito_nombre',
+    }
+    updates = {k: v for k, v in body.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail='Sin campos válidos')
+    con = get_con()
+    sets = ', '.join(f"{k}=?" for k in updates)
+    con.execute(f"UPDATE requisiciones_config SET {sets} WHERE id=1",
+                list(updates.values()))
+    con.commit()
+    row = row_to_dict(con.execute(
+        "SELECT * FROM requisiciones_config WHERE id=1"
+    ).fetchone())
+    con.close()
+    return row

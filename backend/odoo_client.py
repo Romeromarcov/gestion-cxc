@@ -746,6 +746,41 @@ class OdooClient:
         except Exception:
             return []
 
+    def buscar_empleados(self, q: str, limite: int = 20):
+        """Búsqueda incremental de empleados por nombre."""
+        try:
+            rows = self.call('hr.employee', 'search_read',
+                             [[['active', '=', True], ['name', 'ilike', q]]],
+                             {'fields': ['id', 'name', 'department_id', 'job_title'],
+                              'limit': limite})
+            return [{
+                'id': r['id'],
+                'nombre': r['name'],
+                'departamento': r['department_id'][1] if r.get('department_id') else '',
+                'cargo': r.get('job_title') or '',
+            } for r in rows]
+        except Exception:
+            return []
+
+    def buscar_productos_req(self, q: str, limite: int = 30):
+        """Búsqueda de productos por nombre o referencia para requisiciones."""
+        try:
+            domain = [['|', ['name', 'ilike', q], ['default_code', 'ilike', q]],
+                      ['active', '=', True]]
+            rows = self.call('product.product', 'search_read', [domain],
+                             {'fields': ['id', 'name', 'default_code',
+                                         'standard_price', 'uom_id', 'product_tmpl_id'],
+                              'limit': limite})
+            return [{
+                'id': r['id'],
+                'nombre': r['name'],
+                'ref': r.get('default_code') or '',
+                'costo': r.get('standard_price') or 0,
+                'unidad': r['uom_id'][1] if r.get('uom_id') else 'unidades',
+            } for r in rows]
+        except Exception:
+            return []
+
     def get_payslip_batches(self, fecha_desde=None, fecha_hasta=None, limite=50):
         """Lotes de nómina de Odoo HR Payslip."""
         try:

@@ -770,6 +770,36 @@ def migrate_v18(con):
     con.commit()
 
 
+def migrate_v27(con):
+    """v2.7 — Requisiciones: odoo_employee_id + config por defecto."""
+    # Columna para vincular al empleado de Odoo HR
+    try:
+        con.execute("ALTER TABLE requisiciones ADD COLUMN odoo_employee_id INTEGER")
+        con.commit()
+    except Exception:
+        pass
+    # Columna para guardar nombre del aprobador (snapshot)
+    try:
+        con.execute("ALTER TABLE requisiciones ADD COLUMN aprobado_por_nombre TEXT")
+        con.commit()
+    except Exception:
+        pass
+    # Tabla de configuración por defecto de requisiciones
+    con.execute("""CREATE TABLE IF NOT EXISTS requisiciones_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        odoo_cuenta_id INTEGER,
+        odoo_cuenta_nombre TEXT,
+        odoo_journal_id INTEGER,
+        odoo_journal_nombre TEXT,
+        odoo_location_id INTEGER,
+        odoo_location_nombre TEXT,
+        odoo_cuenta_credito_id INTEGER,
+        odoo_cuenta_credito_nombre TEXT
+    )""")
+    con.execute("INSERT OR IGNORE INTO requisiciones_config(id) VALUES(1)")
+    con.commit()
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB), exist_ok=True)
     con = sqlite3.connect(DB)
@@ -925,6 +955,7 @@ def init_db():
     migrate_v24(con)
     migrate_v25(con)
     migrate_v26(con)
+    migrate_v27(con)
     con.close()
 
 
