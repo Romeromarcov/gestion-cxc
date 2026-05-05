@@ -649,6 +649,22 @@ def migrate_v24(con):
     con.commit()
 
 
+def migrate_v25(con):
+    """v2.5 — Zelle terceros integrado en Pagos; CxP separado."""
+    # pago_id: enlaza zelle_terceros con el pago que lo originó (metodo=zelle_tercero)
+    try:
+        con.execute("ALTER TABLE zelle_terceros ADD COLUMN pago_id INTEGER REFERENCES pagos(id)")
+        con.commit()
+    except Exception:
+        pass
+    # journal_efectivo en config: ID del diario de caja/efectivo para Zelle terceros
+    try:
+        con.execute("ALTER TABLE zelle_terceros ADD COLUMN journal_efectivo_id INTEGER")
+        con.commit()
+    except Exception:
+        pass
+
+
 def migrate_v22(con):
     """v2.2 — zelle de terceros (pagos Zelle recibidos en cuentas de proveedores)."""
     con.execute("""CREATE TABLE IF NOT EXISTS zelle_terceros (
@@ -864,6 +880,7 @@ def init_db():
     migrate_v22(con)
     migrate_v23(con)
     migrate_v24(con)
+    migrate_v25(con)
     con.close()
 
 

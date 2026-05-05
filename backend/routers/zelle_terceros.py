@@ -38,13 +38,23 @@ def listar(
     estado: Optional[str] = Query(None),
     fecha_desde: Optional[str] = Query(None),
     fecha_hasta: Optional[str] = Query(None),
+    sin_proveedor: Optional[bool] = Query(None),
     user=Depends(get_current_user),
 ):
+    """
+    sin_proveedor=true → solo registros originados desde Pagos (metodo=zelle_tercero)
+                         que aún no tienen proveedor asignado.
+    sin_proveedor=false → solo los que ya tienen proveedor (flujo completo).
+    """
     con = get_con()
     clauses, params = [], []
-    if estado:       clauses.append("estado=?");       params.append(estado)
-    if fecha_desde:  clauses.append("fecha>=?");        params.append(fecha_desde)
-    if fecha_hasta:  clauses.append("fecha<=?");        params.append(fecha_hasta)
+    if estado:        clauses.append("estado=?");          params.append(estado)
+    if fecha_desde:   clauses.append("fecha>=?");           params.append(fecha_desde)
+    if fecha_hasta:   clauses.append("fecha<=?");           params.append(fecha_hasta)
+    if sin_proveedor is True:
+        clauses.append("proveedor_id IS NULL")
+    elif sin_proveedor is False:
+        clauses.append("proveedor_id IS NOT NULL")
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     rows = rows_to_list(con.execute(
         f"SELECT * FROM zelle_terceros {where} ORDER BY fecha DESC, id DESC", params
@@ -377,6 +387,90 @@ def marcar_reintegrado(zt_id: int, body: dict = None,
     z = _get_or_404(con, zt_id)
     con.close()
     return {'mensaje': 'Marcado como reintegrado', 'zelle': z}
+
+
+# ── ASOCIAR PROVEEDOR (Zelle originado desde Pagos) ───────────────────────────
+
+@router.post('/{zt_id}/asociar-proveedor')
+def asociar_proveedor(zt_id: int, body: dict,
+                       user=Depends(require_roles('gerente', 'admin'))):
+    """
+    Asocia un Zelle Tercero (originado desde Pagos, sin proveedor) al proveedor
+    Odoo correspondiente. Opcionalmente registra el ingreso en efectivo en Maestro.
+
+    Body:
+    {
+      "proveedor_id": 45,             # partner_id Odoo del proveedor
+      "proveedor_nombre": "Inversiones XYZ",
+      "tipo_accion": "abonar",        # o "reintegro" — solo orienta, no ejecuta aún
+      "journal_efectivo_id": 7,       # diario de efectivo/caja para el ingreso
+      "cliente_nombre": "Cliente ABC",
+      "descripcion": "Cobro vía Zelle Tercero"
+    }
+    """
+    con = get_con()
+    z = _get_or_404(con, zt_id)
+    if z['estado'] != 'pendiente':
+        con.close()
+        raise HTTPException(status_code=400,
+                            detail=f'No se puede modificar un registro en estado "{z["estado"]}"')
+    if z.get('proveedor_id'):
+        con.close()
+        raise HTTPException(status_code=400,
+                            detail='Este registro ya tiene proveedor asignado')
+
+    proveedor_id   = body.get('proveedor_id')
+    proveedor_nom  = body.get('proveedor_nombre', '')
+    tipo_accion    = body.get('tipo_accion')          # orienta la siguiente acción, no ejecuta
+    journal_ef_id  = body.get('journal_efectivo_id')
+    cliente_nom    = body.get('cliente_nombre', z.get('cliente_nombre', ''))
+    descripcion    = body.get('descripcion') or z.get('descripcion') or ''
+
+    if not proveedor_id or not proveedor_nom:
+        con.close()
+        raise HTTPException(status_code=400,
+                            detail='proveedor_id y proveedor_nombre son requeridos')
+
+    con.execute("""
+        UPDATE zelle_terceros
+        SET proveedor_id=?, proveedor_nombre=?, tipo_accion=?,
+            journal_efectivo_id=?, cliente_nombre=?, descripcion=?
+        WHERE id=?
+    """, (int(proveedor_id), proveedor_nom, tipo_accion,
+          int(journal_ef_id) if journal_ef_id else None,
+          cliente_nom, descripcion, zt_id))
+
+    # Registrar el ingreso en Maestro (efectivo recibido de Zelle)
+    # solo si se indica journal_efectivo_id
+    maestro_id = None
+    if journal_ef_id:
+        bcv = tasa_bcv_hoy() or 1.0
+        custom = tasa_custom_hoy() or bcv
+        monto = float(z['monto_usd'])
+        ref = descripcion or f"Ingreso Zelle Tercero — {proveedor_nom}"
+        cur = con.execute("""
+            INSERT INTO maestro_operaciones
+                (fecha, monto, moneda, tipo, categoria, subcategoria,
+                 descripcion, tasa_bcv, monto_usd_bcv, tasa_real, monto_real_usd,
+                 origen, odoo_journal_id, odoo_partner_id, journal_nombre, estado)
+            VALUES (?,?,?,'ingreso','Zelle Terceros','Ingreso Efectivo',?,?,?,?,?,'zelle_terceros',?,?,?,'registrado')
+        """, (z['fecha'], monto, 'USD',
+              ref, bcv, monto, custom, monto,
+              int(journal_ef_id), int(proveedor_id) if proveedor_id else None,
+              proveedor_nom))
+        maestro_id = cur.lastrowid
+        if maestro_id:
+            con.execute("UPDATE zelle_terceros SET maestro_op_id=? WHERE id=?",
+                        (maestro_id, zt_id))
+
+    con.commit()
+    z = _get_or_404(con, zt_id)
+    con.close()
+    return {
+        'mensaje': 'Proveedor asociado correctamente',
+        'maestro_op_id': maestro_id,
+        'zelle': z
+    }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

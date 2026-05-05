@@ -60,6 +60,30 @@ def registrar_pago(body: PagoCreate, user=Depends(get_current_user)):
     ))
     con.commit()
     pago_id = cur.lastrowid
+
+    # Si el método es Zelle de Tercero, crear registro en zelle_terceros automáticamente
+    # sin proveedor aún — el gerente lo asociará después desde la vista Zelle
+    if body.metodo == 'zelle_tercero':
+        monto_usd = equivs.get('equivalente_usd') or body.monto
+        desc = f"Cobro Zelle Tercero — Orden {body.odoo_order_name}" if body.odoo_order_name else "Cobro Zelle Tercero"
+        con.execute("""
+            INSERT INTO zelle_terceros
+                (fecha, descripcion, monto_usd, referencia_zelle,
+                 cliente_nombre, orden_cobrada,
+                 estado, pago_id, creado_por, creado_en)
+            VALUES (?,?,?,?,?,?,'pendiente',?,?,?)
+        """, (
+            body.fecha_pago or date.today().isoformat(),
+            desc,
+            float(monto_usd),
+            body.referencia or '',
+            '',                          # cliente_nombre: se puede editar desde Zelle
+            body.odoo_order_name or '',
+            pago_id, user['id'],
+            datetime.utcnow().isoformat()
+        ))
+        con.commit()
+
     con.close()
     return {'id': pago_id, 'mensaje': 'Pago registrado', **equivs}
 

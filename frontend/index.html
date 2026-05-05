@@ -214,10 +214,10 @@
     <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
                 letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Compras</div>
     <a href="#" onclick="showView('compras-odoo')" data-roles="gerente,admin">
-      <span class="ico">🛍️</span> Compras Odoo / CxP
+      <span class="ico">🛍️</span> Compras Odoo
     </a>
-    <a href="#" onclick="showView('pagos-prov')" data-roles="gerente,admin">
-      <span class="ico">🧾</span> Pagos Proveedores
+    <a href="#" onclick="showView('cxp')" data-roles="gerente,admin">
+      <span class="ico">📋</span> CxP Proveedores
     </a>
 
     <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
@@ -355,31 +355,7 @@
     </div>
   </div>
 
-  <!-- ── PAGOS PROVEEDORES ── -->
-  <div id="view-pagos-prov" class="view">
-    <div class="alert alert-info" style="margin-bottom:14px">
-      <strong>ℹ Flujo:</strong> Carga los pagos de proveedores registrados en Odoo.
-      Usa <strong>"Importar al Maestro"</strong> para que aparezcan en el consolidado de operaciones.
-      Los pagos ya importados no se duplican.
-    </div>
-    <div class="filters">
-      <input type="date" id="pp-desde">
-      <input type="date" id="pp-hasta">
-      <button class="btn btn-primary" onclick="loadPagosProveedores()">↺ Cargar desde Odoo</button>
-      <button class="btn btn-success" onclick="showModal('modal-importar-pagos-proveedor')" id="btn-importar-prov" style="display:none">
-        ⬇ Importar seleccionados al Maestro
-      </button>
-    </div>
-    <div id="pagos-prov-resumen" style="margin-bottom:12px"></div>
-    <div class="table-wrap">
-      <table><thead><tr>
-        <th>ID Odoo</th><th>Proveedor</th><th>Monto</th><th>Moneda</th>
-        <th>Fecha</th><th>Diario</th><th>Estado</th><th>Referencia</th><th>En Maestro</th>
-      </tr></thead>
-      <tbody id="tb-pagos-prov"><tr><td colspan="9" class="loader">Presiona "Cargar desde Odoo"</td></tr></tbody>
-      </table>
-    </div>
-  </div>
+  <!-- view-pagos-prov eliminado: importación disponible desde botón en Maestro -->
 
   <!-- ── CRM COBRANZA ── -->
   <div id="view-cobranza" class="view">
@@ -753,7 +729,8 @@
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="loadMaestro()">Filtrar</button>
           <button class="btn btn-outline" style="color:var(--success);border-color:var(--success)" onclick="syncConciliacion(this)" title="Actualizar estado de conciliación desde Odoo">⟳ Conciliación</button>
-          <button class="btn btn-outline" style="color:#0891b2;border-color:#0891b2;font-size:.78rem" onclick="importarPagosClienteManual(this)" title="Solo si la automatización falló">⬇ Clientes Odoo</button>
+          <button class="btn btn-outline" style="color:#0891b2;border-color:#0891b2;font-size:.78rem" onclick="importarPagosClienteManual(this)" title="Importar pagos de clientes desde Odoo (fallback manual)">⬇ Clientes Odoo</button>
+          <button class="btn btn-outline" style="color:#7c3aed;border-color:#7c3aed;font-size:.78rem" onclick="showModal('modal-importar-pagos-proveedor')" title="Importar pagos de proveedores desde Odoo">⬇ Proveedores Odoo</button>
           <button class="btn btn-outline" style="color:#8b5cf6;border-color:#8b5cf6" onclick="showModal('modal-importar-comisiones')" title="Importar comisiones bancarias desde Odoo">🏦 Comisiones</button>
           <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="abrirMapeoCats()" title="Mapeo categorías → Odoo">⚙ Cuentas Odoo</button>
           <button class="btn btn-outline" style="color:var(--primary)" onclick="abrirSaldosBanco()" title="Ver saldos por banco/caja">⚖ Saldos</button>
@@ -970,87 +947,132 @@
 
   <!-- ── ZELLE DE TERCEROS ── -->
   <div id="view-zelle-terceros" class="view">
-    <div class="alert alert-info" style="margin-bottom:14px">
-      <strong>💲 Zelle de Terceros:</strong> Control de pagos Zelle recibidos en cuentas de proveedores.
-      Por cada registro puedes <strong>Abonar</strong> (reduce la cuenta por pagar al proveedor en Odoo)
-      o <strong>Solicitar Reintegro</strong> (registra que el proveedor te debe ese monto).
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+      <button class="btn btn-sm" id="ztab-sinasoc" onclick="zelleTab('sinasoc')"
+        style="border-radius:6px 6px 0 0;background:var(--primary);color:#fff;border:none;margin-right:4px">
+        ⚠ Sin asociar
+      </button>
+      <button class="btn btn-sm" id="ztab-gestionados" onclick="zelleTab('gestionados')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none">
+        Gestionados
+      </button>
     </div>
-    <div class="filters">
-      <select id="zt-f-estado" onchange="loadZelleTerceros()">
-        <option value="">Todos los estados</option>
-        <option value="pendiente">Pendientes</option>
-        <option value="abonado">Abonados</option>
-        <option value="reintegro_pendiente">Reintegro Pendiente</option>
-        <option value="reintegrado">Reintegrados</option>
-        <option value="anulado">Anulados</option>
-      </select>
-      <input type="date" id="zt-f-desde" onchange="loadZelleTerceros()">
-      <input type="date" id="zt-f-hasta" onchange="loadZelleTerceros()">
-      <button class="btn btn-primary" onclick="showModal('modal-nuevo-zelle')">+ Nuevo Registro</button>
-      <button class="btn btn-outline" onclick="loadZelleTerceros()">↺ Actualizar</button>
+
+    <!-- Tab: Sin asociar (vienen de Pagos con metodo=zelle_tercero) -->
+    <div id="zpanel-sinasoc">
+      <div class="alert alert-info" style="margin-bottom:12px;font-size:.85rem">
+        <strong>Pagos con método "Zelle Tercero"</strong> registrados por vendedores pero aún sin proveedor asignado.
+        Asocia cada uno al proveedor cuya cuenta Zelle recibió el cobro, luego decide la acción (Abonar / Reintegro).
+      </div>
+      <div class="filters">
+        <input type="date" id="zt-sa-desde">
+        <input type="date" id="zt-sa-hasta">
+        <button class="btn btn-outline" onclick="loadZelleSinAsociar()">↺ Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>ID</th><th>Fecha</th><th>Orden / Cliente</th>
+          <th style="text-align:right">Monto USD</th>
+          <th>Referencia</th><th>Vendedor</th><th>Estado</th><th>Acción</th>
+        </tr></thead>
+        <tbody id="tb-zelle-sinasoc"><tr><td colspan="8" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table><thead><tr>
-        <th>ID</th><th>Fecha</th><th>Proveedor</th><th>Cliente</th>
-        <th>Orden</th><th style="text-align:right">Monto USD</th>
-        <th>Referencia</th><th>Estado</th><th>Tipo Acción</th>
-        <th>Odoo</th><th>Acciones</th>
-      </tr></thead>
-      <tbody id="tb-zelle"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
-      </table>
+
+    <!-- Tab: Gestionados (tienen proveedor, flujo completo) -->
+    <div id="zpanel-gestionados" style="display:none">
+      <div class="filters">
+        <select id="zt-f-estado" onchange="loadZelleTerceros()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="abonado">Abonados</option>
+          <option value="reintegro_pendiente">Reintegro Pendiente</option>
+          <option value="reintegrado">Reintegrados</option>
+          <option value="anulado">Anulados</option>
+        </select>
+        <input type="date" id="zt-f-desde" onchange="loadZelleTerceros()">
+        <input type="date" id="zt-f-hasta" onchange="loadZelleTerceros()">
+        <button class="btn btn-primary" onclick="showModal('modal-nuevo-zelle')">+ Registro Manual</button>
+        <button class="btn btn-outline" onclick="loadZelleTerceros()">↺ Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>ID</th><th>Fecha</th><th>Proveedor</th><th>Cliente</th>
+          <th>Orden</th><th style="text-align:right">Monto USD</th>
+          <th>Referencia</th><th>Estado</th><th>Acción</th>
+          <th>Odoo</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-zelle"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <!-- ── COMPRAS ODOO / CxP ── -->
+  <!-- ── COMPRAS ODOO ── -->
   <div id="view-compras-odoo" class="view">
+    <div class="filters">
+      <div class="form-group"><label>Desde</label>
+        <input type="date" id="co-desde">
+      </div>
+      <div class="form-group"><label>Hasta</label>
+        <input type="date" id="co-hasta">
+      </div>
+      <div class="form-group">
+        <label>Estado pago</label>
+        <select id="co-estado">
+          <option value="">Todos</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="facturado">Facturado</option>
+          <option value="parcial">Parcial</option>
+          <option value="pagado">Pagado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Proveedor</label>
+        <input id="co-prov" placeholder="Buscar proveedor...">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <button class="btn btn-primary" onclick="loadComprasOdoo()">Filtrar</button>
+        <button class="btn btn-outline" onclick="loadComprasOdoo()">↺ Actualizar</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Orden</th><th>Proveedor</th><th>Fecha</th>
+        <th style="text-align:right">Total</th><th>Moneda</th>
+        <th>Estado Factura</th><th>Estado Pago</th>
+        <th style="text-align:right">Pendiente</th><th>Facturas</th>
+      </tr></thead>
+      <tbody id="tb-compras"><tr><td colspan="9" class="loader">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CxP PROVEEDORES ── -->
+  <div id="view-cxp" class="view">
     <!-- KPIs -->
-    <div class="cards-row" id="compras-kpis" style="margin-bottom:16px">
+    <div class="cards-row" style="margin-bottom:16px">
       <div class="card"><div class="num" id="ck-total" style="color:var(--primary)">—</div><div class="lbl">Total compras mes</div></div>
       <div class="card"><div class="num" id="ck-pagado" style="color:var(--success)">—</div><div class="lbl">Pagado</div></div>
       <div class="card"><div class="num" id="ck-pendiente" style="color:var(--danger)">—</div><div class="lbl">CxP pendiente</div></div>
-      <div class="card"><div class="num" id="ck-ordenes">—</div><div class="lbl">Órdenes</div></div>
+      <div class="card"><div class="num" id="ck-ordenes">—</div><div class="lbl">Órdenes activas</div></div>
     </div>
-    <!-- Tabs -->
-    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
-      <button class="btn btn-sm" id="ctab-lista" onclick="comprasTab('lista')"
-        style="border-radius:6px 6px 0 0;background:var(--primary);color:#fff;border:none;margin-right:4px">Órdenes</button>
-      <button class="btn btn-sm" id="ctab-cxp" onclick="comprasTab('cxp')"
-        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none">CxP por Proveedor</button>
-    </div>
-    <!-- Lista órdenes -->
-    <div id="cpanel-lista">
-      <div class="filters">
-        <input type="date" id="co-desde">
-        <input type="date" id="co-hasta">
-        <select id="co-estado">
-          <option value="">Todos</option>
-          <option value="pendiente">Pendientes</option>
-          <option value="facturado">Facturados</option>
-          <option value="parcial">Parcial</option>
-          <option value="pagado">Pagados</option>
-        </select>
-        <input id="co-prov" placeholder="Proveedor...">
-        <button class="btn btn-primary" onclick="loadComprasOdoo()">Filtrar</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <strong style="font-size:1rem">Total CxP: </strong>
+        <span id="cxp-total" style="font-size:1.4rem;font-weight:700;color:var(--danger)">—</span>
       </div>
-      <div class="table-wrap">
-        <table><thead><tr>
-          <th>Orden</th><th>Proveedor</th><th>Fecha</th>
-          <th style="text-align:right">Total</th><th>Moneda</th>
-          <th>Estado Pago</th><th style="text-align:right">Pendiente</th>
-          <th>Facturas</th>
-        </tr></thead>
-        <tbody id="tb-compras"><tr><td colspan="8" class="loader">Cargando...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-    <!-- CxP agrupado -->
-    <div id="cpanel-cxp" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <strong>Cuentas por Pagar — Total: <span id="cxp-total" style="color:var(--danger)">—</span></strong>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="cxp-desde" style="font-size:.85rem;padding:6px">
+        <input type="date" id="cxp-hasta" style="font-size:.85rem;padding:6px">
+        <button class="btn btn-primary" onclick="loadCxP()">Filtrar</button>
         <button class="btn btn-outline" onclick="loadCxP()">↺ Actualizar</button>
       </div>
-      <div id="cxp-contenido"><div class="loader">Cargando...</div></div>
     </div>
+    <div id="cxp-contenido"><div class="loader">Cargando...</div></div>
   </div>
 
   <!-- ── GASTOS Y COMPROMISOS ── -->
@@ -1364,6 +1386,7 @@
           <option value="transferencia">Transferencia</option>
           <option value="pago_movil">Pago Móvil</option>
           <option value="zelle">Zelle</option>
+          <option value="zelle_tercero">Zelle Tercero 💲</option>
           <option value="binance">Binance/USDT</option>
         </select>
       </div>
@@ -1584,25 +1607,7 @@
   </div>
 </div>
 
-<!-- Modal: Importar Pagos de Proveedor Odoo -->
-<div id="modal-importar-pagos-proveedor" class="modal-bg">
-  <div class="modal" style="max-width:440px">
-    <h3>Importar Pagos de Proveedor (Odoo)</h3>
-    <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">
-      Importa pagos a proveedores <strong>validados</strong> en Odoo que no estén
-      registrados en el sistema. Si ya existe, se omite.
-    </p>
-    <div class="form-row">
-      <div class="form-group"><label>Desde</label><input type="date" id="imp-desde"></div>
-      <div class="form-group"><label>Hasta</label><input type="date" id="imp-hasta"></div>
-    </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-primary" onclick="importarPagosProveedor()">Importar</button>
-      <button class="btn btn-outline" onclick="closeModal('modal-importar-pagos-proveedor')">Cancelar</button>
-    </div>
-    <div id="imp-result" style="margin-top:10px"></div>
-  </div>
-</div>
+<!-- modal-importar-pagos-proveedor movido a sección Maestro modales -->
 
 <!-- Modal: Enviar Egreso a Odoo -->
 <div id="modal-enviar-egreso-odoo" class="modal-bg">
@@ -2373,6 +2378,74 @@
   </div>
 </div>
 
+<!-- Modal: Asociar Proveedor a Zelle sin Asociar -->
+<div id="modal-asociar-zelle" class="modal-bg">
+  <div class="modal" style="max-width:500px">
+    <h3>💲 Asociar Proveedor al Zelle</h3>
+    <input type="hidden" id="az-id">
+    <p id="az-info" style="font-size:.88rem;color:var(--muted);margin-bottom:12px"></p>
+    <div class="alert alert-info" style="font-size:.83rem;margin-bottom:12px">
+      Indica qué proveedor recibió este pago Zelle en su cuenta. Luego podrás
+      <strong>Abonar</strong> (reduce AP en Odoo) o <strong>Reintegrar</strong>.
+    </div>
+    <div class="form-group" style="position:relative">
+      <label>Proveedor Odoo *</label>
+      <input id="az-prov-q" placeholder="Escribe para buscar..." autocomplete="off" oninput="buscarProveedorZelle(this.value)">
+      <div id="az-prov-drop" style="position:absolute;top:100%;left:0;right:0;background:#fff;
+        border:1px solid var(--border);border-radius:6px;z-index:50;display:none;max-height:180px;overflow-y:auto"></div>
+      <input type="hidden" id="az-prov-id">
+      <input id="az-prov-nom" readonly placeholder="—" style="background:#f8f9fa;margin-top:4px">
+    </div>
+    <div class="form-group">
+      <label>Acción siguiente</label>
+      <select id="az-tipo-accion">
+        <option value="">Sin definir aún</option>
+        <option value="abonar">Abonar (reducir AP proveedor)</option>
+        <option value="reintegro">Reintegro (proveedor te debe)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Diario Efectivo Odoo (ID)</label>
+        <select id="az-journal"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripción</label>
+      <input id="az-descripcion" placeholder="Ej: Cobro cliente vía Zelle Proveedor XYZ">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="asociarProveedorZelle(this)">Asociar y Continuar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-asociar-zelle')">Cancelar</button>
+    </div>
+    <div id="az-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Importar Pagos Proveedores desde Odoo -->
+<div id="modal-importar-pagos-proveedor" class="modal-bg">
+  <div class="modal" style="max-width:480px">
+    <h3>⬇ Importar Pagos de Proveedores</h3>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+      Importa pagos outbound de proveedores desde Odoo al Maestro.
+      Los pagos originados desde la app (Zelle Terceros, Nómina) no se duplican.
+    </p>
+    <div class="form-row">
+      <div class="form-group"><label>Desde</label>
+        <input type="date" id="ipp-desde">
+      </div>
+      <div class="form-group"><label>Hasta</label>
+        <input type="date" id="ipp-hasta">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="importarPagosProveedorManual(this)">Importar desde Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-importar-pagos-proveedor')">Cancelar</button>
+    </div>
+    <div id="ipp-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <!-- Modal: Importar Comisiones Bancarias -->
 <div id="modal-importar-comisiones" class="modal-bg">
   <div class="modal" style="max-width:480px">
@@ -2834,7 +2907,8 @@ function showView(name) {
     'pagos-fiscales': 'Pagos Fiscales',
     requisiciones: 'Requisiciones de Mercancía',
     'zelle-terceros': 'Zelle de Terceros',
-    'compras-odoo': 'Compras Odoo / CxP',
+    'compras-odoo': 'Compras Odoo',
+    cxp: 'CxP — Cuentas por Pagar',
     gastos: 'Gastos y Compromisos',
     nomina: 'Nómina',
     config: 'Configuración'
@@ -2855,8 +2929,9 @@ function showView(name) {
     'cambios-divisa': loadCambiosDivisa,
     'pagos-fiscales': loadPagosFiscales,
     requisiciones: loadRequisiciones,
-    'zelle-terceros': loadZelleTerceros,
+    'zelle-terceros': () => { zelleTab('sinasoc'); },
     'compras-odoo': loadComprasOdoo,
+    cxp: loadCxP,
     gastos: loadGastos,
     nomina: loadNomina,
     config: loadConfig
@@ -3386,12 +3461,20 @@ function toggleBanco() {
   const metodo = document.getElementById('np-metodo').value;
   const wrap = document.getElementById('np-banco-wrap');
   const inp  = document.getElementById('np-banco');
-  if (metodo === 'efectivo') {
+  // Para Zelle Tercero: no aplica banco (se gestiona desde vista Zelle)
+  if (metodo === 'efectivo' || metodo === 'zelle_tercero') {
     wrap.style.opacity = '.4';
     inp.disabled = true; inp.value = '';
   } else {
     wrap.style.opacity = '1';
     inp.disabled = false;
+  }
+  // Mostrar aviso contextual
+  const result = document.getElementById('np-result');
+  if (metodo === 'zelle_tercero' && result) {
+    result.innerHTML = '<div style="font-size:.82rem;color:#0891b2;padding:6px 0">💲 El pago aparecerá en <strong>Zelle de Terceros → Sin asociar</strong> para gestionar con el proveedor correspondiente.</div>';
+  } else if (result && result.innerHTML.includes('Zelle de Terceros')) {
+    result.innerHTML = '';
   }
 }
 
@@ -5966,7 +6049,8 @@ async function loadZelleTerceros() {
   const estado = document.getElementById('zt-f-estado')?.value || '';
   const desde  = document.getElementById('zt-f-desde')?.value || '';
   const hasta  = document.getElementById('zt-f-hasta')?.value || '';
-  let qs = [];
+  // Tab gestionados: solo los que tienen proveedor asignado
+  let qs = ['sin_proveedor=false'];
   if (estado) qs.push(`estado=${estado}`);
   if (desde)  qs.push(`fecha_desde=${desde}`);
   if (hasta)  qs.push(`fecha_hasta=${hasta}`);
@@ -6191,22 +6275,158 @@ async function eliminarZelle(ztId) {
   } catch(e) { alert(e.message); }
 }
 
-// ── COMPRAS ODOO / CxP ────────────────────────────────────────────────────────
+// ── ZELLE TABS ────────────────────────────────────────────────────────────────
+let _zelleSinAsocData = [];
+
+function zelleTab(tab) {
+  ['sinasoc','gestionados'].forEach(t => {
+    document.getElementById(`zpanel-${t}`).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById(`ztab-${t}`);
+    if (btn) { btn.style.background = t === tab ? 'var(--primary)' : '#e9ecef'; btn.style.color = t === tab ? '#fff' : '#495057'; }
+  });
+  if (tab === 'sinasoc') loadZelleSinAsociar();
+  if (tab === 'gestionados') loadZelleTerceros();
+}
+
+async function loadZelleSinAsociar() {
+  const desde = document.getElementById('zt-sa-desde')?.value || '';
+  const hasta  = document.getElementById('zt-sa-hasta')?.value || '';
+  let qs = ['sin_proveedor=true'];
+  if (desde) qs.push(`fecha_desde=${desde}`);
+  if (hasta)  qs.push(`fecha_hasta=${hasta}`);
+  const tbody = document.getElementById('tb-zelle-sinasoc');
+  tbody.innerHTML = '<tr><td colspan="8" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', `/zelle-terceros?${qs.join('&')}`) || [];
+    _zelleSinAsocData = rows;
+    renderZelleSinAsociar(rows);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderZelleSinAsociar(rows) {
+  const tbody = document.getElementById('tb-zelle-sinasoc');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--success)">✓ Sin pagos Zelle pendientes de asociar</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `<tr style="background:#fffbeb">
+    <td>${r.id}</td>
+    <td style="white-space:nowrap">${r.fecha}</td>
+    <td style="font-size:.85rem">
+      <strong>${r.orden_cobrada || '—'}</strong>
+      <br><span style="color:var(--muted);font-size:.78rem">${r.cliente_nombre || ''}</span>
+    </td>
+    <td style="text-align:right;font-weight:600;color:var(--success)">$${fmtNum(r.monto_usd)}</td>
+    <td style="font-size:.82rem;color:var(--muted)">${r.referencia_zelle || '—'}</td>
+    <td style="font-size:.82rem;color:var(--muted)">—</td>
+    <td><span class="badge b-pendiente">${r.estado}</span></td>
+    <td>
+      <button class="btn btn-sm btn-warning" onclick="abrirAsociarZelle(${r.id})" title="Asociar proveedor y gestionar">
+        🔗 Asociar Proveedor
+      </button>
+    </td>
+  </tr>`).join('');
+}
+
+async function abrirAsociarZelle(ztId) {
+  const z = _zelleSinAsocData.find(x => x.id === ztId);
+  document.getElementById('az-id').value = ztId;
+  document.getElementById('az-info').textContent = z
+    ? `Monto: $${fmtNum(z.monto_usd)} — Orden: ${z.orden_cobrada||'—'} — Ref: ${z.referencia_zelle||'—'}`
+    : `Zelle #${ztId}`;
+  document.getElementById('az-prov-q').value = '';
+  document.getElementById('az-prov-id').value = '';
+  document.getElementById('az-prov-nom').value = '';
+  document.getElementById('az-descripcion').value = z
+    ? `Cobro Zelle Tercero — Orden ${z.orden_cobrada||''} — Ref ${z.referencia_zelle||''}`
+    : '';
+  document.getElementById('az-result').innerHTML = '';
+
+  // Load journals
+  const jSel = document.getElementById('az-journal');
+  jSel.innerHTML = '<option>Cargando...</option>';
+  try {
+    const journals = await api('GET', '/zelle-terceros/helpers/journals') || [];
+    jSel.innerHTML = '<option value="">Sin diario (no registrar en Maestro)</option>' +
+      journals.map(j => `<option value="${j.id}">${j.nombre}</option>`).join('');
+  } catch(e) { jSel.innerHTML = '<option value="">Error cargando diarios</option>'; }
+  showModal('modal-asociar-zelle');
+}
+
+let _azBuscarTimer;
+async function buscarProveedorZelle(q) {
+  clearTimeout(_azBuscarTimer);
+  const drp = document.getElementById('az-prov-drop');
+  if (q.length < 2) { drp.style.display = 'none'; return; }
+  _azBuscarTimer = setTimeout(async () => {
+    try {
+      const results = await api('GET', `/zelle-terceros/helpers/proveedores?q=${encodeURIComponent(q)}`);
+      if (!results || !results.length) { drp.style.display = 'none'; return; }
+      drp.innerHTML = results.map(p =>
+        `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)"
+          onmousedown="selectProveedorZelle(${p.id},'${(p.nombre||'').replace(/'/g,"&#39;")}')">
+          <strong>${p.nombre}</strong>
+         </div>`
+      ).join('');
+      drp.style.display = '';
+    } catch(e) { drp.style.display = 'none'; }
+  }, 300);
+}
+
+function selectProveedorZelle(id, nombre) {
+  document.getElementById('az-prov-id').value = id;
+  document.getElementById('az-prov-nom').value = nombre;
+  document.getElementById('az-prov-q').value = nombre;
+  document.getElementById('az-prov-drop').style.display = 'none';
+}
+
+async function asociarProveedorZelle(btn) {
+  const id = parseInt(document.getElementById('az-id').value);
+  const provId = parseInt(document.getElementById('az-prov-id').value);
+  const provNom = document.getElementById('az-prov-nom').value.trim();
+  if (!provId || !provNom) { showResult('az-result', 'Selecciona un proveedor', false); return; }
+  btn.disabled = true;
+  try {
+    const r = await api('POST', `/zelle-terceros/${id}/asociar-proveedor`, {
+      proveedor_id: provId,
+      proveedor_nombre: provNom,
+      tipo_accion: document.getElementById('az-tipo-accion').value || null,
+      journal_efectivo_id: parseInt(document.getElementById('az-journal').value) || null,
+      descripcion: document.getElementById('az-descripcion').value || null,
+    });
+    showResult('az-result', `✓ Proveedor asociado. ${r.maestro_op_id ? 'Ingreso registrado en Maestro.' : ''}`, true);
+    setTimeout(() => {
+      closeModal('modal-asociar-zelle');
+      loadZelleSinAsociar();
+    }, 1000);
+  } catch(e) { showResult('az-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+// Importar pagos de proveedor desde Odoo (manual)
+async function importarPagosProveedorManual(btn) {
+  const desde = document.getElementById('ipp-desde')?.value || '';
+  const hasta  = document.getElementById('ipp-hasta')?.value || '';
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Importando...';
+  try {
+    const r = await api('POST', '/maestro/importar-pagos-proveedor', {
+      fecha_desde: desde || undefined,
+      fecha_hasta: hasta || undefined,
+    });
+    showResult('ipp-result', `✓ ${r.mensaje}`, true);
+    if (r.importados > 0) setTimeout(() => { closeModal('modal-importar-pagos-proveedor'); loadMaestro(); }, 1200);
+  } catch(e) { showResult('ipp-result', e.message, false); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+// ── COMPRAS ODOO ──────────────────────────────────────────────────────────────
 let _comprasData = [];
 
 async function loadComprasOdoo() {
-  // Load KPIs
-  try {
-    const r = await api('GET', '/compras-odoo/resumen');
-    if (r) {
-      document.getElementById('ck-total').textContent = '$' + fmtNum(r.total_compras);
-      document.getElementById('ck-pagado').textContent = '$' + fmtNum(r.total_pagado);
-      document.getElementById('ck-pendiente').textContent = '$' + fmtNum(r.total_pendiente);
-      document.getElementById('ck-ordenes').textContent = r.ordenes_count;
-    }
-  } catch(e) {}
-
-  // Load orders
   const desde  = document.getElementById('co-desde')?.value || '';
   const hasta  = document.getElementById('co-hasta')?.value || '';
   const estado = document.getElementById('co-estado')?.value || '';
@@ -6217,56 +6437,67 @@ async function loadComprasOdoo() {
   if (estado) qs.push(`pago_estado=${estado}`);
   if (prov)   qs.push(`proveedor=${encodeURIComponent(prov)}`);
   const tbody = document.getElementById('tb-compras');
-  tbody.innerHTML = '<tr><td colspan="8" class="loader">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" class="loader">Cargando desde Odoo...</td></tr>';
   try {
     const rows = await api('GET', `/compras-odoo?${qs.join('&')}`) || [];
     _comprasData = rows;
     renderComprasOdoo(rows);
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
   }
 }
 
 function renderComprasOdoo(rows) {
   const tbody = document.getElementById('tb-compras');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="loader">Sin órdenes</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="loader">Sin órdenes en el período</td></tr>';
     return;
   }
-  const pagoColors = {
-    pendiente: 'b-pendiente', facturado: 'b-en-proceso-odoo',
-    parcial: 'b-pago-parcial', pagado: 'b-pagado-completo'
-  };
+  const estadoFactura = { pending: 'b-pendiente', partial: 'b-pago-parcial', invoiced: 'b-en-proceso-odoo', nothing: 'b-borrador' };
+  const estadoPago   = { pendiente: 'b-pendiente', facturado: 'b-en-proceso-odoo', parcial: 'b-pago-parcial', pagado: 'b-pagado-completo' };
   tbody.innerHTML = rows.map(r => {
-    const cls = pagoColors[r.pago_estado] || 'b-pendiente';
-    const facturas = (r.facturas || []).map(f => `<span style="font-size:.78rem;color:var(--muted)">${f.name||f}</span>`).join(' ');
+    const fpCls = estadoFactura[r.invoice_status] || '';
+    const ppCls = estadoPago[r.pago_estado] || 'b-pendiente';
+    const facturas = (r.facturas || []).map(f => `<span style="font-size:.75rem;background:#e9ecef;border-radius:4px;padding:1px 5px">${f.name||f}</span>`).join(' ');
     return `<tr>
-      <td style="font-size:.85rem;font-weight:600">${r.name}</td>
+      <td style="font-size:.88rem;font-weight:600;color:var(--primary)">${r.name}</td>
       <td style="font-size:.85rem">${r.proveedor || '—'}</td>
-      <td style="white-space:nowrap">${(r.date_order||'').slice(0,10)}</td>
+      <td style="white-space:nowrap;font-size:.85rem">${(r.date_order||'').slice(0,10)}</td>
       <td style="text-align:right;font-weight:600">$${fmtNum(r.amount_total)}</td>
-      <td style="font-size:.82rem;color:var(--muted)">${r.moneda||'USD'}</td>
-      <td><span class="badge ${cls}">${r.pago_estado||'?'}</span></td>
-      <td style="text-align:right;color:var(--danger)">${r.monto_pendiente > 0 ? '$'+fmtNum(r.monto_pendiente) : '<span style="color:var(--success)">—</span>'}</td>
+      <td style="font-size:.8rem;color:var(--muted)">${r.moneda||'USD'}</td>
+      <td><span class="badge ${fpCls}" style="font-size:.75rem">${r.invoice_status||'—'}</span></td>
+      <td><span class="badge ${ppCls}">${r.pago_estado||'?'}</span></td>
+      <td style="text-align:right;${r.monto_pendiente > 0 ? 'color:var(--danger);font-weight:600' : 'color:var(--success)'}">${r.monto_pendiente > 0 ? '$'+fmtNum(r.monto_pendiente) : '✓'}</td>
       <td style="font-size:.8rem">${facturas || '—'}</td>
     </tr>`;
   }).join('');
 }
 
-function comprasTab(tab) {
-  ['lista','cxp'].forEach(t => {
-    document.getElementById(`cpanel-${t}`).style.display = t === tab ? '' : 'none';
-    const btn = document.getElementById(`ctab-${t}`);
-    if (btn) { btn.style.background = t === tab ? 'var(--primary)' : '#e9ecef'; btn.style.color = t === tab ? '#fff' : '#495057'; }
-  });
-  if (tab === 'cxp') loadCxP();
-}
-
 async function loadCxP() {
+  // Load KPIs from resumen
+  try {
+    const res = await api('GET', '/compras-odoo/resumen');
+    if (res) {
+      const ckTotal = document.getElementById('ck-total');
+      const ckPagado = document.getElementById('ck-pagado');
+      const ckPendiente = document.getElementById('ck-pendiente');
+      const ckOrdenes = document.getElementById('ck-ordenes');
+      if (ckTotal) ckTotal.textContent = '$' + fmtNum(res.total_compras);
+      if (ckPagado) ckPagado.textContent = '$' + fmtNum(res.total_pagado);
+      if (ckPendiente) ckPendiente.textContent = '$' + fmtNum(res.total_pendiente);
+      if (ckOrdenes) ckOrdenes.textContent = res.ordenes_count;
+    }
+  } catch(e) {}
+
   const cont = document.getElementById('cxp-contenido');
   cont.innerHTML = '<div class="loader">Cargando CxP...</div>';
+  const desde = document.getElementById('cxp-desde')?.value || '';
+  const hasta  = document.getElementById('cxp-hasta')?.value || '';
+  let qs = [];
+  if (desde) qs.push(`fecha_desde=${desde}`);
+  if (hasta)  qs.push(`fecha_hasta=${hasta}`);
   try {
-    const r = await api('GET', '/compras-odoo/cxp');
+    const r = await api('GET', `/compras-odoo/cxp?${qs.join('&')}`);
     document.getElementById('cxp-total').textContent = '$' + fmtNum(r.total_cxp);
     if (!r.detalle || !r.detalle.length) {
       cont.innerHTML = '<p style="padding:16px;color:var(--success)">✓ Sin cuentas por pagar pendientes</p>';

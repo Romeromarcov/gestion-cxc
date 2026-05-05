@@ -748,6 +748,99 @@ def importar_pagos_cliente(body: dict,
     }
 
 
+# ── IMPORTAR PAGOS PROVEEDOR DESDE ODOO ──────────────────────────────────────
+
+@router.post('/importar-pagos-proveedor')
+def importar_pagos_proveedor(body: dict,
+                              user=Depends(require_roles('admin', 'gerente'))):
+    """
+    Importa pagos de proveedores (outbound) de Odoo que NO estén ya en el maestro.
+    Excluye los generados desde la app (zelle_terceros.odoo_payment_id).
+
+    body: { "fecha_desde": "YYYY-MM-DD", "fecha_hasta": "YYYY-MM-DD" }
+    """
+    from routers.ventas import get_odoo
+    hoy = date.today().isoformat()
+    fecha_desde = body.get('fecha_desde', hoy[:8] + '01')
+    fecha_hasta = body.get('fecha_hasta', hoy)
+
+    odoo = get_odoo()
+    try:
+        pagos_odoo = odoo.get_pagos_proveedor(fecha_desde, fecha_hasta, limite=500)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f'Error Odoo: {e}')
+
+    if not pagos_odoo:
+        return {'importados': 0, 'omitidos': 0, 'mensaje': 'Sin pagos de proveedor en ese período'}
+
+    con = get_con()
+    # IDs ya en maestro
+    ya_ids = {r[0] for r in con.execute(
+        "SELECT odoo_payment_id FROM maestro_operaciones WHERE odoo_payment_id IS NOT NULL"
+    ).fetchall()}
+    # IDs generados desde la app (zelle_terceros y nomina_terceros)
+    app_odoo_ids = {r[0] for r in con.execute(
+        "SELECT odoo_payment_id FROM zelle_terceros WHERE odoo_payment_id IS NOT NULL"
+    ).fetchall()}
+    app_odoo_ids |= {r[0] for r in con.execute(
+        "SELECT odoo_payment_id FROM nomina_terceros WHERE odoo_payment_id IS NOT NULL"
+    ).fetchall()}
+
+    tasa_bcv = tasa_bcv_hoy()
+    tasa_real = tasa_custom_hoy()
+    importados = omitidos = app_origin = 0
+
+    for p in pagos_odoo:
+        pid = p.get('id')
+        if pid in ya_ids:
+            omitidos += 1
+            continue
+        if pid in app_odoo_ids:
+            app_origin += 1
+            continue
+
+        monto = float(p.get('amount', 0))
+        cur = p.get('currency_id')
+        moneda = cur[1] if isinstance(cur, (list, tuple)) else (cur or 'USD')
+        if moneda not in ('USD', 'VES', 'EUR', 'USDT'):
+            moneda = 'USD'
+        monto_usd = monto if moneda in ('USD', 'USDT') else (
+            round(monto / tasa_bcv, 4) if tasa_bcv else None)
+        partner = p.get('partner_id')
+        partner_nom = partner[1] if isinstance(partner, (list, tuple)) else ''
+        journal = p.get('journal_id')
+        journal_id_val = journal[0] if isinstance(journal, (list, tuple)) else None
+        journal_nom = journal[1] if isinstance(journal, (list, tuple)) else ''
+
+        con.execute("""
+            INSERT INTO maestro_operaciones
+                (fecha, nro_documento, monto, moneda, tipo, categoria,
+                 descripcion, tasa_bcv, monto_usd_bcv, tasa_real, monto_real_usd,
+                 origen, odoo_ref, odoo_payment_id, odoo_journal_id, odoo_partner_id,
+                 journal_nombre, odoo_conciliado, estado)
+            VALUES (?,?,?,?,'egreso','Pago Proveedor',?,?,?,?,?,'odoo_auto_proveedor',?,?,?,?,?,?,?,'confirmado')
+        """, (
+            p.get('date', hoy), p.get('name'),
+            monto, moneda,
+            f"Pago proveedor: {partner_nom}" if partner_nom else 'Pago Odoo',
+            tasa_bcv, monto_usd, tasa_real, monto_usd,
+            p.get('name'), pid, journal_id_val,
+            int(partner[0]) if isinstance(partner, (list, tuple)) else None,
+            journal_nom,
+            1 if p.get('conciliado') else 0,
+        ))
+        importados += 1
+
+    con.commit()
+    con.close()
+    return {
+        'importados': importados,
+        'omitidos': omitidos,
+        'app_origin': app_origin,
+        'mensaje': f'{importados} pagos de proveedor importados ({omitidos} ya existían, {app_origin} generados desde la app)',
+    }
+
+
 # ── IMPORTAR COMISIONES BANCARIAS DESDE ODOO ─────────────────────────────────
 
 @router.post('/importar-comisiones')
