@@ -186,57 +186,90 @@
     <a href="#" class="active" onclick="showView('dashboard')" data-roles="gerente,admin">
       <span class="ico">📊</span> Dashboard
     </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Ventas</div>
     <a href="#" onclick="showView('ventas')" data-roles="gerente,admin,vendedor">
       <span class="ico">🛒</span> Ventas Odoo
-    </a>
-    <a href="#" onclick="showView('pagos-odoo')" data-roles="gerente,admin">
-      <span class="ico">🏦</span> Pagos Clientes
-    </a>
-    <a href="#" onclick="showView('pagos-prov')" data-roles="gerente,admin">
-      <span class="ico">🧾</span> Pagos Proveedores Odoo
-    </a>
-    <a href="#" onclick="showView('cambios-divisa')" data-roles="gerente,admin">
-      <span class="ico">💱</span> Cambios de Divisa
-    </a>
-    <a href="#" onclick="showView('pagos-fiscales')" data-roles="gerente,admin">
-      <span class="ico">🏛️</span> Pagos Fiscales
-    </a>
-    <a href="#" onclick="showView('requisiciones')" data-roles="gerente,admin,vendedor">
-      <span class="ico">📋</span> Requisiciones
-    </a>
-    <a href="#" onclick="showView('notas')" data-roles="gerente,admin,vendedor">
-      <span class="ico">📋</span> Notas de Crédito
-    </a>
-    <a href="#" onclick="showView('pagos')" data-roles="gerente,admin,vendedor">
-      <span class="ico">💳</span> Pagos
     </a>
     <a href="#" onclick="showView('cxc')" data-roles="gerente,admin">
       <span class="ico">📈</span> Reporte CxC
     </a>
-    <a href="#" onclick="showView('catalogo')" data-roles="gerente,admin">
-      <span class="ico">📦</span> Catálogo Productos
+    <a href="#" onclick="showView('notas')" data-roles="gerente,admin,vendedor">
+      <span class="ico">🗒️</span> Notas de Crédito
     </a>
-    <a href="#" onclick="showView('promociones')" data-roles="gerente,admin">
-      <span class="ico">🎁</span> Promociones
-    </a>
-    <a href="#" onclick="showView('precios')" data-roles="gerente,admin">
-      <span class="ico">🏷️</span> Precios
-    </a>
-    <a href="#" onclick="showView('maestro')" data-roles="gerente,admin">
-      <span class="ico">💰</span> Maestro Operaciones
-    </a>
-    <a href="#" onclick="showView('cobranza')" data-roles="gerente,admin,vendedor">
-      <span class="ico">📞</span> CRM Cobranza
-    </a>
-    <a href="#" onclick="showView('acuerdos')" data-roles="gerente,admin">
-      <span class="ico">🤝</span> Acuerdos de Pago
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Cobros</div>
+    <a href="#" onclick="showView('pagos')" data-roles="gerente,admin,vendedor">
+      <span class="ico">💳</span> Pagos
     </a>
     <a href="#" onclick="showView('creditos')" data-roles="gerente,admin">
-      <span class="ico">💳</span> Créditos Cliente
+      <span class="ico">🏅</span> Créditos Cliente
     </a>
     <a href="#" onclick="showView('zelle-terceros')" data-roles="gerente,admin">
       <span class="ico">💲</span> Zelle de Terceros
     </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Compras</div>
+    <a href="#" onclick="showView('compras-odoo')" data-roles="gerente,admin">
+      <span class="ico">🛍️</span> Compras Odoo / CxP
+    </a>
+    <a href="#" onclick="showView('pagos-prov')" data-roles="gerente,admin">
+      <span class="ico">🧾</span> Pagos Proveedores
+    </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Egresos</div>
+    <a href="#" onclick="showView('pagos-fiscales')" data-roles="gerente,admin">
+      <span class="ico">🏛️</span> Pagos Fiscales
+    </a>
+    <a href="#" onclick="showView('gastos')" data-roles="gerente,admin">
+      <span class="ico">💼</span> Gastos y Compromisos
+    </a>
+    <a href="#" onclick="showView('nomina')" data-roles="gerente,admin">
+      <span class="ico">👥</span> Nómina
+    </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Operaciones</div>
+    <a href="#" onclick="showView('cambios-divisa')" data-roles="gerente,admin">
+      <span class="ico">💱</span> Cambios de Divisa
+    </a>
+    <a href="#" onclick="showView('maestro')" data-roles="gerente,admin">
+      <span class="ico">💰</span> Maestro Tesorería
+    </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Inventario</div>
+    <a href="#" onclick="showView('requisiciones')" data-roles="gerente,admin,vendedor">
+      <span class="ico">📋</span> Requisiciones
+    </a>
+    <a href="#" onclick="showView('catalogo')" data-roles="gerente,admin">
+      <span class="ico">📦</span> Catálogo Productos
+    </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Comercial</div>
+    <a href="#" onclick="showView('precios')" data-roles="gerente,admin">
+      <span class="ico">🏷️</span> Precios
+    </a>
+    <a href="#" onclick="showView('promociones')" data-roles="gerente,admin">
+      <span class="ico">🎁</span> Promociones
+    </a>
+    <a href="#" onclick="showView('acuerdos')" data-roles="gerente,admin">
+      <span class="ico">🤝</span> Acuerdos de Pago
+    </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">CRM</div>
+    <a href="#" onclick="showView('cobranza')" data-roles="gerente,admin,vendedor">
+      <span class="ico">📞</span> CRM Cobranza
+    </a>
+
+    <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Config</div>
     <a href="#" onclick="showView('config')" data-roles="admin">
       <span class="ico">⚙️</span> Configuración
     </a>
@@ -654,6 +687,16 @@
 
   <!-- ── MAESTRO DE OPERACIONES ── -->
   <div id="view-maestro" class="view">
+    <!-- Balance vs Odoo panel -->
+    <div id="maestro-saldos-panel" style="margin-bottom:16px;display:none">
+      <div style="background:var(--card);border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <strong style="font-size:.95rem">⚖ Comparación Saldos: App vs Odoo</strong>
+          <button class="btn btn-sm btn-outline" onclick="loadSaldosVsOdoo(this)">↺ Verificar</button>
+        </div>
+        <div id="maestro-saldos-contenido" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;font-size:.85rem"></div>
+      </div>
+    </div>
     <!-- KPI cards -->
     <div class="cards-row" id="maestro-cards">
       <div class="card">
@@ -709,12 +752,12 @@
         </div>
         <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="loadMaestro()">Filtrar</button>
-          <button class="btn btn-success" onclick="abrirNuevaOperacion()">+ Nueva</button>
-          <button class="btn btn-outline" onclick="showView('pagos-prov')" title="Ver e importar pagos de proveedores desde Odoo">🧾 Pagos Prov.</button>
           <button class="btn btn-outline" style="color:var(--success);border-color:var(--success)" onclick="syncConciliacion(this)" title="Actualizar estado de conciliación desde Odoo">⟳ Conciliación</button>
+          <button class="btn btn-outline" style="color:#0891b2;border-color:#0891b2;font-size:.78rem" onclick="importarPagosClienteManual(this)" title="Solo si la automatización falló">⬇ Clientes Odoo</button>
           <button class="btn btn-outline" style="color:#8b5cf6;border-color:#8b5cf6" onclick="showModal('modal-importar-comisiones')" title="Importar comisiones bancarias desde Odoo">🏦 Comisiones</button>
           <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="abrirMapeoCats()" title="Mapeo categorías → Odoo">⚙ Cuentas Odoo</button>
-          <button class="btn btn-outline" style="color:var(--primary)" onclick="abrirSaldosBanco()" title="Ver saldos por banco/caja">🏦 Saldos</button>
+          <button class="btn btn-outline" style="color:var(--primary)" onclick="abrirSaldosBanco()" title="Ver saldos por banco/caja">⚖ Saldos</button>
+          <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="toggleSaldosOdoo()" title="Comparar saldos app vs Odoo">📊 vs Odoo</button>
         </div>
       </div>
     </div>
@@ -955,6 +998,198 @@
       </tr></thead>
       <tbody id="tb-zelle"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ── COMPRAS ODOO / CxP ── -->
+  <div id="view-compras-odoo" class="view">
+    <!-- KPIs -->
+    <div class="cards-row" id="compras-kpis" style="margin-bottom:16px">
+      <div class="card"><div class="num" id="ck-total" style="color:var(--primary)">—</div><div class="lbl">Total compras mes</div></div>
+      <div class="card"><div class="num" id="ck-pagado" style="color:var(--success)">—</div><div class="lbl">Pagado</div></div>
+      <div class="card"><div class="num" id="ck-pendiente" style="color:var(--danger)">—</div><div class="lbl">CxP pendiente</div></div>
+      <div class="card"><div class="num" id="ck-ordenes">—</div><div class="lbl">Órdenes</div></div>
+    </div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+      <button class="btn btn-sm" id="ctab-lista" onclick="comprasTab('lista')"
+        style="border-radius:6px 6px 0 0;background:var(--primary);color:#fff;border:none;margin-right:4px">Órdenes</button>
+      <button class="btn btn-sm" id="ctab-cxp" onclick="comprasTab('cxp')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none">CxP por Proveedor</button>
+    </div>
+    <!-- Lista órdenes -->
+    <div id="cpanel-lista">
+      <div class="filters">
+        <input type="date" id="co-desde">
+        <input type="date" id="co-hasta">
+        <select id="co-estado">
+          <option value="">Todos</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="facturado">Facturados</option>
+          <option value="parcial">Parcial</option>
+          <option value="pagado">Pagados</option>
+        </select>
+        <input id="co-prov" placeholder="Proveedor...">
+        <button class="btn btn-primary" onclick="loadComprasOdoo()">Filtrar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Orden</th><th>Proveedor</th><th>Fecha</th>
+          <th style="text-align:right">Total</th><th>Moneda</th>
+          <th>Estado Pago</th><th style="text-align:right">Pendiente</th>
+          <th>Facturas</th>
+        </tr></thead>
+        <tbody id="tb-compras"><tr><td colspan="8" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- CxP agrupado -->
+    <div id="cpanel-cxp" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <strong>Cuentas por Pagar — Total: <span id="cxp-total" style="color:var(--danger)">—</span></strong>
+        <button class="btn btn-outline" onclick="loadCxP()">↺ Actualizar</button>
+      </div>
+      <div id="cxp-contenido"><div class="loader">Cargando...</div></div>
+    </div>
+  </div>
+
+  <!-- ── GASTOS Y COMPROMISOS ── -->
+  <div id="view-gastos" class="view">
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+      <button class="btn btn-sm" id="gtab-lista" onclick="gastosTab('lista')"
+        style="border-radius:6px 6px 0 0;background:var(--primary);color:#fff;border:none;margin-right:4px">Registros</button>
+      <button class="btn btn-sm" id="gtab-checklist" onclick="gastosTab('checklist')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none;margin-right:4px">Checklist Mensual</button>
+      <button class="btn btn-sm" id="gtab-config" onclick="gastosTab('config')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none">Config Cuentas</button>
+    </div>
+
+    <!-- Tab: Lista -->
+    <div id="gpanel-lista">
+      <div class="filters">
+        <select id="gf-tipo" onchange="loadGastos()">
+          <option value="">Todos los tipos</option>
+          <option value="unico">Únicos</option>
+          <option value="recurrente">Recurrentes</option>
+          <option value="servicio_publico">Servicios Públicos</option>
+        </select>
+        <select id="gf-estado" onchange="loadGastos()">
+          <option value="">Todos</option>
+          <option value="borrador">Borrador</option>
+          <option value="pagado">Pagado</option>
+          <option value="enviado_odoo">En Odoo</option>
+        </select>
+        <button class="btn btn-primary" onclick="showModal('modal-nuevo-gasto')">+ Nuevo Gasto</button>
+        <button class="btn btn-outline" onclick="loadGastos()">↺ Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>ID</th><th>Tipo</th><th>Categoría</th><th>Descripción</th>
+          <th style="text-align:right">Monto</th><th>Mon.</th><th>Fecha</th>
+          <th>Estado</th><th>Recurrente</th><th>Odoo</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-gastos"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Checklist mensual -->
+    <div id="gpanel-checklist" style="display:none">
+      <div class="filters">
+        <select id="gc-anio" onchange="loadGastosChecklist()">
+        </select>
+        <button class="btn btn-outline" onclick="loadGastosChecklist()">↺ Actualizar</button>
+      </div>
+      <div id="gastos-checklist-contenido"><div class="loader">Cargando...</div></div>
+    </div>
+
+    <!-- Tab: Config cuentas -->
+    <div id="gpanel-config" style="display:none">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:12px">
+        Asocia cada categoría de gasto con su cuenta contable y diario de Odoo.
+        Al crear un gasto de esa categoría, las cuentas se aplicarán automáticamente.
+      </p>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Categoría</th><th>Subcategoría</th>
+          <th>Cuenta Gasto (Odoo)</th><th>Diario</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-gastos-config"><tr><td colspan="5" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NÓMINA ── -->
+  <div id="view-nomina" class="view">
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)">
+      <button class="btn btn-sm" id="ntab-registros" onclick="nominaTab('registros')"
+        style="border-radius:6px 6px 0 0;background:var(--primary);color:#fff;border:none;margin-right:4px">Registros</button>
+      <button class="btn btn-sm" id="ntab-terceros" onclick="nominaTab('terceros')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none;margin-right:4px">Terceros</button>
+      <button class="btn btn-sm" id="ntab-config" onclick="nominaTab('config')"
+        style="border-radius:6px 6px 0 0;background:#e9ecef;color:#495057;border:none">Config Cuentas</button>
+    </div>
+    <!-- Registros -->
+    <div id="npanel-registros">
+      <div class="filters">
+        <select id="nf-tipo" onchange="loadNomina()">
+          <option value="">Todos los tipos</option>
+          <option value="nomina">Nómina</option>
+          <option value="bonificacion">Bonificación</option>
+          <option value="hora_extra">Hora Extra</option>
+          <option value="bono">Bono</option>
+          <option value="otro">Otro</option>
+        </select>
+        <input id="nf-periodo" placeholder="YYYY-MM" style="width:120px">
+        <button class="btn btn-primary" onclick="showModal('modal-nuevo-nomina')">+ Nueva</button>
+        <button class="btn btn-warning" style="font-size:.82rem" onclick="showModal('modal-importar-nomina-odoo')">⬇ Importar Odoo</button>
+        <button class="btn btn-outline" onclick="loadNomina()">↺ Actualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>ID</th><th>Período</th><th>Tipo</th><th>Descripción</th>
+          <th>Empleado</th><th style="text-align:right">Monto</th>
+          <th>Mon.</th><th>Estado</th><th>Origen</th><th>Odoo</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-nomina"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Terceros -->
+    <div id="npanel-terceros" style="display:none">
+      <div class="filters">
+        <input id="nf3-periodo" placeholder="YYYY-MM" style="width:120px">
+        <button class="btn btn-primary" onclick="showModal('modal-nuevo-nomina-tercero')">+ Nómina Tercero</button>
+        <button class="btn btn-outline" onclick="loadNominaTerceros()">↺ Actualizar</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:12px;font-size:.85rem">
+        Pagos de nómina realizados a través de un proveedor. Al "Descontar AP" se crea un pago
+        outbound al proveedor en Odoo, reduciendo la cuenta por pagar.
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>ID</th><th>Período</th><th>Empleado</th><th>Proveedor</th>
+          <th style="text-align:right">Monto</th><th>Mon.</th>
+          <th>Estado</th><th>Odoo</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-nomina-terceros"><tr><td colspan="9" class="loader">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Config -->
+    <div id="npanel-config" style="display:none">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:12px">
+        Configura la cuenta contable de gasto y diario Odoo por tipo de pago de nómina.
+      </p>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Tipo</th><th>Cuenta Gasto Odoo</th><th>Diario</th><th>Acciones</th>
+        </tr></thead>
+        <tbody id="tb-nomina-config"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -2162,6 +2397,333 @@
   </div>
 </div>
 
+<!-- ── MODALES GASTOS Y COMPROMISOS ── -->
+
+<!-- Modal: Nuevo Gasto -->
+<div id="modal-nuevo-gasto" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>Nuevo Gasto / Compromiso</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="ng-tipo" onchange="onGastoTipoChange()">
+          <option value="unico">Único</option>
+          <option value="recurrente">Recurrente (mensual)</option>
+          <option value="servicio_publico">Servicio Público</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Categoría *</label>
+        <select id="ng-categoria" onchange="onGastoCatChange()">
+          <option value="Operativos">Operativos</option>
+          <option value="Servicios Públicos">Servicios Públicos</option>
+          <option value="Alquiler">Alquiler</option>
+          <option value="Seguro">Seguro</option>
+          <option value="Nomina">Nómina</option>
+          <option value="Fiscal">Fiscal</option>
+          <option value="Bancario">Bancario</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Descripción *</label>
+        <input id="ng-descripcion" placeholder="Ej: Electricidad CORPOELEC">
+      </div>
+      <div class="form-group" id="ng-subcategoria-wrap">
+        <label>Subcategoría</label>
+        <input id="ng-subcategoria" placeholder="Opcional">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto *</label>
+        <input type="number" id="ng-monto" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="ng-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+          <option value="USDT">USDT</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="ng-fecha">
+      </div>
+    </div>
+    <div class="form-row" id="ng-recurrente-opts" style="display:none">
+      <div class="form-group">
+        <label>Día de pago (recurrente)</label>
+        <input type="number" id="ng-dia-pago" min="1" max="31" value="5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Cuenta gasto Odoo (ID)</label>
+        <input type="number" id="ng-cuenta-gasto" placeholder="Auto desde config">
+      </div>
+      <div class="form-group">
+        <label>Proveedor Odoo (ID)</label>
+        <input type="number" id="ng-proveedor-id" placeholder="Opcional">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observación</label>
+      <input id="ng-obs" placeholder="Notas adicionales">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="crearGasto(this)">Guardar Gasto</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-gasto')">Cancelar</button>
+    </div>
+    <div id="ng-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Pagar Gasto -->
+<div id="modal-pagar-gasto" class="modal-bg">
+  <div class="modal" style="max-width:440px">
+    <h3>Registrar Pago de Gasto</h3>
+    <input type="hidden" id="pg-id">
+    <p id="pg-info" style="font-size:.88rem;color:var(--muted);margin-bottom:12px"></p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto pagado *</label>
+        <input type="number" id="pg-monto" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="pg-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+          <option value="USDT">USDT</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fecha pago</label>
+        <input type="date" id="pg-fecha">
+      </div>
+      <div class="form-group">
+        <label>Período (recurrente YYYY-MM)</label>
+        <input id="pg-periodo" placeholder="2025-01">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Método de pago</label>
+      <select id="pg-metodo">
+        <option value="transferencia">Transferencia</option>
+        <option value="efectivo">Efectivo</option>
+        <option value="zelle">Zelle</option>
+        <option value="pago_movil">Pago Móvil</option>
+        <option value="cheque">Cheque</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-success" onclick="pagarGasto(this)">✓ Registrar Pago</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-pagar-gasto')">Cancelar</button>
+    </div>
+    <div id="pg-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Enviar Gasto a Odoo -->
+<div id="modal-enviar-gasto-odoo" class="modal-bg">
+  <div class="modal" style="max-width:440px">
+    <h3>Enviar Gasto a Odoo</h3>
+    <input type="hidden" id="ego-id">
+    <p id="ego-info" style="font-size:.88rem;color:var(--muted);margin-bottom:12px"></p>
+    <div class="form-group">
+      <label>Diario Odoo *</label>
+      <select id="ego-journal"></select>
+    </div>
+    <div class="form-group">
+      <label>Cuenta banco / crédito *</label>
+      <select id="ego-cuenta-banco"></select>
+    </div>
+    <div class="form-group" id="ego-periodo-wrap">
+      <label>Período (si es recurrente, YYYY-MM)</label>
+      <input id="ego-periodo" placeholder="2025-01">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="enviarGastoOdoo(this)">Enviar a Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-enviar-gasto-odoo')">Cancelar</button>
+    </div>
+    <div id="ego-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- ── MODALES NÓMINA ── -->
+
+<!-- Modal: Nuevo Registro Nómina -->
+<div id="modal-nuevo-nomina" class="modal-bg">
+  <div class="modal" style="max-width:540px">
+    <h3>Nuevo Registro de Nómina</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="nn-tipo">
+          <option value="nomina">Nómina</option>
+          <option value="bonificacion">Bonificación</option>
+          <option value="hora_extra">Hora Extra</option>
+          <option value="bono">Bono</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Período (YYYY-MM) *</label>
+        <input id="nn-periodo" placeholder="2025-01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Descripción *</label>
+        <input id="nn-descripcion" placeholder="Ej: Nómina quincenal Mayo">
+      </div>
+      <div class="form-group">
+        <label>Empleado</label>
+        <input id="nn-empleado" placeholder="Nombre o todos">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto *</label>
+        <input type="number" id="nn-monto" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="nn-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+          <option value="USDT">USDT</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="nn-fecha">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Cuenta gasto Odoo (ID)</label>
+        <input type="number" id="nn-cuenta-gasto" placeholder="Auto desde config">
+      </div>
+      <div class="form-group">
+        <label>¿Es grupal?</label>
+        <select id="nn-es-grupal">
+          <option value="1">Sí (toda la nómina)</option>
+          <option value="0">No (empleado individual)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="crearNomina(this)">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-nomina')">Cancelar</button>
+    </div>
+    <div id="nn-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Importar Nómina desde Odoo -->
+<div id="modal-importar-nomina-odoo" class="modal-bg">
+  <div class="modal" style="max-width:440px">
+    <h3>⬇ Importar Nómina desde Odoo</h3>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+      Importa lotes de nómina (hr.payslip.run) de Odoo que aún no hayan sido importados.
+    </p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Desde</label>
+        <input type="date" id="ino-desde">
+      </div>
+      <div class="form-group">
+        <label>Hasta</label>
+        <input type="date" id="ino-hasta">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="importarNominaOdoo(this)">Importar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-importar-nomina-odoo')">Cancelar</button>
+    </div>
+    <div id="ino-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Nómina Tercero -->
+<div id="modal-nuevo-nomina-tercero" class="modal-bg">
+  <div class="modal" style="max-width:500px">
+    <h3>Nueva Nómina por Tercero (Zelle)</h3>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:12px">
+      Pago de nómina canalizado a través de un proveedor. Se descuenta del AP del proveedor en Odoo.
+    </p>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Nombre Empleado *</label>
+        <input id="nnt-empleado" placeholder="Nombre del empleado">
+      </div>
+      <div class="form-group">
+        <label>Período (YYYY-MM) *</label>
+        <input id="nnt-periodo" placeholder="2025-01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto *</label>
+        <input type="number" id="nnt-monto" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="nnt-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="nnt-fecha">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripción</label>
+      <input id="nnt-descripcion" placeholder="Ej: Pago quincenal a través de Inversiones XYZ">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="crearNominaTercero(this)">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-nomina-tercero')">Cancelar</button>
+    </div>
+    <div id="nnt-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Descontar AP Nómina Tercero -->
+<div id="modal-descontar-ap-nomina" class="modal-bg">
+  <div class="modal" style="max-width:480px">
+    <h3>Descontar AP — Nómina Tercero</h3>
+    <input type="hidden" id="dap-id">
+    <p id="dap-info" style="font-size:.88rem;color:var(--muted);margin-bottom:12px"></p>
+    <div class="form-group">
+      <label>Proveedor Odoo (ID) *</label>
+      <input type="number" id="dap-proveedor-id" placeholder="ID partner Odoo">
+    </div>
+    <div class="form-group">
+      <label>Diario Odoo *</label>
+      <select id="dap-journal"></select>
+    </div>
+    <div class="form-group">
+      <label>Cuenta AP Odoo (ID)</label>
+      <input type="number" id="dap-cuenta-ap" placeholder="Cuenta por pagar (opcional)">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-danger" onclick="descontarAPNomina(this)">Descontar AP en Odoo</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-descontar-ap-nomina')">Cancelar</button>
+    </div>
+    <div id="dap-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <script>
 const API = '';
 let token = localStorage.getItem('token') || '';
@@ -2272,6 +2834,9 @@ function showView(name) {
     'pagos-fiscales': 'Pagos Fiscales',
     requisiciones: 'Requisiciones de Mercancía',
     'zelle-terceros': 'Zelle de Terceros',
+    'compras-odoo': 'Compras Odoo / CxP',
+    gastos: 'Gastos y Compromisos',
+    nomina: 'Nómina',
     config: 'Configuración'
   };
   document.getElementById('view-title').textContent = titles[name] || name;
@@ -2291,6 +2856,9 @@ function showView(name) {
     'pagos-fiscales': loadPagosFiscales,
     requisiciones: loadRequisiciones,
     'zelle-terceros': loadZelleTerceros,
+    'compras-odoo': loadComprasOdoo,
+    gastos: loadGastos,
+    nomina: loadNomina,
     config: loadConfig
   };
   if (loaders[name]) loaders[name]();
@@ -5621,6 +6189,649 @@ async function eliminarZelle(ztId) {
     await api('DELETE', `/zelle-terceros/${ztId}`);
     loadZelleTerceros();
   } catch(e) { alert(e.message); }
+}
+
+// ── COMPRAS ODOO / CxP ────────────────────────────────────────────────────────
+let _comprasData = [];
+
+async function loadComprasOdoo() {
+  // Load KPIs
+  try {
+    const r = await api('GET', '/compras-odoo/resumen');
+    if (r) {
+      document.getElementById('ck-total').textContent = '$' + fmtNum(r.total_compras);
+      document.getElementById('ck-pagado').textContent = '$' + fmtNum(r.total_pagado);
+      document.getElementById('ck-pendiente').textContent = '$' + fmtNum(r.total_pendiente);
+      document.getElementById('ck-ordenes').textContent = r.ordenes_count;
+    }
+  } catch(e) {}
+
+  // Load orders
+  const desde  = document.getElementById('co-desde')?.value || '';
+  const hasta  = document.getElementById('co-hasta')?.value || '';
+  const estado = document.getElementById('co-estado')?.value || '';
+  const prov   = document.getElementById('co-prov')?.value || '';
+  let qs = [];
+  if (desde)  qs.push(`fecha_desde=${desde}`);
+  if (hasta)  qs.push(`fecha_hasta=${hasta}`);
+  if (estado) qs.push(`pago_estado=${estado}`);
+  if (prov)   qs.push(`proveedor=${encodeURIComponent(prov)}`);
+  const tbody = document.getElementById('tb-compras');
+  tbody.innerHTML = '<tr><td colspan="8" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', `/compras-odoo?${qs.join('&')}`) || [];
+    _comprasData = rows;
+    renderComprasOdoo(rows);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderComprasOdoo(rows) {
+  const tbody = document.getElementById('tb-compras');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="loader">Sin órdenes</td></tr>';
+    return;
+  }
+  const pagoColors = {
+    pendiente: 'b-pendiente', facturado: 'b-en-proceso-odoo',
+    parcial: 'b-pago-parcial', pagado: 'b-pagado-completo'
+  };
+  tbody.innerHTML = rows.map(r => {
+    const cls = pagoColors[r.pago_estado] || 'b-pendiente';
+    const facturas = (r.facturas || []).map(f => `<span style="font-size:.78rem;color:var(--muted)">${f.name||f}</span>`).join(' ');
+    return `<tr>
+      <td style="font-size:.85rem;font-weight:600">${r.name}</td>
+      <td style="font-size:.85rem">${r.proveedor || '—'}</td>
+      <td style="white-space:nowrap">${(r.date_order||'').slice(0,10)}</td>
+      <td style="text-align:right;font-weight:600">$${fmtNum(r.amount_total)}</td>
+      <td style="font-size:.82rem;color:var(--muted)">${r.moneda||'USD'}</td>
+      <td><span class="badge ${cls}">${r.pago_estado||'?'}</span></td>
+      <td style="text-align:right;color:var(--danger)">${r.monto_pendiente > 0 ? '$'+fmtNum(r.monto_pendiente) : '<span style="color:var(--success)">—</span>'}</td>
+      <td style="font-size:.8rem">${facturas || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function comprasTab(tab) {
+  ['lista','cxp'].forEach(t => {
+    document.getElementById(`cpanel-${t}`).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById(`ctab-${t}`);
+    if (btn) { btn.style.background = t === tab ? 'var(--primary)' : '#e9ecef'; btn.style.color = t === tab ? '#fff' : '#495057'; }
+  });
+  if (tab === 'cxp') loadCxP();
+}
+
+async function loadCxP() {
+  const cont = document.getElementById('cxp-contenido');
+  cont.innerHTML = '<div class="loader">Cargando CxP...</div>';
+  try {
+    const r = await api('GET', '/compras-odoo/cxp');
+    document.getElementById('cxp-total').textContent = '$' + fmtNum(r.total_cxp);
+    if (!r.detalle || !r.detalle.length) {
+      cont.innerHTML = '<p style="padding:16px;color:var(--success)">✓ Sin cuentas por pagar pendientes</p>';
+      return;
+    }
+    cont.innerHTML = r.detalle.map(prov => `
+      <div style="margin-bottom:14px;background:var(--card);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+        <div style="padding:10px 14px;background:#f8f9fa;display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:.9rem">${prov.proveedor}</strong>
+          <span style="color:var(--danger);font-weight:700">Pendiente: $${fmtNum(prov.total_pendiente)}</span>
+        </div>
+        <table style="width:100%;font-size:.83rem">
+          <thead><tr>
+            <th>Orden</th><th>Fecha</th><th style="text-align:right">Total</th>
+            <th style="text-align:right">Pendiente</th><th>Estado</th>
+          </tr></thead>
+          <tbody>
+            ${(prov.ordenes||[]).map(o => `<tr>
+              <td>${o.name}</td>
+              <td>${o.fecha||'—'}</td>
+              <td style="text-align:right">$${fmtNum(o.total)}</td>
+              <td style="text-align:right;color:var(--danger);font-weight:600">$${fmtNum(o.pendiente)}</td>
+              <td><span class="badge b-pendiente">${o.pago_estado||'—'}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`).join('');
+  } catch(e) {
+    cont.innerHTML = `<p style="color:var(--danger);padding:12px">${e.message}</p>`;
+  }
+}
+
+// ── GASTOS Y COMPROMISOS ──────────────────────────────────────────────────────
+let _gastosData = [];
+
+async function loadGastos() {
+  const tipo   = document.getElementById('gf-tipo')?.value || '';
+  const estado = document.getElementById('gf-estado')?.value || '';
+  let qs = [];
+  if (tipo)   qs.push(`tipo=${tipo}`);
+  if (estado) qs.push(`estado=${estado}`);
+  const tbody = document.getElementById('tb-gastos');
+  tbody.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', `/gastos?${qs.join('&')}`) || [];
+    _gastosData = rows;
+    renderGastos(rows);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="11" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderGastos(rows) {
+  const tbody = document.getElementById('tb-gastos');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="loader">Sin registros</td></tr>';
+    return;
+  }
+  const tipoBadge = { unico:'b-en-proceso-odoo', recurrente:'b-propuesto', servicio_publico:'b-disponible' };
+  const estadoBadge = { borrador:'b-pendiente', pagado:'b-pagado-completo', enviado_odoo:'b-enviada' };
+  tbody.innerHTML = rows.map(r => {
+    const tCls = tipoBadge[r.tipo] || '';
+    const eCls = estadoBadge[r.estado] || 'b-pendiente';
+    const odooInfo = r.odoo_move_id
+      ? `<span style="color:var(--success);font-size:.8rem">✓ #${r.odoo_move_id}</span>`
+      : '<span style="color:var(--muted);font-size:.8rem">—</span>';
+    const acciones = [];
+    if (r.estado === 'borrador') {
+      acciones.push(`<button class="btn btn-sm btn-success" onclick="abrirPagarGasto(${r.id})" title="Registrar pago">✓ Pagar</button>`);
+    }
+    if (r.estado === 'pagado' && !r.odoo_move_id) {
+      acciones.push(`<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="abrirEnviarGastoOdoo(${r.id})" title="Enviar a Odoo">→ Odoo</button>`);
+    }
+    return `<tr>
+      <td>${r.id}</td>
+      <td><span class="badge ${tCls}">${r.tipo}</span></td>
+      <td style="font-size:.85rem">${r.categoria}</td>
+      <td style="font-size:.85rem">${r.descripcion}</td>
+      <td style="text-align:right;font-weight:600">$${fmtNum(r.monto)}</td>
+      <td style="font-size:.82rem">${r.moneda||'USD'}</td>
+      <td style="white-space:nowrap">${r.fecha||'—'}</td>
+      <td><span class="badge ${eCls}">${r.estado}</span></td>
+      <td style="font-size:.8rem;color:var(--muted)">${r.es_recurrente ? `☑ día ${r.dia_pago||'—'}` : '—'}</td>
+      <td>${odooInfo}</td>
+      <td style="white-space:nowrap">${acciones.join('')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function gastosTab(tab) {
+  ['lista','checklist','config'].forEach(t => {
+    document.getElementById(`gpanel-${t}`).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById(`gtab-${t}`);
+    if (btn) { btn.style.background = t === tab ? 'var(--primary)' : '#e9ecef'; btn.style.color = t === tab ? '#fff' : '#495057'; }
+  });
+  if (tab === 'checklist') loadGastosChecklist();
+  if (tab === 'config') loadGastosConfigCuentas();
+}
+
+async function loadGastosChecklist() {
+  const sel = document.getElementById('gc-anio');
+  if (!sel.options.length) {
+    const anioActual = new Date().getFullYear();
+    for (let y = anioActual - 1; y <= anioActual + 1; y++) {
+      const o = document.createElement('option'); o.value = y; o.textContent = y;
+      if (y === anioActual) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+  const anio = sel.value;
+  const cont = document.getElementById('gastos-checklist-contenido');
+  cont.innerHTML = '<div class="loader">Cargando...</div>';
+  try {
+    const data = await api('GET', `/gastos/checklist/${anio}`);
+    if (!data || !data.length) {
+      cont.innerHTML = '<p style="padding:16px;color:var(--muted)">Sin gastos recurrentes configurados</p>';
+      return;
+    }
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    cont.innerHTML = `<div style="overflow-x:auto"><table style="min-width:900px">
+      <thead><tr><th>Gasto</th><th>Día</th>${meses.map(m=>`<th style="text-align:center">${m}</th>`).join('')}</tr></thead>
+      <tbody>${data.map(g => `<tr>
+        <td style="font-size:.85rem;font-weight:600">${g.descripcion}</td>
+        <td style="font-size:.82rem;color:var(--muted)">día ${g.dia_pago||'—'}</td>
+        ${Array.from({length:12},(_,i)=>{
+          const mes = String(i+1).padStart(2,'0');
+          const periodo = `${anio}-${mes}`;
+          const pago = (g.pagos||{})[periodo];
+          if (!pago) return `<td style="text-align:center"><span style="color:var(--muted);font-size:.8rem">—</span></td>`;
+          if (pago.estado === 'pagado') return `<td style="text-align:center;background:#d1e7dd"><span style="color:#0a3622;font-size:.8rem">✓ $${fmtNum(pago.monto_pagado)}</span></td>`;
+          return `<td style="text-align:center"><button class="btn btn-sm" style="font-size:.75rem;background:var(--warning);color:#212529;border:none" onclick="abrirPagarGastoChecklist(${g.id},'${periodo}')">Pagar</button></td>`;
+        }).join('')}
+      </tr>`).join('')}
+      </tbody></table></div>`;
+  } catch(e) {
+    cont.innerHTML = `<p style="color:var(--danger);padding:12px">${e.message}</p>`;
+  }
+}
+
+async function loadGastosConfigCuentas() {
+  const tbody = document.getElementById('tb-gastos-config');
+  tbody.innerHTML = '<tr><td colspan="5" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/gastos/config-cuentas') || [];
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="loader">Sin configuración</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `<tr>
+      <td>${r.categoria}</td>
+      <td style="color:var(--muted)">${r.subcategoria||'—'}</td>
+      <td style="font-size:.82rem">${r.odoo_cuenta_nombre||r.odoo_cuenta_gasto_id||'—'}</td>
+      <td style="font-size:.82rem">${r.odoo_journal_nombre||r.odoo_journal_id||'—'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="editarGastoCuenta(${r.id})">Editar</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function onGastoTipoChange() {
+  const tipo = document.getElementById('ng-tipo').value;
+  document.getElementById('ng-recurrente-opts').style.display =
+    (tipo === 'recurrente' || tipo === 'servicio_publico') ? '' : 'none';
+}
+
+function onGastoCatChange() {}
+
+async function crearGasto(btn) {
+  const descripcion = document.getElementById('ng-descripcion').value.trim();
+  const tipo       = document.getElementById('ng-tipo').value;
+  const categoria  = document.getElementById('ng-categoria').value;
+  const monto      = parseFloat(document.getElementById('ng-monto').value);
+  if (!descripcion || !monto) { showResult('ng-result', 'Completa descripción y monto', false); return; }
+  btn.disabled = true;
+  const body = {
+    descripcion, tipo, categoria,
+    subcategoria: document.getElementById('ng-subcategoria').value || null,
+    monto,
+    moneda: document.getElementById('ng-moneda').value,
+    fecha: document.getElementById('ng-fecha').value || new Date().toISOString().split('T')[0],
+    es_recurrente: (tipo === 'recurrente' || tipo === 'servicio_publico') ? 1 : 0,
+    dia_pago: parseInt(document.getElementById('ng-dia-pago').value) || 5,
+    odoo_cuenta_gasto_id: parseInt(document.getElementById('ng-cuenta-gasto').value) || null,
+    odoo_partner_id: parseInt(document.getElementById('ng-proveedor-id').value) || null,
+    observacion: document.getElementById('ng-obs').value || null,
+  };
+  try {
+    await api('POST', '/gastos', body);
+    showResult('ng-result', '✓ Gasto creado correctamente', true);
+    setTimeout(() => { closeModal('modal-nuevo-gasto'); loadGastos(); }, 900);
+  } catch(e) { showResult('ng-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+function abrirPagarGasto(id) {
+  const g = _gastosData.find(x => x.id === id);
+  if (!g) return;
+  document.getElementById('pg-id').value = id;
+  document.getElementById('pg-info').textContent = `${g.descripcion} — $${fmtNum(g.monto)} ${g.moneda}`;
+  document.getElementById('pg-monto').value = g.monto;
+  document.getElementById('pg-moneda').value = g.moneda || 'USD';
+  document.getElementById('pg-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pg-periodo').value = new Date().toISOString().slice(0,7);
+  document.getElementById('pg-result').innerHTML = '';
+  showModal('modal-pagar-gasto');
+}
+
+function abrirPagarGastoChecklist(gastoId, periodo) {
+  const g = _gastosData.find(x => x.id === gastoId);
+  document.getElementById('pg-id').value = gastoId;
+  document.getElementById('pg-info').textContent = g ? `${g.descripcion} — período ${periodo}` : `Gasto #${gastoId}`;
+  if (g) { document.getElementById('pg-monto').value = g.monto; document.getElementById('pg-moneda').value = g.moneda||'USD'; }
+  document.getElementById('pg-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pg-periodo').value = periodo;
+  document.getElementById('pg-result').innerHTML = '';
+  showModal('modal-pagar-gasto');
+}
+
+async function pagarGasto(btn) {
+  const id     = parseInt(document.getElementById('pg-id').value);
+  const monto  = parseFloat(document.getElementById('pg-monto').value);
+  if (!monto) { showResult('pg-result', 'Ingresa el monto', false); return; }
+  btn.disabled = true;
+  try {
+    const r = await api('POST', `/gastos/${id}/pagar`, {
+      monto_pagado: monto,
+      moneda: document.getElementById('pg-moneda').value,
+      fecha_pago: document.getElementById('pg-fecha').value,
+      periodo: document.getElementById('pg-periodo').value || null,
+      metodo_pago: document.getElementById('pg-metodo').value,
+    });
+    showResult('pg-result', '✓ Pago registrado', true);
+    setTimeout(() => { closeModal('modal-pagar-gasto'); loadGastos(); loadGastosChecklist(); }, 900);
+  } catch(e) { showResult('pg-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+async function abrirEnviarGastoOdoo(id) {
+  const g = _gastosData.find(x => x.id === id);
+  document.getElementById('ego-id').value = id;
+  document.getElementById('ego-info').textContent = g ? `${g.descripcion} — $${fmtNum(g.monto)} ${g.moneda}` : `Gasto #${id}`;
+  document.getElementById('ego-periodo').value = new Date().toISOString().slice(0,7);
+  document.getElementById('ego-result').innerHTML = '';
+
+  // Load journals and bank accounts
+  const jSel = document.getElementById('ego-journal');
+  const bSel = document.getElementById('ego-cuenta-banco');
+  jSel.innerHTML = '<option>Cargando...</option>';
+  bSel.innerHTML = '<option>Cargando...</option>';
+  try {
+    const [journals, cuentas] = await Promise.all([
+      api('GET', '/gastos/helpers/journals'),
+      api('GET', '/gastos/helpers/cuentas-banco'),
+    ]);
+    jSel.innerHTML = (journals||[]).map(j => `<option value="${j.id}">${j.nombre}</option>`).join('');
+    bSel.innerHTML = (cuentas||[]).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  } catch(e) {}
+  showModal('modal-enviar-gasto-odoo');
+}
+
+async function enviarGastoOdoo(btn) {
+  const id = parseInt(document.getElementById('ego-id').value);
+  btn.disabled = true;
+  try {
+    const r = await api('POST', `/gastos/${id}/enviar-odoo`, {
+      journal_id: parseInt(document.getElementById('ego-journal').value),
+      cuenta_banco_id: parseInt(document.getElementById('ego-cuenta-banco').value),
+      periodo: document.getElementById('ego-periodo').value || null,
+    });
+    showResult('ego-result', `✓ Asiento creado en Odoo #${r.odoo_move_id}`, true);
+    setTimeout(() => { closeModal('modal-enviar-gasto-odoo'); loadGastos(); }, 1200);
+  } catch(e) { showResult('ego-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+function editarGastoCuenta(id) {
+  alert(`Editar config cuenta #${id} — próximamente`);
+}
+
+// ── NÓMINA ────────────────────────────────────────────────────────────────────
+let _nominaData = [];
+let _nominaTercerosData = [];
+
+async function loadNomina() {
+  const tipo    = document.getElementById('nf-tipo')?.value || '';
+  const periodo = document.getElementById('nf-periodo')?.value || '';
+  let qs = [];
+  if (tipo)    qs.push(`tipo=${tipo}`);
+  if (periodo) qs.push(`periodo=${periodo}`);
+  const tbody = document.getElementById('tb-nomina');
+  tbody.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', `/nomina?${qs.join('&')}`) || [];
+    _nominaData = rows;
+    renderNomina(rows);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="11" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderNomina(rows) {
+  const tbody = document.getElementById('tb-nomina');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="11" class="loader">Sin registros</td></tr>'; return; }
+  const estadoBadge = { borrador:'b-pendiente', pagado:'b-pagado-completo', enviado_odoo:'b-enviada' };
+  const origenBadge = { manual:'b-pendiente', odoo_payslip:'b-en-proceso-odoo' };
+  tbody.innerHTML = rows.map(r => {
+    const eCls = estadoBadge[r.estado] || 'b-pendiente';
+    const oCls = origenBadge[r.origen] || '';
+    const odooInfo = r.odoo_move_id
+      ? `<span style="color:var(--success);font-size:.8rem">✓ #${r.odoo_move_id}</span>`
+      : '<span style="color:var(--muted);font-size:.8rem">—</span>';
+    const acciones = [];
+    if (r.estado === 'borrador') {
+      acciones.push(`<button class="btn btn-sm btn-success" onclick="pagarNomina(${r.id})" title="Marcar como pagado">✓ Pagar</button>`);
+    }
+    if (r.estado === 'pagado' && !r.odoo_move_id) {
+      acciones.push(`<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="abrirEnviarNominaOdoo(${r.id})" title="Crear asiento en Odoo">→ Odoo</button>`);
+    }
+    return `<tr>
+      <td>${r.id}</td>
+      <td style="font-size:.82rem">${r.periodo||'—'}</td>
+      <td style="font-size:.82rem">${r.tipo}</td>
+      <td style="font-size:.83rem">${r.descripcion||'—'}</td>
+      <td style="font-size:.82rem;color:var(--muted)">${r.empleado_nombre||r.es_grupal ? '(grupal)' : '—'}</td>
+      <td style="text-align:right;font-weight:600">$${fmtNum(r.monto)}</td>
+      <td style="font-size:.8rem">${r.moneda||'USD'}</td>
+      <td><span class="badge ${eCls}">${r.estado}</span></td>
+      <td><span class="badge ${oCls}" style="font-size:.75rem">${r.origen||'manual'}</span></td>
+      <td>${odooInfo}</td>
+      <td style="white-space:nowrap">${acciones.join('')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function nominaTab(tab) {
+  ['registros','terceros','config'].forEach(t => {
+    document.getElementById(`npanel-${t}`).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById(`ntab-${t}`);
+    if (btn) { btn.style.background = t === tab ? 'var(--primary)' : '#e9ecef'; btn.style.color = t === tab ? '#fff' : '#495057'; }
+  });
+  if (tab === 'terceros') loadNominaTerceros();
+  if (tab === 'config') loadNominaConfig();
+}
+
+async function loadNominaTerceros() {
+  const periodo = document.getElementById('nf3-periodo')?.value || '';
+  const tbody = document.getElementById('tb-nomina-terceros');
+  tbody.innerHTML = '<tr><td colspan="9" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', `/nomina/terceros${periodo ? '?periodo='+periodo : ''}`) || [];
+    _nominaTercerosData = rows;
+    renderNominaTerceros(rows);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+function renderNominaTerceros(rows) {
+  const tbody = document.getElementById('tb-nomina-terceros');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="9" class="loader">Sin registros</td></tr>'; return; }
+  const estadoBadge = { pendiente:'b-pendiente', descontado:'b-pagado-completo' };
+  tbody.innerHTML = rows.map(r => {
+    const eCls = estadoBadge[r.estado] || 'b-pendiente';
+    const odooInfo = r.odoo_payment_id
+      ? `<span style="color:var(--success);font-size:.8rem">✓ Pago #${r.odoo_payment_id}</span>`
+      : '<span style="color:var(--muted);font-size:.8rem">—</span>';
+    const accion = r.estado === 'pendiente'
+      ? `<button class="btn btn-sm btn-danger" onclick="abrirDescontarAPNomina(${r.id})">⬇ Descontar AP</button>` : '';
+    return `<tr>
+      <td>${r.id}</td>
+      <td style="font-size:.82rem">${r.periodo||'—'}</td>
+      <td style="font-size:.83rem">${r.empleado_nombre}</td>
+      <td style="font-size:.82rem;color:var(--muted)">${r.proveedor_nombre||'—'}</td>
+      <td style="text-align:right;font-weight:600">$${fmtNum(r.monto)}</td>
+      <td style="font-size:.8rem">${r.moneda||'USD'}</td>
+      <td><span class="badge ${eCls}">${r.estado}</span></td>
+      <td>${odooInfo}</td>
+      <td>${accion}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadNominaConfig() {
+  const tbody = document.getElementById('tb-nomina-config');
+  tbody.innerHTML = '<tr><td colspan="4" class="loader">Cargando...</td></tr>';
+  try {
+    const rows = await api('GET', '/nomina/config-cuentas') || [];
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="loader">Sin config</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `<tr>
+      <td>${r.tipo}</td>
+      <td style="font-size:.82rem">${r.odoo_cuenta_nombre||r.odoo_cuenta_gasto_id||'—'}</td>
+      <td style="font-size:.82rem">${r.odoo_journal_nombre||r.odoo_journal_id||'—'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="editarNominaConfig('${r.tipo}')">Editar</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+  }
+}
+
+async function crearNomina(btn) {
+  const descripcion = document.getElementById('nn-descripcion').value.trim();
+  const monto       = parseFloat(document.getElementById('nn-monto').value);
+  const periodo     = document.getElementById('nn-periodo').value;
+  if (!descripcion || !monto || !periodo) {
+    showResult('nn-result', 'Completa descripción, monto y período', false); return;
+  }
+  btn.disabled = true;
+  try {
+    await api('POST', '/nomina', {
+      tipo: document.getElementById('nn-tipo').value,
+      periodo,
+      descripcion,
+      empleado_nombre: document.getElementById('nn-empleado').value || null,
+      monto,
+      moneda: document.getElementById('nn-moneda').value,
+      fecha: document.getElementById('nn-fecha').value || new Date().toISOString().split('T')[0],
+      es_grupal: parseInt(document.getElementById('nn-es-grupal').value),
+      odoo_cuenta_gasto_id: parseInt(document.getElementById('nn-cuenta-gasto').value) || null,
+    });
+    showResult('nn-result', '✓ Registro creado', true);
+    setTimeout(() => { closeModal('modal-nuevo-nomina'); loadNomina(); }, 800);
+  } catch(e) { showResult('nn-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+async function pagarNomina(id) {
+  if (!confirm('¿Marcar como pagado?')) return;
+  try {
+    await api('POST', `/nomina/${id}/pagar`, {});
+    loadNomina();
+  } catch(e) { alert(e.message); }
+}
+
+async function abrirEnviarNominaOdoo(id) {
+  // Simplified: prompt for journal
+  const journalId = prompt('ID del diario Odoo para el asiento:');
+  if (!journalId) return;
+  try {
+    const r = await api('POST', `/nomina/${id}/enviar-odoo`, { journal_id: parseInt(journalId) });
+    alert(`✓ Asiento creado en Odoo #${r.odoo_move_id}`);
+    loadNomina();
+  } catch(e) { alert(e.message); }
+}
+
+async function importarNominaOdoo(btn) {
+  const desde = document.getElementById('ino-desde').value;
+  const hasta  = document.getElementById('ino-hasta').value;
+  if (!desde || !hasta) { showResult('ino-result', 'Selecciona rango de fechas', false); return; }
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  try {
+    const r = await api('POST', '/nomina/importar-odoo', { fecha_desde: desde, fecha_hasta: hasta });
+    showResult('ino-result', `✓ ${r.mensaje || r.importados + ' lotes importados'}`, true);
+    if (r.importados > 0) setTimeout(() => { closeModal('modal-importar-nomina-odoo'); loadNomina(); }, 1200);
+  } catch(e) { showResult('ino-result', e.message, false); }
+  finally { btn.disabled = false; btn.textContent = 'Importar'; }
+}
+
+async function crearNominaTercero(btn) {
+  const empleado  = document.getElementById('nnt-empleado').value.trim();
+  const monto     = parseFloat(document.getElementById('nnt-monto').value);
+  const periodo   = document.getElementById('nnt-periodo').value;
+  if (!empleado || !monto || !periodo) {
+    showResult('nnt-result', 'Completa empleado, monto y período', false); return;
+  }
+  btn.disabled = true;
+  try {
+    await api('POST', '/nomina/terceros', {
+      empleado_nombre: empleado,
+      monto,
+      moneda: document.getElementById('nnt-moneda').value,
+      periodo,
+      fecha: document.getElementById('nnt-fecha').value || new Date().toISOString().split('T')[0],
+      descripcion: document.getElementById('nnt-descripcion').value || null,
+    });
+    showResult('nnt-result', '✓ Registro creado', true);
+    setTimeout(() => { closeModal('modal-nuevo-nomina-tercero'); loadNominaTerceros(); }, 800);
+  } catch(e) { showResult('nnt-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+async function abrirDescontarAPNomina(id) {
+  const r = _nominaTercerosData.find(x => x.id === id);
+  document.getElementById('dap-id').value = id;
+  document.getElementById('dap-info').textContent = r ? `${r.empleado_nombre} — $${fmtNum(r.monto)} ${r.moneda}` : `Tercero #${id}`;
+  document.getElementById('dap-result').innerHTML = '';
+  // Load journals
+  const jSel = document.getElementById('dap-journal');
+  jSel.innerHTML = '<option>Cargando...</option>';
+  try {
+    const journals = await api('GET', '/nomina/helpers/journals') || [];
+    jSel.innerHTML = journals.map(j => `<option value="${j.id}">${j.nombre}</option>`).join('');
+  } catch(e) { jSel.innerHTML = '<option>Error cargando diarios</option>'; }
+  showModal('modal-descontar-ap-nomina');
+}
+
+async function descontarAPNomina(btn) {
+  const id = parseInt(document.getElementById('dap-id').value);
+  const proveedorId = parseInt(document.getElementById('dap-proveedor-id').value);
+  if (!proveedorId) { showResult('dap-result', 'Ingresa el ID del proveedor Odoo', false); return; }
+  btn.disabled = true;
+  try {
+    const r = await api('POST', `/nomina/terceros/${id}/descontar-ap`, {
+      proveedor_id: proveedorId,
+      journal_id: parseInt(document.getElementById('dap-journal').value),
+      cuenta_ap_id: parseInt(document.getElementById('dap-cuenta-ap').value) || null,
+    });
+    showResult('dap-result', `✓ Pago AP creado en Odoo #${r.odoo_payment_id}`, true);
+    setTimeout(() => { closeModal('modal-descontar-ap-nomina'); loadNominaTerceros(); }, 1200);
+  } catch(e) { showResult('dap-result', e.message, false); }
+  finally { btn.disabled = false; }
+}
+
+function editarNominaConfig(tipo) {
+  alert(`Editar config nómina tipo "${tipo}" — próximamente`);
+}
+
+// ── MAESTRO: Saldos vs Odoo ───────────────────────────────────────────────────
+function toggleSaldosOdoo() {
+  const panel = document.getElementById('maestro-saldos-panel');
+  if (panel.style.display === 'none') {
+    panel.style.display = '';
+    loadSaldosVsOdoo();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+async function loadSaldosVsOdoo(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  const cont = document.getElementById('maestro-saldos-contenido');
+  cont.innerHTML = '<div class="loader">Consultando Odoo...</div>';
+  try {
+    const data = await api('GET', '/maestro/saldos-vs-odoo');
+    if (!data || !data.length) {
+      cont.innerHTML = '<p style="color:var(--muted);font-size:.85rem">No hay diarios configurados para comparar</p>';
+      return;
+    }
+    const estadoColors = { ok:'#d1e7dd', advertencia:'#fff3cd', discrepancia:'#f8d7da', error_odoo:'#e9ecef' };
+    const estadoIcons  = { ok:'✅', advertencia:'⚠️', discrepancia:'🔴', error_odoo:'❓' };
+    cont.innerHTML = data.map(d => {
+      const bg = estadoColors[d.estado] || '#f0f0f0';
+      const ic = estadoIcons[d.estado] || '?';
+      return `<div style="background:${bg};border-radius:8px;padding:10px 14px">
+        <div style="font-weight:600;font-size:.85rem;margin-bottom:4px">${ic} ${d.journal_nombre||d.journal_id}</div>
+        <div style="font-size:.8rem">App: <strong>$${fmtNum(d.saldo_app)}</strong></div>
+        <div style="font-size:.8rem">Odoo: <strong>${d.saldo_odoo != null ? '$'+fmtNum(d.saldo_odoo) : 'N/D'}</strong></div>
+        ${d.diferencia != null ? `<div style="font-size:.78rem;color:var(--muted)">Δ $${fmtNum(Math.abs(d.diferencia))}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    cont.innerHTML = `<p style="color:var(--danger);font-size:.85rem">${e.message}</p>`;
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '↺ Verificar'; }
+}
+
+// Importar pagos clientes Odoo (fallback manual)
+async function importarPagosClienteManual(btn) {
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Importando...';
+  try {
+    const r = await api('POST', '/maestro/importar-pagos-cliente', {});
+    alert(`✓ ${r.mensaje || r.importados + ' pagos importados'}`);
+    if (r.importados > 0) loadMaestro();
+  } catch(e) { alert(e.message); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 }
 
 // ── COMISIONES BANCARIAS ──────────────────────────────────────────────────────

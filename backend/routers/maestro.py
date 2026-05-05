@@ -600,6 +600,154 @@ def saldos_por_banco(desde: str = None, hasta: str = None,
     return rows
 
 
+# ── SALDOS CAJAS vs ODOO (reconciliación de saldos) ─────────────────────────
+
+@router.get('/saldos-vs-odoo')
+def saldos_vs_odoo(user=Depends(require_roles('gerente', 'admin'))):
+    """
+    Compara el saldo de cada journal/banco en la app (maestro_operaciones)
+    vs. el saldo real en Odoo. Semáforo por diferencia.
+    """
+    from routers.ventas import get_odoo
+    con = get_con()
+    # Saldos del Maestro agrupados por journal_id
+    rows = rows_to_list(con.execute("""
+        SELECT odoo_journal_id,
+               COALESCE(journal_nombre, 'Sin diario') as nombre,
+               SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END) as total_ingresos,
+               SUM(CASE WHEN tipo='egreso'  THEN monto ELSE 0 END) as total_egresos
+        FROM maestro_operaciones
+        WHERE odoo_journal_id IS NOT NULL AND estado != 'anulado'
+        GROUP BY odoo_journal_id, journal_nombre
+    """).fetchall())
+    con.close()
+
+    odoo = get_odoo()
+    resultado = []
+    for r in rows:
+        saldo_app = round((r['total_ingresos'] or 0) - (r['total_egresos'] or 0), 2)
+        saldo_odoo = None
+        diferencia = None
+        estado = 'sin_datos'
+        if r.get('odoo_journal_id'):
+            try:
+                saldo_odoo = round(odoo.get_saldo_journal(int(r['odoo_journal_id'])), 2)
+                diferencia = round(saldo_app - saldo_odoo, 2)
+                if abs(diferencia) < 0.05:
+                    estado = 'ok'
+                elif abs(diferencia) < 50:
+                    estado = 'advertencia'
+                else:
+                    estado = 'discrepancia'
+            except Exception:
+                estado = 'error_odoo'
+        resultado.append({
+            'journal_id': r['odoo_journal_id'],
+            'nombre': r['nombre'],
+            'saldo_app': saldo_app,
+            'saldo_odoo': saldo_odoo,
+            'diferencia': diferencia,
+            'estado': estado,
+        })
+    return resultado
+
+
+# ── IMPORTAR PAGOS CLIENTES DESDE ODOO (auto/manual) ─────────────────────────
+
+@router.post('/importar-pagos-cliente')
+def importar_pagos_cliente(body: dict,
+                            user=Depends(require_roles('admin', 'gerente'))):
+    """
+    Importa pagos de clientes (inbound) de Odoo que NO estén ya en el maestro.
+    Excluye pagos que fueron generados desde la app (tienen odoo_payment_id propio).
+    body: { "fecha_desde": "YYYY-MM-DD", "fecha_hasta": "YYYY-MM-DD" }
+    """
+    from routers.ventas import get_odoo
+    hoy = date.today().isoformat()
+    fecha_desde = body.get('fecha_desde', hoy[:8] + '01')
+    fecha_hasta = body.get('fecha_hasta', hoy)
+
+    odoo = get_odoo()
+    try:
+        pagos_odoo = odoo.get_pagos_odoo_clientes(limite=500)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f'Error Odoo: {e}')
+
+    if not pagos_odoo:
+        return {'importados': 0, 'omitidos': 0, 'mensaje': 'Sin pagos en ese período'}
+
+    # Filtrar por rango de fecha
+    pagos_odoo = [p for p in pagos_odoo
+                  if fecha_desde <= (p.get('date') or '') <= fecha_hasta]
+
+    con = get_con()
+    # IDs ya en maestro (de cualquier origen)
+    ya_ids = {r[0] for r in con.execute(
+        "SELECT odoo_payment_id FROM maestro_operaciones WHERE odoo_payment_id IS NOT NULL"
+    ).fetchall()}
+    # IDs generados desde la app (pagos registrados localmente y enviados a Odoo)
+    app_odoo_ids = {r[0] for r in con.execute(
+        "SELECT odoo_payment_id FROM pagos WHERE odoo_payment_id IS NOT NULL"
+    ).fetchall()}
+
+    tasa_bcv = tasa_bcv_hoy()
+    tasa_real = tasa_custom_hoy()
+    importados = omitidos = app_origin = 0
+
+    for p in pagos_odoo:
+        pid = p.get('id')
+        if pid in ya_ids:
+            omitidos += 1
+            continue
+        # Si fue generado desde la app, no importar como "Odoo auto"
+        if pid in app_odoo_ids:
+            app_origin += 1
+            continue
+
+        monto = float(p.get('amount', 0))
+        cur = p.get('currency_id')
+        moneda = cur[1] if isinstance(cur, (list, tuple)) else (cur or 'USD')
+        if moneda not in ('USD', 'VES', 'EUR', 'USDT'):
+            moneda = 'USD'
+
+        monto_usd = monto if moneda in ('USD', 'USDT') else (
+            round(monto / tasa_bcv, 4) if tasa_bcv else None)
+
+        partner = p.get('partner_id')
+        partner_nombre = partner[1] if isinstance(partner, (list, tuple)) else ''
+        journal = p.get('journal_id')
+        journal_id_val = journal[0] if isinstance(journal, (list, tuple)) else None
+
+        con.execute("""
+            INSERT INTO maestro_operaciones
+                (fecha, nro_documento, monto, moneda, tipo, categoria,
+                 descripcion, tasa_bcv, monto_usd_bcv, tasa_real, monto_real_usd,
+                 origen, odoo_ref, odoo_payment_id, odoo_journal_id, odoo_partner_id,
+                 odoo_conciliado, estado, creado_por)
+            VALUES (?,?,?,?,'ingreso','Cobranza',?,?,?,?,?,'odoo_auto_cliente',?,?,?,?,?,?,?)
+        """, (
+            p.get('date', hoy), p.get('name'),
+            monto, moneda,
+            f"Cobro cliente: {partner_nombre}" if partner_nombre else 'Cobro Odoo',
+            tasa_bcv, monto_usd, tasa_real, monto_usd,
+            p.get('name'), pid, journal_id_val,
+            (partner[0] if isinstance(partner, (list, tuple)) else None),
+            1 if p.get('conciliado') else 0,
+            'confirmado', user['id'],
+        ))
+        importados += 1
+
+    con.commit()
+    con.close()
+    return {
+        'importados': importados, 'omitidos': omitidos,
+        'origen_app': app_origin,
+        'mensaje': (f'{importados} pagos importados de Odoo. '
+                    f'{omitidos} ya existían. '
+                    f'{app_origin} generados desde la app (excluidos).')
+    }
+
+
 # ── IMPORTAR COMISIONES BANCARIAS DESDE ODOO ─────────────────────────────────
 
 @router.post('/importar-comisiones')

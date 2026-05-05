@@ -672,6 +672,97 @@ class OdooClient:
         except Exception:
             return 0
 
+    def get_ordenes_compra(self, fecha_desde=None, fecha_hasta=None, limite=300):
+        """Órdenes de compra confirmadas en Odoo."""
+        domain = [['state', 'in', ['purchase', 'done']]]
+        if fecha_desde:
+            domain.append(['date_order', '>=', fecha_desde + ' 00:00:00'])
+        if fecha_hasta:
+            domain.append(['date_order', '<=', fecha_hasta + ' 23:59:59'])
+        orders = self.call('purchase.order', 'search_read', [domain], {
+            'fields': ['id', 'name', 'partner_id', 'date_order', 'date_approve',
+                       'amount_untaxed', 'amount_tax', 'amount_total',
+                       'currency_id', 'state', 'invoice_status',
+                       'invoice_ids', 'user_id'],
+            'limit': limite,
+            'order': 'date_order desc',
+        })
+        if not orders:
+            return []
+        # Facturas asociadas
+        all_inv_ids = list({iid for o in orders for iid in (o.get('invoice_ids') or [])})
+        inv_map = {}
+        if all_inv_ids:
+            try:
+                facturas = self.call('account.move', 'read', [all_inv_ids], {
+                    'fields': ['id', 'name', 'state', 'payment_state',
+                               'amount_residual', 'invoice_date_due']
+                })
+                for f in (facturas or []):
+                    inv_map[f['id']] = f
+            except Exception:
+                pass
+        for o in orders:
+            o['facturas'] = [inv_map[i] for i in (o.get('invoice_ids') or []) if i in inv_map]
+            o['moneda'] = o['currency_id'][1] if o.get('currency_id') else 'USD'
+            o['proveedor'] = o['partner_id'][1] if o.get('partner_id') else ''
+            # Estado de pago consolidado
+            pagados = all(f.get('payment_state') in ('paid','in_payment','reversed')
+                         for f in o['facturas']) if o['facturas'] else False
+            o['pago_estado'] = 'pagado' if pagados else (
+                'parcial' if any(f.get('payment_state') == 'partial' for f in o['facturas'])
+                else ('facturado' if o['facturas'] else 'pendiente'))
+            # Saldo pendiente
+            o['monto_pendiente'] = sum(
+                f.get('amount_residual', 0) or 0 for f in o['facturas'])
+        return orders
+
+    def get_empleados_odoo(self, limite=200):
+        """Empleados activos de Odoo HR."""
+        try:
+            return self.call('hr.employee', 'search_read',
+                             [[['active', '=', True]]],
+                             {'fields': ['id', 'name', 'department_id',
+                                         'job_title', 'user_id'], 'limit': limite})
+        except Exception:
+            return []
+
+    def get_payslip_batches(self, fecha_desde=None, fecha_hasta=None, limite=50):
+        """Lotes de nómina de Odoo HR Payslip."""
+        try:
+            domain = [['state', 'in', ['verify', 'close', 'paid']]]
+            if fecha_desde:
+                domain.append(['date_start', '>=', fecha_desde])
+            if fecha_hasta:
+                domain.append(['date_end', '<=', fecha_hasta])
+            return self.call('hr.payslip.run', 'search_read', [domain], {
+                'fields': ['id', 'name', 'date_start', 'date_end', 'state', 'slip_ids'],
+                'limit': limite,
+            })
+        except Exception:
+            return []
+
+    def get_saldo_journal(self, journal_id: int) -> float:
+        """Obtiene el saldo actual de un diario (banco/caja) en Odoo."""
+        try:
+            j = self.call('account.journal', 'read', [[journal_id]],
+                          {'fields': ['id', 'name', 'current_statement_balance',
+                                      'last_statement_id']})
+            if j:
+                return float(j[0].get('current_statement_balance') or 0)
+        except Exception:
+            pass
+        # Fallback: sumar débitos - créditos en la cuenta de liquidez
+        try:
+            lines = self.call('account.move.line', 'search_read',
+                              [[['journal_id', '=', journal_id],
+                                ['account_type', '=', 'asset_cash'],
+                                ['move_id.state', '=', 'posted']]],
+                              {'fields': ['debit', 'credit'], 'limit': 0})
+            return round(sum(l['debit'] - l['credit'] for l in (lines or [])), 4)
+        except Exception:
+            return 0.0
+
     def get_comisiones_bancarias(self, fecha_desde=None, fecha_hasta=None, limite=300):
         """
         Obtiene asientos contables de comisiones bancarias registradas en Odoo.

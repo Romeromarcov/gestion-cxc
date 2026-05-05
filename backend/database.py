@@ -485,6 +485,170 @@ def migrate_v21(con):
     con.commit()
 
 
+def migrate_v23(con):
+    """v2.3 — Gastos y Compromisos (únicos, recurrentes, servicios públicos)."""
+    con.execute("""CREATE TABLE IF NOT EXISTS gastos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo TEXT NOT NULL DEFAULT 'unico',   -- unico | recurrente | servicio_publico
+        categoria TEXT NOT NULL,
+        subcategoria TEXT,
+        descripcion TEXT NOT NULL,
+        proveedor_nombre TEXT,
+        proveedor_odoo_id INTEGER,
+        -- Monto de referencia (para recurrentes es el monto habitual)
+        monto REAL NOT NULL,
+        moneda TEXT NOT NULL DEFAULT 'VES',
+        equivalente_usd REAL,
+        fecha TEXT NOT NULL,
+        referencia TEXT,
+        periodo TEXT,                          -- 'YYYY-MM' si es recurrente/fiscal
+        -- Recurrencia
+        es_recurrente INTEGER DEFAULT 0,
+        dia_pago INTEGER DEFAULT 1,           -- día del mes esperado
+        activo INTEGER DEFAULT 1,             -- si el compromiso sigue vigente
+        -- Mapeo contable Odoo (heredado de categorias_operacion si aplica)
+        odoo_cuenta_gasto_id INTEGER,
+        odoo_cuenta_gasto_codigo TEXT,
+        odoo_cuenta_banco_id INTEGER,         -- cuenta banco/caja que paga
+        odoo_journal_id INTEGER,
+        -- Resultado en Odoo
+        odoo_move_id INTEGER,
+        odoo_payment_id INTEGER,
+        -- Maestro
+        maestro_op_id INTEGER,
+        -- Estado del registro puntual
+        estado TEXT DEFAULT 'borrador',       -- borrador | pagado | enviado_odoo
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    # Historial mensual de pagos de gastos recurrentes
+    con.execute("""CREATE TABLE IF NOT EXISTS gastos_pagos_mensuales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        gasto_id INTEGER NOT NULL,
+        periodo TEXT NOT NULL,               -- 'YYYY-MM'
+        monto_pagado REAL,
+        fecha_pago TEXT,
+        referencia TEXT,
+        odoo_move_id INTEGER,
+        odoo_payment_id INTEGER,
+        maestro_op_id INTEGER,
+        estado TEXT DEFAULT 'pendiente',     -- pendiente | pagado | enviado_odoo
+        notas TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(gasto_id) REFERENCES gastos(id)
+    )""")
+    # Configuración contable por tipo de gasto/servicio
+    con.execute("""CREATE TABLE IF NOT EXISTS gastos_config_cuentas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        categoria TEXT NOT NULL,
+        subcategoria TEXT,
+        odoo_cuenta_gasto_id INTEGER,
+        odoo_cuenta_gasto_codigo TEXT,
+        odoo_cuenta_gasto_nombre TEXT,
+        odoo_journal_id INTEGER,
+        odoo_journal_nombre TEXT,
+        UNIQUE(categoria, subcategoria)
+    )""")
+    # Seed: categorías de gastos recurrentes comunes
+    seeds = [
+        ('Servicios Públicos', 'Electricidad / Corpoelec'),
+        ('Servicios Públicos', 'Agua / HIDROCAPITAL'),
+        ('Servicios Públicos', 'Internet / CANTV'),
+        ('Servicios Públicos', 'Gas'),
+        ('Servicios Públicos', 'Teléfono'),
+        ('Alquiler', None),
+        ('Seguro', None),
+        ('Gasto', 'Combustible'),
+        ('Gasto', 'Mantenimiento'),
+        ('Gasto', 'Papelería y Útiles'),
+    ]
+    for cat, sub in seeds:
+        con.execute("""INSERT OR IGNORE INTO gastos_config_cuentas(categoria, subcategoria)
+                       VALUES(?,?)""", (cat, sub))
+    con.commit()
+
+
+def migrate_v24(con):
+    """v2.4 — Nómina: importación Odoo + bonificaciones manuales + terceros."""
+    con.execute("""CREATE TABLE IF NOT EXISTS nomina_registros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        periodo TEXT NOT NULL,               -- 'YYYY-MM'
+        tipo TEXT NOT NULL,                  -- nomina | bonificacion | hora_extra | bono | otro
+        descripcion TEXT NOT NULL,
+        -- Origen
+        origen TEXT DEFAULT 'manual',        -- manual | odoo_payslip
+        odoo_payslip_batch_id INTEGER,       -- si vino de Odoo HR Payslip batch
+        -- Beneficiario (puede ser todo el personal o uno)
+        empleado_nombre TEXT,
+        empleado_odoo_id INTEGER,
+        es_grupal INTEGER DEFAULT 0,
+        -- Monto
+        monto REAL NOT NULL,
+        moneda TEXT NOT NULL DEFAULT 'VES',
+        equivalente_usd REAL,
+        -- Mapeo contable Odoo
+        odoo_cuenta_gasto_id INTEGER,        -- cuenta de gasto nómina
+        odoo_cuenta_gasto_codigo TEXT,
+        odoo_cuenta_banco_id INTEGER,        -- cuenta banco que paga
+        odoo_journal_id INTEGER,
+        -- Resultado Odoo
+        odoo_move_id INTEGER,
+        odoo_payment_id INTEGER,
+        -- Maestro
+        maestro_op_id INTEGER,
+        -- Estado
+        estado TEXT DEFAULT 'borrador',      -- borrador | pagado | enviado_odoo
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    # Nóminas pagadas a través de proveedor (descuento AP)
+    con.execute("""CREATE TABLE IF NOT EXISTS nomina_terceros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nomina_id INTEGER,                   -- FK nomina_registros (opcional)
+        periodo TEXT NOT NULL,
+        descripcion TEXT NOT NULL,
+        empleado_nombre TEXT NOT NULL,
+        monto REAL NOT NULL,
+        moneda TEXT DEFAULT 'USD',
+        -- Proveedor que paga (se descuenta de su AP)
+        proveedor_id INTEGER,
+        proveedor_nombre TEXT NOT NULL,
+        referencia TEXT,
+        -- Odoo
+        odoo_payment_id INTEGER,             -- pago outbound al proveedor
+        odoo_move_id INTEGER,                -- asiento si es más complejo
+        odoo_journal_id INTEGER,
+        -- Mapeo contable
+        odoo_cuenta_gasto_id INTEGER,        -- gasto nómina
+        odoo_cuenta_ap_id INTEGER,           -- cuenta AP del proveedor
+        -- Maestro
+        maestro_op_id INTEGER,
+        estado TEXT DEFAULT 'pendiente',     -- pendiente | descontado | pagado
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(nomina_id) REFERENCES nomina_registros(id),
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    # Configuración contable de nómina por tipo
+    con.execute("""CREATE TABLE IF NOT EXISTS nomina_config_cuentas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo TEXT NOT NULL UNIQUE,           -- nomina | bonificacion | hora_extra | bono
+        odoo_cuenta_gasto_id INTEGER,
+        odoo_cuenta_gasto_codigo TEXT,
+        odoo_cuenta_gasto_nombre TEXT,
+        odoo_journal_id INTEGER,
+        odoo_journal_nombre TEXT
+    )""")
+    for tipo in ('nomina', 'bonificacion', 'hora_extra', 'bono', 'otro'):
+        con.execute("INSERT OR IGNORE INTO nomina_config_cuentas(tipo) VALUES(?)", (tipo,))
+    con.commit()
+
+
 def migrate_v22(con):
     """v2.2 — zelle de terceros (pagos Zelle recibidos en cuentas de proveedores)."""
     con.execute("""CREATE TABLE IF NOT EXISTS zelle_terceros (
@@ -698,6 +862,8 @@ def init_db():
     migrate_v20(con)
     migrate_v21(con)
     migrate_v22(con)
+    migrate_v23(con)
+    migrate_v24(con)
     con.close()
 
 
