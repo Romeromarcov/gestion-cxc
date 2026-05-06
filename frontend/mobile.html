@@ -260,6 +260,35 @@
   <div id="estado-pagos"></div>
 </div>
 
+<!-- Gastos -->
+<div id="view-gastos" class="view">
+  <p class="section-title">Gastos recientes</p>
+  <div class="field" style="margin-bottom:10px">
+    <select id="gm-tipo" onchange="loadGastosMobile()" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;background:#fff">
+      <option value="">Todos los tipos</option>
+      <option value="operativo">Operativo</option>
+      <option value="recurrente">Recurrente</option>
+      <option value="servicio_publico">Servicio público</option>
+      <option value="nomina_contrib">Contrib. nómina</option>
+    </select>
+  </div>
+  <div id="gastos-mobile-list">
+    <div class="empty-state"><div class="ico">📑</div>Cargando gastos…</div>
+  </div>
+</div>
+
+<!-- Nómina -->
+<div id="view-nomina-m" class="view">
+  <p class="section-title">Nómina</p>
+  <div class="field" style="margin-bottom:10px">
+    <input id="nm-periodo" type="month" onchange="loadNominaMobile()"
+      style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;background:#fff">
+  </div>
+  <div id="nomina-mobile-list">
+    <div class="empty-state"><div class="ico">💼</div>Cargando nómina…</div>
+  </div>
+</div>
+
 <!-- BOTTOM NAV -->
 <nav id="bottom-nav">
   <a href="#" class="active" onclick="showView('entregas')">
@@ -270,6 +299,12 @@
   </a>
   <a href="#" onclick="showView('pagos')">
     <span class="ico">💳</span>Pagos
+  </a>
+  <a href="#" onclick="showView('gastos')">
+    <span class="ico">📑</span>Gastos
+  </a>
+  <a href="#" onclick="showView('nomina-m')">
+    <span class="ico">💼</span>Nómina
   </a>
   <a href="#" onclick="showView('estado')">
     <span class="ico">👁️</span>Estado
@@ -349,6 +384,8 @@ function showView(name) {
   const loaders = {
     entregas: loadEntregas, notas: loadNotas,
     pagos: () => { loadTasas(); loadMisPagos(); },
+    gastos: loadGastosMobile,
+    'nomina-m': loadNominaMobile,
     estado: loadEstado
   };
   if (loaders[name]) loaders[name]();
@@ -628,8 +665,77 @@ async function loadEstado() {
     '<div class="empty-state" style="padding:20px"><div class="ico">💳</div>Sin pagos</div>';
 }
 
+// ── GASTOS MOBILE ─────────────────────────────────────────────────────────────
+const _estadoGastoColor = { borrador:'b-pendiente', pendiente:'b-pendiente', pagado:'b-aprobada', cancelado:'b-rechazada' };
+async function loadGastosMobile() {
+  const el = document.getElementById('gastos-mobile-list');
+  const tipo = document.getElementById('gm-tipo')?.value || '';
+  el.innerHTML = '<div class="empty-state"><div class="ico">📑</div>Cargando…</div>';
+  try {
+    const qs = tipo ? `?tipo=${tipo}` : '';
+    const rows = await api('GET', `/gastos${qs}`) || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state"><div class="ico">📑</div>Sin gastos registrados</div>';
+      return;
+    }
+    const fmt = v => v != null ? Number(v).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+    el.innerHTML = rows.slice(0, 40).map(g => `
+      <div class="card" style="padding:12px;margin-bottom:8px">
+        <div class="card-header" style="margin-bottom:6px">
+          <div>
+            <div class="card-title" style="font-size:.88rem">${g.descripcion}</div>
+            <div class="card-sub">${g.tipo} · ${(g.fecha||'').substring(0,10)}</div>
+          </div>
+          <span class="badge ${_estadoGastoColor[g.estado]||'b-pendiente'}">${g.estado}</span>
+        </div>
+        <table class="mini-table">
+          <tr><td>Monto</td><td><strong>${fmt(g.monto)} ${g.moneda||'USD'}</strong></td></tr>
+          ${g.categoria ? `<tr><td>Categoría</td><td>${g.categoria}</td></tr>` : ''}
+          ${g.es_recurrente ? `<tr><td>Recurrente</td><td>Día ${g.dia_pago||'—'}</td></tr>` : ''}
+        </table>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
+// ── NÓMINA MOBILE ─────────────────────────────────────────────────────────────
+async function loadNominaMobile() {
+  const el = document.getElementById('nomina-mobile-list');
+  const periodo = document.getElementById('nm-periodo')?.value || '';
+  el.innerHTML = '<div class="empty-state"><div class="ico">💼</div>Cargando…</div>';
+  try {
+    const qs = periodo ? `?periodo=${periodo}` : '';
+    const rows = await api('GET', `/nomina${qs}`) || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-state"><div class="ico">💼</div>Sin registros de nómina</div>';
+      return;
+    }
+    const fmt = v => v != null ? Number(v).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+    const color = { pendiente:'b-pendiente', pagado:'b-aprobada', anulado:'b-rechazada' };
+    el.innerHTML = rows.slice(0, 40).map(n => `
+      <div class="card" style="padding:12px;margin-bottom:8px">
+        <div class="card-header" style="margin-bottom:6px">
+          <div>
+            <div class="card-title" style="font-size:.88rem">${n.descripcion}</div>
+            <div class="card-sub">${n.tipo} · ${n.periodo||'—'}</div>
+          </div>
+          <span class="badge ${color[n.estado]||'b-pendiente'}">${n.estado}</span>
+        </div>
+        <table class="mini-table">
+          <tr><td>Monto</td><td><strong>${fmt(n.monto)} ${n.moneda||'USD'}</strong></td></tr>
+          ${n.empleado_nombre ? `<tr><td>Empleado</td><td>${n.empleado_nombre}</td></tr>` : ''}
+          ${n.es_grupal ? `<tr><td>Tipo</td><td>Grupal</td></tr>` : ''}
+        </table>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+  }
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.getElementById('mp-fecha').value = new Date().toISOString().split('T')[0];
+document.getElementById('nm-periodo').value = new Date().toISOString().slice(0, 7);
 initApp();
 </script>
 </body>

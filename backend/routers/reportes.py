@@ -630,6 +630,7 @@ def exportar_excel(user=Depends(require_roles('gerente', 'admin'))):
 
 @router.get('/resumen-dashboard')
 def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
+    from datetime import date
     con = get_con()
     total_propuestos = con.execute(
         "SELECT COUNT(*) FROM notas_credito WHERE estado='enviada'"
@@ -646,6 +647,27 @@ def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
     creditos_disponibles = con.execute(
         "SELECT COUNT(*) FROM creditos_cliente WHERE estado='disponible'"
     ).fetchone()[0]
+
+    # Gastos recurrentes y servicios públicos pendientes de pago este mes
+    hoy = date.today()
+    mes_actual = hoy.strftime('%Y-%m')
+    gastos_recurrentes_pendientes = con.execute("""
+        SELECT COUNT(*) FROM gastos
+        WHERE tipo IN ('recurrente','servicio_publico')
+          AND estado IN ('borrador','pendiente')
+          AND strftime('%Y-%m', fecha) <= ?
+    """, (mes_actual,)).fetchone()[0]
+
+    # CxP: total monto pendiente a proveedores (compras sin pagar en maestro)
+    cxp_row = con.execute("""
+        SELECT ROUND(COALESCE(SUM(monto_usd_bcv), 0), 2)
+        FROM maestro_operaciones
+        WHERE tipo='egreso'
+          AND origen IN ('odoo_auto_proveedor','zelle_terceros')
+          AND estado='registrado'
+    """).fetchone()
+    cxp_total_usd = cxp_row[0] if cxp_row else 0
+
     con.close()
     return {
         'aprobaciones_pendientes': total_propuestos,
@@ -653,4 +675,6 @@ def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
         'pagos_listos_para_odoo': total_pagos_recibidos,
         'replicas_con_error': replicas_con_error,
         'creditos_disponibles': creditos_disponibles,
+        'gastos_recurrentes_pendientes': gastos_recurrentes_pendientes,
+        'cxp_total_usd': float(cxp_total_usd),
     }

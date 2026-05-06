@@ -528,3 +528,14 @@ def journals(user=Depends(get_current_user)):
         return odoo.get_journals()
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get('/helpers/buscar-cuenta')
+def buscar_cuenta_nomina(q: str = '', tipo: str = None, user=Depends(get_current_user)):
+    if not q or len(q) < 2:
+        return []
+    try:
+        odoo = get_odoo()
+        return odoo.buscar_cuentas(q, tipo)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))

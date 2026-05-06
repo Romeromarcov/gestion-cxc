@@ -312,6 +312,14 @@
         <div class="num" id="d-creditos" style="color:var(--success)">—</div>
         <div class="lbl">💳 Créditos disponibles</div>
       </div>
+      <div class="card" style="cursor:pointer;border-left:4px solid var(--warning)" onclick="showView('gastos')">
+        <div class="num" id="d-gastos-vencidos" style="color:#856404">—</div>
+        <div class="lbl">📋 Gastos recurrentes pendientes</div>
+      </div>
+      <div class="card" style="cursor:pointer;border-left:4px solid var(--danger)" onclick="showView('cxp')">
+        <div class="num" id="d-cxp-usd" style="color:var(--danger)">—</div>
+        <div class="lbl">🏭 CxP proveedores (USD)</div>
+      </div>
     </div>
     <div id="alert-pagadas-sin-factura" style="margin-bottom:16px"></div>
     <div id="odoo-status" class="alert alert-info">Verificando conexión Odoo...</div>
@@ -2620,6 +2628,79 @@
   </div>
 </div>
 
+<!-- Modal: Editar Config Cuenta Gastos -->
+<div id="modal-editar-gasto-cuenta" class="modal-bg">
+  <div class="modal" style="max-width:560px">
+    <h3>⚙ Config Contable — Gasto</h3>
+    <div id="egc-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <input type="hidden" id="egc-id">
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Categoría</label>
+      <input id="egc-categoria" disabled style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px;background:#f8f9fa">
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="position:relative">
+        <label>Cuenta de gasto (Odoo)</label>
+        <input id="egc-cuenta-q" placeholder="Buscar cuenta…" autocomplete="off"
+               oninput="buscarCtaGastoConfig(this.value)"
+               style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        <div id="egc-cuenta-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;
+             border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;z-index:900;
+             box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        <input type="hidden" id="egc-cuenta-id">
+        <div id="egc-cuenta-sel" style="font-size:.75rem;color:var(--success);margin-top:2px"></div>
+      </div>
+      <div class="form-group">
+        <label>Diario Odoo</label>
+        <select id="egc-journal" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— sin asignar —</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="guardarGastoCuenta()">💾 Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-editar-gasto-cuenta')">Cancelar</button>
+    </div>
+    <div id="egc-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Editar Config Cuenta Nómina -->
+<div id="modal-editar-nomina-config" class="modal-bg">
+  <div class="modal" style="max-width:520px">
+    <h3>⚙ Config Contable — Nómina</h3>
+    <input type="hidden" id="enc-tipo">
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Tipo de pago</label>
+      <input id="enc-tipo-label" disabled style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px;background:#f8f9fa">
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="position:relative">
+        <label>Cuenta de gasto (Odoo)</label>
+        <input id="enc-cuenta-q" placeholder="Buscar cuenta…" autocomplete="off"
+               oninput="buscarCtaNominaConfig(this.value)"
+               style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        <div id="enc-cuenta-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;
+             border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;z-index:900;
+             box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        <input type="hidden" id="enc-cuenta-id">
+        <div id="enc-cuenta-sel" style="font-size:.75rem;color:var(--success);margin-top:2px"></div>
+      </div>
+      <div class="form-group">
+        <label>Diario Odoo</label>
+        <select id="enc-journal" style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— sin asignar —</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="guardarNominaConfig()">💾 Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-editar-nomina-config')">Cancelar</button>
+    </div>
+    <div id="enc-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <!-- Modal: Importar Comisiones Bancarias -->
 <div id="modal-importar-comisiones" class="modal-bg">
   <div class="modal" style="max-width:480px">
@@ -3123,6 +3204,17 @@ async function loadDashboard() {
     document.getElementById('d-pagos-r').textContent = r.pagos_listos_para_odoo;
     const errCard = document.getElementById('d-replicas-error');
     if (errCard) errCard.textContent = r.replicas_con_error ?? '—';
+    // Nuevos KPIs
+    const dGastos = document.getElementById('d-gastos-vencidos');
+    const dCxp    = document.getElementById('d-cxp-usd');
+    if (dGastos) {
+      const n = r.gastos_recurrentes_pendientes ?? 0;
+      dGastos.textContent = n;
+      dGastos.style.color = n > 0 ? 'var(--warning)' : 'var(--success)';
+    }
+    if (dCxp) {
+      dCxp.textContent = r.cxp_total_usd != null ? '$' + fmtNum(r.cxp_total_usd, 2) : '—';
+    }
   } catch(e) {}
 
   // Alertas de cobro (DB-only, rápido)
@@ -7230,6 +7322,7 @@ async function loadCxP() {
 
 // ── GASTOS Y COMPROMISOS ──────────────────────────────────────────────────────
 let _gastosData = [];
+let _gastosConfigData = [];
 
 async function loadGastos() {
   const tipo   = document.getElementById('gf-tipo')?.value || '';
@@ -7340,6 +7433,7 @@ async function loadGastosConfigCuentas() {
   tbody.innerHTML = '<tr><td colspan="5" class="loader">Cargando...</td></tr>';
   try {
     const rows = await api('GET', '/gastos/config-cuentas') || [];
+    _gastosConfigData = rows;
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="loader">Sin configuración</td></tr>'; return; }
     tbody.innerHTML = rows.map(r => `<tr>
       <td>${r.categoria}</td>
@@ -7469,13 +7563,79 @@ async function enviarGastoOdoo(btn) {
   finally { btn.disabled = false; }
 }
 
-function editarGastoCuenta(id) {
-  alert(`Editar config cuenta #${id} — próximamente`);
+let _egcJournalTimer = null;
+async function editarGastoCuenta(id) {
+  const row = _gastosConfigData.find(r => r.id === id);
+  if (!row) { alert('Recarga la tabla de configuración primero'); return; }
+  document.getElementById('egc-id').value = id;
+  document.getElementById('egc-categoria').value = row.categoria + (row.subcategoria ? ` / ${row.subcategoria}` : '');
+  document.getElementById('egc-info').textContent = `Categoría: ${row.categoria}${row.subcategoria ? ' · ' + row.subcategoria : ''}`;
+  // Pre-fill cuenta
+  document.getElementById('egc-cuenta-id').value  = row.odoo_cuenta_gasto_id || '';
+  document.getElementById('egc-cuenta-q').value   = row.odoo_cuenta_nombre   || '';
+  document.getElementById('egc-cuenta-sel').textContent = row.odoo_cuenta_nombre ? `✓ ${row.odoo_cuenta_nombre}` : '';
+  document.getElementById('egc-cuenta-drop').style.display = 'none';
+  document.getElementById('egc-result').innerHTML = '';
+  // Load journals
+  const jsel = document.getElementById('egc-journal');
+  jsel.innerHTML = '<option value="">Cargando…</option>';
+  try {
+    const journals = await api('GET', '/gastos/helpers/journals') || [];
+    jsel.innerHTML = '<option value="">— sin asignar —</option>' +
+      journals.map(j => `<option value="${j.id}">${j.name || j.nombre}</option>`).join('');
+    if (row.odoo_journal_id) jsel.value = row.odoo_journal_id;
+  } catch { jsel.innerHTML = '<option value="">Error cargando diarios</option>'; }
+  showModal('modal-editar-gasto-cuenta');
+}
+
+let _egcCtaTimer = null;
+async function buscarCtaGastoConfig(q) {
+  clearTimeout(_egcCtaTimer);
+  const drop = document.getElementById('egc-cuenta-drop');
+  if (!q || q.length < 2) { drop.style.display = 'none'; return; }
+  _egcCtaTimer = setTimeout(async () => {
+    try {
+      const res = await api('GET', `/gastos/helpers/buscar-cuenta?q=${encodeURIComponent(q)}&tipo=gasto`) || [];
+      if (!res.length) { drop.style.display = 'none'; return; }
+      drop.innerHTML = res.map(c => `<div style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:.83rem"
+        onmousedown="selCtaGastoConfig(${c.id},${JSON.stringify(c.nombre)})">${c.nombre}</div>`).join('');
+      drop.style.display = '';
+    } catch { drop.style.display = 'none'; }
+  }, 280);
+}
+
+function selCtaGastoConfig(id, nombre) {
+  document.getElementById('egc-cuenta-id').value  = id;
+  document.getElementById('egc-cuenta-q').value   = nombre;
+  document.getElementById('egc-cuenta-sel').textContent = `✓ ${nombre}`;
+  document.getElementById('egc-cuenta-drop').style.display = 'none';
+}
+
+async function guardarGastoCuenta() {
+  const id         = parseInt(document.getElementById('egc-id').value);
+  const cuenta_id  = parseInt(document.getElementById('egc-cuenta-id').value) || null;
+  const cuenta_nom = document.getElementById('egc-cuenta-q').value.trim() || null;
+  const journal_el = document.getElementById('egc-journal');
+  const journal_id = parseInt(journal_el.value) || null;
+  const journal_nom = journal_id ? (journal_el.options[journal_el.selectedIndex]?.text || null) : null;
+  const resDiv = document.getElementById('egc-result');
+  resDiv.innerHTML = '<span style="color:var(--muted)">Guardando…</span>';
+  try {
+    await api('PUT', `/gastos/config-cuentas/${id}`, {
+      odoo_cuenta_gasto_id: cuenta_id,
+      odoo_cuenta_nombre:   cuenta_nom,
+      odoo_journal_id:      journal_id,
+      odoo_journal_nombre:  journal_nom,
+    });
+    showResult('egc-result', '✓ Configuración guardada', true);
+    setTimeout(() => { closeModal('modal-editar-gasto-cuenta'); loadGastosConfigCuentas(); }, 900);
+  } catch(e) { showResult('egc-result', e.message, false); }
 }
 
 // ── NÓMINA ────────────────────────────────────────────────────────────────────
 let _nominaData = [];
 let _nominaTercerosData = [];
+let _nominaConfigData = [];
 
 async function loadNomina() {
   const tipo    = document.getElementById('nf-tipo')?.value || '';
@@ -7581,6 +7741,7 @@ async function loadNominaConfig() {
   tbody.innerHTML = '<tr><td colspan="4" class="loader">Cargando...</td></tr>';
   try {
     const rows = await api('GET', '/nomina/config-cuentas') || [];
+    _nominaConfigData = rows;
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="loader">Sin config</td></tr>'; return; }
     tbody.innerHTML = rows.map(r => `<tr>
       <td>${r.tipo}</td>
@@ -7707,8 +7868,71 @@ async function descontarAPNomina(btn) {
   finally { btn.disabled = false; }
 }
 
-function editarNominaConfig(tipo) {
-  alert(`Editar config nómina tipo "${tipo}" — próximamente`);
+async function editarNominaConfig(tipo) {
+  const row = _nominaConfigData.find(r => r.tipo === tipo);
+  if (!row) { alert('Recarga la tabla de configuración primero'); return; }
+  document.getElementById('enc-tipo').value      = tipo;
+  document.getElementById('enc-tipo-label').value = tipo;
+  // Pre-fill cuenta
+  document.getElementById('enc-cuenta-id').value  = row.odoo_cuenta_gasto_id || '';
+  document.getElementById('enc-cuenta-q').value   = row.odoo_cuenta_nombre   || '';
+  document.getElementById('enc-cuenta-sel').textContent = row.odoo_cuenta_nombre ? `✓ ${row.odoo_cuenta_nombre}` : '';
+  document.getElementById('enc-cuenta-drop').style.display = 'none';
+  document.getElementById('enc-result').innerHTML = '';
+  // Load journals
+  const jsel = document.getElementById('enc-journal');
+  jsel.innerHTML = '<option value="">Cargando…</option>';
+  try {
+    const journals = await api('GET', '/nomina/helpers/journals') || [];
+    jsel.innerHTML = '<option value="">— sin asignar —</option>' +
+      journals.map(j => `<option value="${j.id}">${j.name || j.nombre}</option>`).join('');
+    if (row.odoo_journal_id) jsel.value = row.odoo_journal_id;
+  } catch { jsel.innerHTML = '<option value="">Error cargando diarios</option>'; }
+  showModal('modal-editar-nomina-config');
+}
+
+let _encCtaTimer = null;
+async function buscarCtaNominaConfig(q) {
+  clearTimeout(_encCtaTimer);
+  const drop = document.getElementById('enc-cuenta-drop');
+  if (!q || q.length < 2) { drop.style.display = 'none'; return; }
+  _encCtaTimer = setTimeout(async () => {
+    try {
+      const res = await api('GET', `/nomina/helpers/buscar-cuenta?q=${encodeURIComponent(q)}&tipo=gasto`) || [];
+      if (!res.length) { drop.style.display = 'none'; return; }
+      drop.innerHTML = res.map(c => `<div style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:.83rem"
+        onmousedown="selCtaNominaConfig(${c.id},${JSON.stringify(c.nombre)})">${c.nombre}</div>`).join('');
+      drop.style.display = '';
+    } catch { drop.style.display = 'none'; }
+  }, 280);
+}
+
+function selCtaNominaConfig(id, nombre) {
+  document.getElementById('enc-cuenta-id').value  = id;
+  document.getElementById('enc-cuenta-q').value   = nombre;
+  document.getElementById('enc-cuenta-sel').textContent = `✓ ${nombre}`;
+  document.getElementById('enc-cuenta-drop').style.display = 'none';
+}
+
+async function guardarNominaConfig() {
+  const tipo       = document.getElementById('enc-tipo').value;
+  const cuenta_id  = parseInt(document.getElementById('enc-cuenta-id').value) || null;
+  const cuenta_nom = document.getElementById('enc-cuenta-q').value.trim() || null;
+  const journal_el = document.getElementById('enc-journal');
+  const journal_id = parseInt(journal_el.value) || null;
+  const journal_nom = journal_id ? (journal_el.options[journal_el.selectedIndex]?.text || null) : null;
+  const resDiv = document.getElementById('enc-result');
+  resDiv.innerHTML = '<span style="color:var(--muted)">Guardando…</span>';
+  try {
+    await api('PUT', `/nomina/config-cuentas/${tipo}`, {
+      odoo_cuenta_gasto_id: cuenta_id,
+      odoo_cuenta_nombre:   cuenta_nom,
+      odoo_journal_id:      journal_id,
+      odoo_journal_nombre:  journal_nom,
+    });
+    showResult('enc-result', '✓ Configuración guardada', true);
+    setTimeout(() => { closeModal('modal-editar-nomina-config'); loadNominaConfig(); }, 900);
+  } catch(e) { showResult('enc-result', e.message, false); }
 }
 
 // ── MAESTRO: Saldos vs Odoo ───────────────────────────────────────────────────
