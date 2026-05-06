@@ -2701,6 +2701,162 @@
   </div>
 </div>
 
+<!-- Modal: Rechazar Requisición (directo desde tabla) -->
+<div id="modal-rechazar-req-directo" class="modal-bg">
+  <div class="modal" style="max-width:420px">
+    <h3>✕ Rechazar Requisición</h3>
+    <input type="hidden" id="rrd-id">
+    <div id="rrd-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Motivo del rechazo</label>
+      <textarea id="rrd-motivo" rows="3" placeholder="Explica el motivo…"
+        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;resize:vertical;font-size:.9rem"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-danger" onclick="confirmarRechazarReqDirecto()">✕ Rechazar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-rechazar-req-directo')">Cancelar</button>
+    </div>
+    <div id="rrd-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Enviar Nómina a Odoo -->
+<div id="modal-enviar-nomina-odoo" class="modal-bg">
+  <div class="modal" style="max-width:480px">
+    <h3>→ Crear Asiento en Odoo</h3>
+    <input type="hidden" id="eno-id">
+    <div id="eno-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Diario contable</label>
+      <select id="eno-journal" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">Cargando…</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="confirmarEnviarNominaOdoo()">Crear asiento</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-enviar-nomina-odoo')">Cancelar</button>
+    </div>
+    <div id="eno-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Pagar Cuota de Acuerdo -->
+<div id="modal-pagar-cuota" class="modal-bg">
+  <div class="modal" style="max-width:400px">
+    <h3>💵 Registrar Pago de Cuota</h3>
+    <input type="hidden" id="pcq-acuerdo-id">
+    <input type="hidden" id="pcq-cuota-id">
+    <div id="pcq-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Monto pagado (USD)</label>
+      <input id="pcq-monto" type="number" step="0.01" min="0" placeholder="0.00"
+        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="confirmarPagarCuota()">✓ Confirmar pago</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-pagar-cuota')">Cancelar</button>
+    </div>
+    <div id="pcq-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Agregar Producto a Lista de Precios -->
+<div id="modal-agregar-lista" class="modal-bg">
+  <div class="modal" style="max-width:460px">
+    <h3>📋 Agregar a Lista de Precios</h3>
+    <input type="hidden" id="al-ref">
+    <div id="al-prod-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Lista de precios</label>
+      <select id="al-lista-id" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">Cargando…</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Precio</label>
+      <input id="al-precio" type="number" step="0.01" min="0" placeholder="0.00"
+        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="confirmarAgregarLista()">Agregar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-agregar-lista')">Cancelar</button>
+    </div>
+    <div id="al-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Items de Lista de Precios -->
+<div id="modal-items-lista" class="modal-bg">
+  <div class="modal" style="max-width:600px">
+    <h3>📋 Items de Lista de Precios</h3>
+    <input type="hidden" id="il-lista-id">
+    <div id="il-lista-nombre" style="font-weight:700;margin-bottom:12px;color:var(--primary)"></div>
+    <div id="il-tabla" style="max-height:320px;overflow-y:auto;margin-bottom:14px">
+      <div class="loader">Cargando…</div>
+    </div>
+    <!-- Agregar nuevo item -->
+    <div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px">AGREGAR ITEM</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Referencia producto</label>
+          <input id="il-nuevo-ref" placeholder="REF001"
+            style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        </div>
+        <div class="form-group">
+          <label>Precio</label>
+          <input id="il-nuevo-precio" type="number" step="0.01" placeholder="0.00"
+            style="width:100%;padding:7px;border:1px solid var(--border);border-radius:6px">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-success btn-sm" onclick="agregarItemLista()">+ Agregar</button>
+        </div>
+      </div>
+      <div id="il-add-result" style="margin-top:6px;font-size:.82rem"></div>
+    </div>
+    <button class="btn btn-outline" onclick="closeModal('modal-items-lista')">Cerrar</button>
+  </div>
+</div>
+
+<!-- Modal: Validar Promoción -->
+<div id="modal-validar-promo" class="modal-bg">
+  <div class="modal" style="max-width:400px">
+    <h3>✅ Validar Promoción</h3>
+    <input type="hidden" id="vp-promo-id">
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Número de orden Odoo</label>
+      <input id="vp-orden" placeholder="S00025" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;text-transform:uppercase">
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="confirmarValidarPromo()">Validar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-validar-promo')">Cancelar</button>
+    </div>
+    <div id="vp-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Modal: Importar Pago Odoo -->
+<div id="modal-importar-pago-odoo" class="modal-bg">
+  <div class="modal" style="max-width:440px">
+    <h3>📥 Importar Pago de Odoo</h3>
+    <input type="hidden" id="ipo-payment-id">
+    <div id="ipo-cliente-info" style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85rem"></div>
+    <div class="form-group" style="margin-bottom:6px">
+      <label>Asociar a orden Odoo <span style="color:var(--muted);font-size:.78rem">(opcional)</span></label>
+      <input id="ipo-orden" placeholder="S00025 — dejar vacío si no aplica"
+        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;text-transform:uppercase">
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
+      Si no se asocia a ninguna orden, el pago se importa como pago libre.
+    </p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="confirmarImportarPagoOdoo()">📥 Importar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-importar-pago-odoo')">Cancelar</button>
+    </div>
+    <div id="ipo-result" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <!-- Modal: Importar Comisiones Bancarias -->
 <div id="modal-importar-comisiones" class="modal-bg">
   <div class="modal" style="max-width:480px">
@@ -5202,12 +5358,25 @@ async function rechazarRequisicion() {
 }
 
 async function rechazarReqDirecto(id) {
-  const motivo = prompt('Motivo del rechazo:');
-  if (motivo === null) return;
+  const r = _requisicionesData.find(x => x.id === id);
+  document.getElementById('rrd-id').value = id;
+  document.getElementById('rrd-info').textContent = r
+    ? `#${id} — ${r.empleado_nombre || ''}  |  ${r.descripcion || ''}`
+    : `Requisición #${id}`;
+  document.getElementById('rrd-motivo').value = '';
+  document.getElementById('rrd-result').innerHTML = '';
+  showModal('modal-rechazar-req-directo');
+}
+
+async function confirmarRechazarReqDirecto() {
+  const id     = parseInt(document.getElementById('rrd-id').value);
+  const motivo = document.getElementById('rrd-motivo').value.trim();
+  if (!motivo) { showResult('rrd-result', 'Ingresa el motivo del rechazo', false); return; }
   try {
     await api('POST', `/requisiciones/${id}/rechazar`, { motivo });
-    loadRequisiciones();
-  } catch(e) { alert(e.message); }
+    showResult('rrd-result', '✓ Requisición rechazada', true);
+    setTimeout(() => { closeModal('modal-rechazar-req-directo'); loadRequisiciones(); }, 800);
+  } catch(e) { showResult('rrd-result', e.message, false); }
 }
 
 async function abrirEjecutarReq(id) {
@@ -5411,17 +5580,35 @@ async function guardarExtra(ref, campo, valor) {
 }
 
 async function agregarALista(ref, nombre, precio) {
-  const listas = await api('GET', '/precios') || [];
-  if (!listas.length) { alert('Primero crea una lista de precios en Precios'); return; }
-  const opciones = listas.map((l,i) => `${i+1}. ${l.nombre} (${l.moneda})`).join('\n');
-  const idx = parseInt(prompt(`¿A qué lista agregar "${nombre}"?\n\n${opciones}\n\nIngresa el número:`));
-  if (isNaN(idx) || idx < 1 || idx > listas.length) return;
-  const lista = listas[idx-1];
-  const precioFinal = parseFloat(prompt(`Precio para "${nombre}" en "${lista.nombre}":`, precio)) || precio;
+  document.getElementById('al-ref').value = ref;
+  document.getElementById('al-prod-info').innerHTML = `<strong>${nombre}</strong><br>Ref: ${ref} · Precio sugerido: $${fmtNum(precio,2)}`;
+  document.getElementById('al-precio').value = precio || '';
+  document.getElementById('al-result').innerHTML = '';
+  const sel = document.getElementById('al-lista-id');
+  sel.innerHTML = '<option value="">Cargando…</option>';
+  showModal('modal-agregar-lista');
   try {
-    await api('POST', `/precios/${lista.id}/items`, { producto_ref: ref, precio: precioFinal });
-    alert(`✔ ${nombre} agregado a "${lista.nombre}" con precio $${fmtNum(precioFinal,2)}`);
-  } catch(e) { alert(e.message); }
+    const listas = await api('GET', '/precios') || [];
+    if (!listas.length) {
+      sel.innerHTML = '<option value="">Sin listas — créalas primero</option>'; return;
+    }
+    sel.innerHTML = listas.map(l => `<option value="${l.id}">${l.nombre} (${l.moneda})</option>`).join('');
+  } catch { sel.innerHTML = '<option value="">Error cargando listas</option>'; }
+}
+
+async function confirmarAgregarLista() {
+  const ref      = document.getElementById('al-ref').value;
+  const listaId  = parseInt(document.getElementById('al-lista-id').value);
+  const precio   = parseFloat(document.getElementById('al-precio').value);
+  const sel      = document.getElementById('al-lista-id');
+  const listaNom = sel.options[sel.selectedIndex]?.text || '';
+  if (!listaId)  { showResult('al-result', 'Selecciona una lista', false); return; }
+  if (!precio)   { showResult('al-result', 'Ingresa el precio', false); return; }
+  try {
+    await api('POST', `/precios/${listaId}/items`, { producto_ref: ref, precio });
+    showResult('al-result', `✔ Agregado a "${listaNom}" por $${fmtNum(precio,2)}`, true);
+    setTimeout(() => closeModal('modal-agregar-lista'), 1000);
+  } catch(e) { showResult('al-result', e.message, false); }
 }
 
 // ── PROMOCIONES ───────────────────────────────────────────────────────────────
@@ -5463,13 +5650,22 @@ async function crearPromocion() {
   }
 }
 
-async function validarPromo(id) {
-  const orden = prompt('Número de orden Odoo (ej: S00025):');
-  if (!orden) return;
+function validarPromo(id) {
+  document.getElementById('vp-promo-id').value = id;
+  document.getElementById('vp-orden').value = '';
+  document.getElementById('vp-result').innerHTML = '';
+  showModal('modal-validar-promo');
+}
+
+async function confirmarValidarPromo() {
+  const id    = parseInt(document.getElementById('vp-promo-id').value);
+  const orden = document.getElementById('vp-orden').value.trim().toUpperCase();
+  if (!orden) { showResult('vp-result', 'Ingresa el número de orden', false); return; }
   try {
     const r = await api('POST', '/promociones/validar', { odoo_order_name: orden, promocion_id: id });
-    alert(`${r.mensaje}\nNota ID: ${r.nota_id}`);
-  } catch(e) { alert(e.message); }
+    showResult('vp-result', `✓ ${r.mensaje} — Nota ID: ${r.nota_id}`, true);
+    setTimeout(() => closeModal('modal-validar-promo'), 1500);
+  } catch(e) { showResult('vp-result', e.message, false); }
 }
 
 // ── LISTAS DE PRECIOS ─────────────────────────────────────────────────────────
@@ -5504,14 +5700,62 @@ async function crearLista() {
 }
 
 async function verItemsLista(id, nombre) {
-  const items = await api('GET', `/precios/${id}/items`);
-  const ref = prompt(`Items en ${nombre} (ref|precio — uno por línea):\n\nActuales:\n${(items||[]).map(i=>i.producto_ref+'|'+i.precio).join('\n')}\n\nIngresa nuevos (vacío para cancelar):`);
-  if (!ref) return;
-  for (const linea of ref.split('\n').filter(l=>l.trim())) {
-    const [r, p] = linea.split('|');
-    if (r && p) await api('POST', `/precios/${id}/items`, { producto_ref: r.trim(), precio: parseFloat(p) });
+  document.getElementById('il-lista-id').value = id;
+  document.getElementById('il-lista-nombre').textContent = nombre;
+  document.getElementById('il-nuevo-ref').value = '';
+  document.getElementById('il-nuevo-precio').value = '';
+  document.getElementById('il-add-result').innerHTML = '';
+  showModal('modal-items-lista');
+  await renderItemsLista(id);
+}
+
+async function renderItemsLista(id) {
+  const cont = document.getElementById('il-tabla');
+  cont.innerHTML = '<div class="loader">Cargando…</div>';
+  try {
+    const items = await api('GET', `/precios/${id}/items`) || [];
+    if (!items.length) { cont.innerHTML = '<p style="color:var(--muted);padding:12px;font-size:.85rem">Sin items aún</p>'; return; }
+    cont.innerHTML = `<table style="width:100%;font-size:.83rem;border-collapse:collapse">
+      <thead><tr style="background:#f8f9fa">
+        <th style="text-align:left;padding:6px 8px">Referencia</th>
+        <th style="text-align:right;padding:6px 8px">Precio</th>
+        <th style="padding:6px 8px"></th>
+      </tr></thead><tbody>
+      ${items.map(i => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px">${i.producto_ref}</td>
+        <td style="text-align:right;padding:6px 8px;font-weight:600">$${fmtNum(i.precio,2)}</td>
+        <td style="padding:6px 8px;text-align:right">
+          <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;padding:2px 8px;border-radius:4px;font-size:.75rem"
+            onclick="eliminarItemLista(${id},${i.id})">✕</button>
+        </td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) {
+    cont.innerHTML = `<p style="color:var(--danger);padding:12px">${e.message}</p>`;
   }
-  alert('Items actualizados');
+}
+
+async function agregarItemLista() {
+  const id     = parseInt(document.getElementById('il-lista-id').value);
+  const ref    = document.getElementById('il-nuevo-ref').value.trim();
+  const precio = parseFloat(document.getElementById('il-nuevo-precio').value);
+  const res    = document.getElementById('il-add-result');
+  if (!ref || !precio) { res.innerHTML = '<span style="color:var(--danger)">Ingresa referencia y precio</span>'; return; }
+  try {
+    await api('POST', `/precios/${id}/items`, { producto_ref: ref, precio });
+    document.getElementById('il-nuevo-ref').value = '';
+    document.getElementById('il-nuevo-precio').value = '';
+    res.innerHTML = '<span style="color:var(--success)">✓ Agregado</span>';
+    await renderItemsLista(id);
+  } catch(e) { res.innerHTML = `<span style="color:var(--danger)">${e.message}</span>`; }
+}
+
+async function eliminarItemLista(listaId, itemId) {
+  if (!confirm('¿Eliminar este item?')) return;
+  try {
+    await api('DELETE', `/precios/${listaId}/items/${itemId}`);
+    await renderItemsLista(listaId);
+  } catch(e) { alert(e.message); }
 }
 
 // ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
@@ -5687,16 +5931,25 @@ async function loadPagosOdoo() {
   }
 }
 
-async function importarPagoOdoo(odooPaymentId, clienteNombre) {
-  const orden = prompt(`Importar pago de "${clienteNombre}"\n\nAsociar a orden (ej: S00025) — dejar vacío si no aplica:`);
-  if (orden === null) return; // canceló
+function importarPagoOdoo(odooPaymentId, clienteNombre) {
+  document.getElementById('ipo-payment-id').value = odooPaymentId;
+  document.getElementById('ipo-cliente-info').innerHTML =
+    `<strong>${clienteNombre}</strong><br><span style="color:var(--muted)">Pago Odoo #${odooPaymentId}</span>`;
+  document.getElementById('ipo-orden').value = '';
+  document.getElementById('ipo-result').innerHTML = '';
+  showModal('modal-importar-pago-odoo');
+}
+
+async function confirmarImportarPagoOdoo() {
+  const paymentId = parseInt(document.getElementById('ipo-payment-id').value);
+  const orden     = document.getElementById('ipo-orden').value.trim().toUpperCase();
   try {
-    const url = `/odoo/pagos-clientes/${odooPaymentId}/importar` +
-                (orden.trim() ? `?odoo_order_name=${encodeURIComponent(orden.trim())}` : '');
+    const url = `/odoo/pagos-clientes/${paymentId}/importar` +
+                (orden ? `?odoo_order_name=${encodeURIComponent(orden)}` : '');
     const r = await api('POST', url);
-    alert(r.mensaje);
-    loadPagosOdoo();
-  } catch(e) { alert(e.message); }
+    showResult('ipo-result', `✓ ${r.mensaje}`, true);
+    setTimeout(() => { closeModal('modal-importar-pago-odoo'); loadPagosOdoo(); }, 1000);
+  } catch(e) { showResult('ipo-result', e.message, false); }
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────────────────────
@@ -6634,14 +6887,27 @@ async function verAcuerdo(id) {
   </tr>`).join('');
 }
 
-async function pagarCuota(acuerdoId, cuotaId) {
-  const monto = prompt('Monto pagado (USD):');
-  if (!monto) return;
+function pagarCuota(acuerdoId, cuotaId) {
+  document.getElementById('pcq-acuerdo-id').value = acuerdoId;
+  document.getElementById('pcq-cuota-id').value   = cuotaId;
+  document.getElementById('pcq-monto').value = '';
+  document.getElementById('pcq-result').innerHTML = '';
+  document.getElementById('pcq-info').textContent = `Acuerdo #${acuerdoId} · Cuota #${cuotaId}`;
+  showModal('modal-pagar-cuota');
+}
+
+async function confirmarPagarCuota() {
+  const acuerdoId = parseInt(document.getElementById('pcq-acuerdo-id').value);
+  const cuotaId   = parseInt(document.getElementById('pcq-cuota-id').value);
+  const monto     = parseFloat(document.getElementById('pcq-monto').value);
+  if (!monto || isNaN(monto) || monto <= 0) {
+    showResult('pcq-result', 'Ingresa un monto válido', false); return;
+  }
   try {
-    await api('PUT', `/acuerdos-pago/${acuerdoId}/cuotas/${cuotaId}/pagar`, {monto_pagado: parseFloat(monto)});
-    verAcuerdo(acuerdoId);
-    loadAcuerdos();
-  } catch(e) { alert(e.message); }
+    await api('PUT', `/acuerdos-pago/${acuerdoId}/cuotas/${cuotaId}/pagar`, { monto_pagado: monto });
+    showResult('pcq-result', '✓ Pago registrado', true);
+    setTimeout(() => { closeModal('modal-pagar-cuota'); verAcuerdo(acuerdoId); loadAcuerdos(); }, 800);
+  } catch(e) { showResult('pcq-result', e.message, false); }
 }
 
 async function eliminarAcuerdo(id, btn) {
@@ -7789,14 +8055,39 @@ async function pagarNomina(id) {
 }
 
 async function abrirEnviarNominaOdoo(id) {
-  // Simplified: prompt for journal
-  const journalId = prompt('ID del diario Odoo para el asiento:');
-  if (!journalId) return;
+  const n = _nominaData.find(x => x.id === id);
+  document.getElementById('eno-id').value = id;
+  document.getElementById('eno-info').innerHTML = n
+    ? `<strong>${n.descripcion}</strong><br><span style="color:var(--muted)">${n.tipo} · ${n.periodo||''} · $${fmtNum(n.monto,2)} ${n.moneda||'USD'}</span>`
+    : `Registro #${id}`;
+  document.getElementById('eno-result').innerHTML = '';
+  const jsel = document.getElementById('eno-journal');
+  jsel.innerHTML = '<option value="">Cargando…</option>';
+  showModal('modal-enviar-nomina-odoo');
   try {
-    const r = await api('POST', `/nomina/${id}/enviar-odoo`, { journal_id: parseInt(journalId) });
-    alert(`✓ Asiento creado en Odoo #${r.odoo_move_id}`);
-    loadNomina();
-  } catch(e) { alert(e.message); }
+    const [journals, cfg] = await Promise.all([
+      api('GET', '/nomina/helpers/journals').catch(() => []),
+      api('GET', '/nomina/config-cuentas').catch(() => []),
+    ]);
+    jsel.innerHTML = '<option value="">— selecciona diario —</option>' +
+      (journals||[]).map(j => `<option value="${j.id}">${j.name}</option>`).join('');
+    // Pre-select from nomina config (tipo match o primer registro)
+    const cfgRow = (cfg||[]).find(r => r.tipo === (n?.tipo || '')) || (cfg||[])[0];
+    if (cfgRow?.odoo_journal_id) jsel.value = cfgRow.odoo_journal_id;
+    else if (n?.odoo_journal_id) jsel.value = n.odoo_journal_id;
+  } catch { jsel.innerHTML = '<option value="">Error cargando diarios</option>'; }
+}
+
+async function confirmarEnviarNominaOdoo() {
+  const id = parseInt(document.getElementById('eno-id').value);
+  const jsel = document.getElementById('eno-journal');
+  const journal_id = parseInt(jsel.value) || null;
+  if (!journal_id) { showResult('eno-result', 'Selecciona un diario contable', false); return; }
+  try {
+    const r = await api('POST', `/nomina/${id}/enviar-odoo`, { journal_id });
+    showResult('eno-result', `✓ Asiento creado en Odoo #${r.odoo_move_id}`, true);
+    setTimeout(() => { closeModal('modal-enviar-nomina-odoo'); loadNomina(); }, 1000);
+  } catch(e) { showResult('eno-result', e.message, false); }
 }
 
 async function importarNominaOdoo(btn) {

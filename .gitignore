@@ -36,3 +36,8 @@ Thumbs.db
 fix_venc.py
 check_routes.js
 unpacked_spec/
+
+# Documentación binaria
+*.docx
+*.xlsx
+*.pptx
