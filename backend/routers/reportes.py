@@ -678,3 +678,202 @@ def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
         'gastos_recurrentes_pendientes': gastos_recurrentes_pendientes,
         'cxp_total_usd': float(cxp_total_usd),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EXCEL CONSOLIDADO
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _wb_header(ws, headers: list, color: str = '2E75B6'):
+    """Escribe encabezados con fondo azul (o el color indicado) en la hoja ws."""
+    try:
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        raise HTTPException(status_code=500, detail='openpyxl no instalado')
+    fill  = PatternFill('solid', fgColor=color)
+    font  = Font(bold=True, color='FFFFFF')
+    align = Alignment(horizontal='center', vertical='center')
+    for col, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=col, value=h)
+        c.fill = fill; c.font = font; c.alignment = align
+    ws.row_dimensions[1].height = 18
+
+
+def _wb_autowidth(ws):
+    """Ajusta ancho de columnas al contenido."""
+    for col in ws.columns:
+        max_len = max((len(str(c.value or '')) for c in col), default=8)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 50)
+
+
+@router.get('/exportar-excel-consolidado')
+def exportar_excel_consolidado(
+    desde: str = None,
+    hasta: str = None,
+    user=Depends(require_roles('gerente', 'admin'))
+):
+    """
+    Descarga un .xlsx con 5 hojas:
+      1. Maestro de Operaciones
+      2. Gastos
+      3. Nómina
+      4. Pagos Fiscales
+      5. Resumen
+    Acepta filtros ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        raise HTTPException(status_code=500, detail='openpyxl no instalado')
+
+    con = get_con()
+    wb  = openpyxl.Workbook()
+    wb.remove(wb.active)           # eliminar hoja default vacía
+
+    from datetime import date
+    hoy    = date.today().isoformat()
+    f_desde = desde or '2000-01-01'
+    f_hasta = hasta or hoy
+
+    # ── 1. Maestro de Operaciones ──────────────────────────────────────────
+    ws1 = wb.create_sheet('Maestro')
+    _wb_header(ws1, [
+        'ID', 'Fecha', 'Tipo', 'Descripción', 'Categoría', 'Subcategoría',
+        'Método', 'Moneda', 'Monto', 'Tasa BCV', 'Monto USD (BCV)',
+        'Origen', 'Referencia Odoo', 'Estado', 'Nro Documento'
+    ], color='1F4E79')
+    rows = con.execute("""
+        SELECT id, fecha, tipo, descripcion, categoria, subcategoria,
+               metodo, moneda, monto, tasa_bcv, monto_usd_bcv,
+               origen, odoo_ref, estado, nro_documento
+        FROM maestro_operaciones
+        WHERE fecha BETWEEN ? AND ?
+        ORDER BY fecha DESC
+    """, (f_desde, f_hasta)).fetchall()
+    for ri, r in enumerate(rows, 2):
+        for ci, val in enumerate(r, 1):
+            ws1.cell(ri, ci, val)
+    _wb_autowidth(ws1)
+
+    # ── 2. Gastos ──────────────────────────────────────────────────────────
+    ws2 = wb.create_sheet('Gastos')
+    _wb_header(ws2, [
+        'ID', 'Fecha', 'Tipo', 'Categoría', 'Subcategoría', 'Descripción',
+        'Monto', 'Moneda', 'Estado', 'Es Recurrente', 'Período Pago',
+        'Proveedor Odoo', 'Move Odoo', 'Maestro ID'
+    ], color='375623')
+    rows = con.execute("""
+        SELECT id, fecha, tipo, categoria, subcategoria, descripcion,
+               monto, moneda, estado, es_recurrente, periodo_pago,
+               odoo_partner_id, odoo_move_id, maestro_op_id
+        FROM gastos
+        WHERE fecha BETWEEN ? AND ?
+        ORDER BY fecha DESC
+    """, (f_desde, f_hasta)).fetchall()
+    for ri, r in enumerate(rows, 2):
+        for ci, val in enumerate(r, 1):
+            ws2.cell(ri, ci, val)
+    _wb_autowidth(ws2)
+
+    # ── 3. Nómina ──────────────────────────────────────────────────────────
+    ws3 = wb.create_sheet('Nómina')
+    _wb_header(ws3, [
+        'ID', 'Período', 'Tipo', 'Descripción', 'Monto', 'Moneda',
+        'Tasa BCV', 'Monto USD', 'Estado', 'Origen',
+        'Move Odoo', 'Maestro ID', 'Creado En'
+    ], color='7B3F00')
+    rows = con.execute("""
+        SELECT id, periodo, tipo, descripcion, monto, moneda,
+               tasa_bcv, monto_usd, estado, origen,
+               odoo_move_id, maestro_op_id, creado_en
+        FROM nomina_registros
+        WHERE (periodo BETWEEN ? AND ? OR creado_en BETWEEN ? AND ?)
+        ORDER BY periodo DESC
+    """, (f_desde[:7], f_hasta[:7], f_desde, f_hasta)).fetchall()
+    for ri, r in enumerate(rows, 2):
+        for ci, val in enumerate(r, 1):
+            ws3.cell(ri, ci, val)
+    _wb_autowidth(ws3)
+
+    # ── 4. Pagos Fiscales ──────────────────────────────────────────────────
+    ws4 = wb.create_sheet('Pagos Fiscales')
+    _wb_header(ws4, [
+        'ID', 'Fecha', 'Tipo', 'Descripción', 'Monto', 'Moneda',
+        'Tasa BCV', 'Monto USD', 'Banco/Ref', 'Estado',
+        'Move Odoo', 'Maestro ID'
+    ], color='4A235A')
+    rows = con.execute("""
+        SELECT id, fecha, tipo, descripcion, monto, moneda,
+               tasa_bcv, monto_usd, banco_ref, estado,
+               odoo_move_id, maestro_op_id
+        FROM pagos_fiscales
+        WHERE fecha BETWEEN ? AND ?
+        ORDER BY fecha DESC
+    """, (f_desde, f_hasta)).fetchall()
+    for ri, r in enumerate(rows, 2):
+        for ci, val in enumerate(r, 1):
+            ws4.cell(ri, ci, val)
+    _wb_autowidth(ws4)
+
+    # ── 5. Resumen ─────────────────────────────────────────────────────────
+    ws5 = wb.create_sheet('Resumen')
+    _wb_header(ws5, ['Concepto', 'Valor'], color='2E75B6')
+    # totales rápidos
+    tot_ingreso = con.execute(
+        "SELECT ROUND(COALESCE(SUM(monto_usd_bcv),0),2) FROM maestro_operaciones "
+        "WHERE tipo='ingreso' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
+    ).fetchone()[0] or 0
+    tot_egreso = con.execute(
+        "SELECT ROUND(COALESCE(SUM(monto_usd_bcv),0),2) FROM maestro_operaciones "
+        "WHERE tipo='egreso' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
+    ).fetchone()[0] or 0
+    tot_gastos = con.execute(
+        "SELECT ROUND(COALESCE(SUM(monto),0),2) FROM gastos "
+        "WHERE moneda='USD' AND estado='pagado' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
+    ).fetchone()[0] or 0
+    tot_nomina = con.execute(
+        "SELECT ROUND(COALESCE(SUM(monto_usd),0),2) FROM nomina_registros "
+        "WHERE estado IN ('enviado_odoo','descontado') "
+        "AND creado_en BETWEEN ? AND ?", (f_desde, f_hasta)
+    ).fetchone()[0] or 0
+    tot_fiscal = con.execute(
+        "SELECT ROUND(COALESCE(SUM(monto_usd),0),2) FROM pagos_fiscales "
+        "WHERE estado='validado' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
+    ).fetchone()[0] or 0
+    cnt_req = con.execute(
+        "SELECT COUNT(*) FROM requisiciones "
+        "WHERE creado_en BETWEEN ? AND ?", (f_desde, f_hasta)
+    ).fetchone()[0] or 0
+
+    resumen = [
+        ('Período analizado', f'{f_desde}  →  {f_hasta}'),
+        ('', ''),
+        ('Total Ingresos USD (Maestro)',  float(tot_ingreso)),
+        ('Total Egresos USD (Maestro)',   float(tot_egreso)),
+        ('Balance neto USD',              round(float(tot_ingreso) - float(tot_egreso), 2)),
+        ('', ''),
+        ('Gastos pagados USD',            float(tot_gastos)),
+        ('Nómina ejecutada USD',          float(tot_nomina)),
+        ('Pagos fiscales validados USD',  float(tot_fiscal)),
+        ('Requisiciones creadas',         int(cnt_req)),
+        ('', ''),
+        ('Generado el', hoy),
+    ]
+    for ri, (concepto, valor) in enumerate(resumen, 2):
+        ws5.cell(ri, 1, concepto)
+        ws5.cell(ri, 2, valor)
+        if concepto in ('Balance neto USD',):
+            from openpyxl.styles import Font
+            ws5.cell(ri, 2).font = Font(bold=True,
+                color='375623' if float(valor) >= 0 else 'C00000')
+    _wb_autowidth(ws5)
+    con.close()
+
+    nombre_archivo = f'consolidado_{f_desde}_{f_hasta}.xlsx'
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={nombre_archivo}'}
+    )

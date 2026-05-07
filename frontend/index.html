@@ -744,6 +744,7 @@
           <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="abrirMapeoCats()" title="Mapeo categorías → Odoo">⚙ Cuentas Odoo</button>
           <button class="btn btn-outline" style="color:var(--primary)" onclick="abrirSaldosBanco()" title="Ver saldos por banco/caja">⚖ Saldos</button>
           <button class="btn btn-outline" style="color:#6c757d;font-size:.78rem" onclick="toggleSaldosOdoo()" title="Comparar saldos app vs Odoo">📊 vs Odoo</button>
+          <button class="btn btn-success" style="font-size:.78rem" onclick="exportarConsolidado()" title="Descargar Excel con Maestro, Gastos, Nómina y Pagos Fiscales del período">⬇ Excel consolidado</button>
         </div>
       </div>
     </div>
@@ -4231,6 +4232,19 @@ async function exportarExcel() {
   window.open('/reportes/ventas/exportar-excel', '_blank');
 }
 
+function exportarConsolidado() {
+  // Lee los filtros de fecha del Maestro; si no hay, usa mes actual
+  const desde = document.getElementById('mf-desde')?.value;
+  const hasta = document.getElementById('mf-hasta')?.value;
+  const hoy   = new Date().toISOString().slice(0, 10);
+  const mesIni = hoy.slice(0, 7) + '-01';
+  const params = new URLSearchParams({
+    desde: desde || mesIni,
+    hasta: hasta || hoy,
+  });
+  window.open(`/reportes/exportar-excel-consolidado?${params}`, '_blank');
+}
+
 // ── CRÉDITOS CLIENTE ──────────────────────────────────────────────────────────
 
 let _creditosData = [];
@@ -5134,6 +5148,7 @@ async function loadRequisiciones() {
           <button class="btn btn-sm btn-outline" onclick="verRequisicion(${r.id})">Ver</button>
           ${r.estado==='solicitada' ? `
             <button class="btn btn-sm btn-success" onclick="abrirAprobarReq(${r.id})" style="margin-left:4px">Aprobar</button>
+            <button class="btn btn-sm btn-danger" onclick="rechazarReqDirecto(${r.id})" style="margin-left:4px">Rechazar</button>
           ` : ''}
           ${r.estado==='aprobada' ? `
             <button class="btn btn-sm btn-primary" onclick="abrirEjecutarReq(${r.id})" style="margin-left:4px">Ejecutar</button>

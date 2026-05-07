@@ -25,7 +25,11 @@ from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/requisiciones', tags=['requisiciones'])
 
-MOTIVOS = ('muestra', 'obsequio', 'daño', 'uso_empleado', 'uso_empresa')
+MOTIVOS = (
+    'muestra', 'obsequio', 'daño', 'uso_empleado', 'uso_empresa',
+    # Móvil / solicitudes rápidas
+    'materiales', 'herramientas', 'servicios', 'transporte', 'otros',
+)
 
 
 def _get_req_or_404(con, req_id: int) -> dict:
@@ -105,15 +109,23 @@ def crear(body: dict, user=Depends(get_current_user)):
       ]
     }
     """
-    reqs = ['empleado_nombre', 'motivo', 'lineas']
-    for f in reqs:
+    for f in ['empleado_nombre', 'motivo']:
         if not body.get(f):
             raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
     if body['motivo'] not in MOTIVOS:
         raise HTTPException(status_code=400,
                             detail=f'Motivo inválido. Válidos: {", ".join(MOTIVOS)}')
-    if not isinstance(body['lineas'], list) or not body['lineas']:
-        raise HTTPException(status_code=400, detail='Debe incluir al menos una línea')
+
+    # lineas opcional: si no viene se auto-genera una línea desde descripción/monto
+    lineas = body.get('lineas') or []
+    if not isinstance(lineas, list) or not lineas:
+        lineas = [{
+            'producto_nombre': body.get('descripcion') or 'Solicitud general',
+            'producto_ref': '',
+            'cantidad': 1,
+            'unidad': 'unidades',
+            'costo_unitario': float(body.get('monto_estimado') or 0),
+        }]
 
     ahora = datetime.utcnow().isoformat()
     con = get_con()
@@ -138,7 +150,7 @@ def crear(body: dict, user=Depends(get_current_user)):
     ))
     req_id = cur.lastrowid
 
-    for l in body['lineas']:
+    for l in lineas:
         if not l.get('producto_nombre') or not l.get('cantidad'):
             continue
         con.execute("""
