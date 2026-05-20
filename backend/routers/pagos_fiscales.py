@@ -10,7 +10,7 @@ Flujo:
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -95,7 +95,7 @@ def update_config(tipo: str, body: dict,
         body.get('odoo_cuenta_haber_nombre') or '',
         int(body['odoo_journal_id']) if body.get('odoo_journal_id') else None,
         body.get('odoo_journal_nombre') or '',
-        datetime.utcnow().isoformat(), tipo
+        datetime.now(timezone.utc).isoformat(), tipo
     ))
     con.commit()
     row = row_to_dict(con.execute(
@@ -143,7 +143,7 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
         raise HTTPException(status_code=400,
                             detail=f'Tipo inválido. Válidos: {", ".join(TIPOS_FISCAL)}')
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
 
     # Auto-lookup: si no se enviaron cuentas, intentar desde config del tipo

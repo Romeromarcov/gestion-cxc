@@ -16,7 +16,7 @@ Flujo:
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -127,7 +127,7 @@ def crear(body: dict, user=Depends(get_current_user)):
             'costo_unitario': float(body.get('monto_estimado') or 0),
         }]
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
     cur = con.execute("""
         INSERT INTO requisiciones
@@ -233,7 +233,7 @@ def aprobar(req_id: int, body: dict = None,
         raise HTTPException(status_code=400,
                             detail=f'No se puede aprobar una requisición en estado "{req["estado"]}"')
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     notas = body.get('notas_aprobacion') or ''
     aprobador_nombre = user.get('nombre') or user.get('username') or str(user['id'])
     con.execute("""
@@ -260,7 +260,7 @@ def rechazar(req_id: int, body: dict = None,
         raise HTTPException(status_code=400,
                             detail=f'No se puede rechazar una requisición en estado "{req["estado"]}"')
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     con.execute("""
         UPDATE requisiciones
         SET estado='rechazada', aprobado_por=?, fecha_aprobacion=?, notas_aprobacion=?
@@ -354,7 +354,7 @@ def ejecutar(req_id: int, body: dict = None,
         ]
         try:
             move_id = odoo.crear_asiento_contable(
-                fecha=datetime.utcnow().strftime('%Y-%m-%d'),
+                fecha=datetime.now(timezone.utc).strftime('%Y-%m-%d'),
                 lineas=lineas_asiento,
                 ref=desc_asiento,
                 diario_id=int(journal_id) if journal_id else None,
@@ -374,7 +374,7 @@ def ejecutar(req_id: int, body: dict = None,
                  descripcion, tasa_bcv, monto_usd_bcv, tasa_real, monto_real_usd,
                  origen, estado)
             VALUES (?,?,?,'egreso','Requisición',?,?,?,?,?,?,'requisicion','registrado')
-        """, (datetime.utcnow().strftime('%Y-%m-%d'),
+        """, (datetime.now(timezone.utc).strftime('%Y-%m-%d'),
               total_costo, 'USD',
               req['motivo'],
               req.get('descripcion') or f"Req #{req_id}",

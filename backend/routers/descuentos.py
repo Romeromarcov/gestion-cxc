@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -198,7 +198,7 @@ def aprobar_nota(nota_id: int, user=Depends(require_roles('gerente', 'admin'))):
         SET estado='aprobada', aprobado_por=?, aprobado_en=?,
             aplicado_odoo=0, aplicado_factura=0
         WHERE id=?
-    """, (user['id'], datetime.utcnow().isoformat(), nota_id))
+    """, (user['id'], datetime.now(timezone.utc).isoformat(), nota_id))
     con.execute("""
         UPDATE notas_credito_lineas
         SET descuento_aprobado = descuento_propuesto

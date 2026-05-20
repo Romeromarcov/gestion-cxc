@@ -8,7 +8,7 @@ Flujo:
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -98,7 +98,7 @@ def crear_cambio(body: dict, user=Depends(require_roles('gerente', 'admin'))):
     if body['moneda_egreso'] == body['moneda_ingreso']:
         raise HTTPException(status_code=400, detail='Las monedas de egreso e ingreso deben ser diferentes')
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
     cur = con.execute("""
         INSERT INTO cambios_divisa

@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI
@@ -11,12 +12,20 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from database import init_db
 from services.tasas_cambio import obtener_tasa_bcv
+from config import ALLOWED_ORIGINS
 from routers import (auth, ventas, descuentos, promociones,
                      pagos, inventario,
                      precios, reportes, config_app, maestro,
                      cobranza, acuerdos_pago, replicas, creditos,
                      cambios_divisa, pagos_fiscales, requisiciones,
                      zelle_terceros, gastos, nomina, compras_odoo)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s — %(message)s',
+    datefmt='%Y-%m-%dT%H:%M:%S',
+)
+logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
 
@@ -46,10 +55,10 @@ async def sync_pagos_odoo():
                     )
                     con.commit()
                     con.close()
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as e:
+                logger.warning('sync_pagos_odoo: error en pago %s — %s', pago.get('id'), e)
+    except Exception as e:
+        logger.error('sync_pagos_odoo: fallo general — %s', e)
 
 
 async def auto_sync_pagos_clientes():
@@ -121,8 +130,8 @@ async def auto_sync_pagos_clientes():
             ))
         con.commit()
         con.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error('auto_sync_pagos_clientes: fallo general — %s', e)
 
 
 async def auto_sync_conciliacion():
@@ -160,8 +169,8 @@ async def auto_sync_conciliacion():
                 )
         con.commit()
         con.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error('auto_sync_conciliacion: fallo general — %s', e)
 
 
 @asynccontextmanager
@@ -185,7 +194,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

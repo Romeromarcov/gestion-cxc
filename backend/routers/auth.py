@@ -1,8 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+import time
+import logging
+from collections import defaultdict
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 import jwt as pyjwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database import get_con
 from models.operaciones import LoginRequest, UsuarioCreate, UsuarioUpdate
 from models.schemas import row_to_dict, rows_to_list
@@ -11,13 +14,29 @@ from config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_HOURS
 router = APIRouter(prefix='/auth', tags=['auth'])
 security = HTTPBearer()
 pwd_ctx = CryptContext(schemes=['bcrypt'], deprecated='auto')
+logger = logging.getLogger(__name__)
 
 ALGORITHM = 'HS256'
+
+# Rate limiting: máx 5 intentos de login por IP en ventana de 60 segundos
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_RATE_LIMIT_MAX = 5
+_RATE_LIMIT_WINDOW = 60.0
+
+
+def _check_rate_limit(ip: str) -> None:
+    now = time.monotonic()
+    attempts = _login_attempts[ip]
+    _login_attempts[ip] = [t for t in attempts if now - t < _RATE_LIMIT_WINDOW]
+    if len(_login_attempts[ip]) >= _RATE_LIMIT_MAX:
+        logger.warning('rate limit de login alcanzado para IP %s', ip)
+        raise HTTPException(status_code=429, detail='Demasiados intentos. Intenta en 60 segundos.')
+    _login_attempts[ip].append(now)
 
 
 def create_token(data: dict) -> str:
     payload = data.copy()
-    payload['exp'] = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    payload['exp'] = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     return pyjwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -52,14 +71,19 @@ def require_roles(*roles):
 # ── ENDPOINTS ────────────────────────────────────────────────────────────────
 
 @router.post('/login')
-def login(body: LoginRequest):
+def login(body: LoginRequest, request: Request):
+    ip = request.client.host if request.client else 'unknown'
+    _check_rate_limit(ip)
     con = get_con()
     user = row_to_dict(con.execute(
         "SELECT * FROM usuarios WHERE email=? AND activo=1", (body.email,)
     ).fetchone())
     con.close()
     if not user or not pwd_ctx.verify(body.password, user['password_hash']):
+        logger.warning('intento de login fallido para email=%s desde IP=%s', body.email, ip)
         raise HTTPException(status_code=401, detail='Credenciales incorrectas')
+    # login exitoso: limpiar contador de intentos
+    _login_attempts.pop(ip, None)
     token = create_token({'sub': user['id'], 'rol': user['rol']})
     return {'access_token': token, 'token_type': 'bearer',
             'usuario': {'id': user['id'], 'nombre': user['nombre'],

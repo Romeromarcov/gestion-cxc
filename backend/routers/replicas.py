@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -133,7 +133,7 @@ def _sync_orden(odoo, con, order_name: str, cfg: dict) -> dict:
     total_lista_usd = sum_sub_usd + sum_tax_usd
 
     # Upsert réplica
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     existing = con.execute(
         "SELECT id FROM ordenes_replica WHERE odoo_order_name=?", (order_name,)
     ).fetchone()
@@ -229,14 +229,14 @@ def sync_replicas(user=Depends(require_roles('gerente', 'admin'))):
             updated = con.execute("""
                 UPDATE ordenes_replica SET estado='inactiva', actualizado_en=?
                 WHERE odoo_order_name=? AND estado='activa'
-            """, (datetime.utcnow().isoformat(), order_name)).rowcount
+            """, (datetime.now(timezone.utc).isoformat(), order_name)).rowcount
             if updated:
                 desactivadas += updated
             continue
 
         result = _sync_orden(odoo, con, order_name, cfg)
         if result['estado'] == 'error':
-            ahora = datetime.utcnow().isoformat()
+            ahora = datetime.now(timezone.utc).isoformat()
             existing = con.execute(
                 "SELECT id FROM ordenes_replica WHERE odoo_order_name=?", (order_name,)
             ).fetchone()
@@ -322,7 +322,7 @@ def reintentar_replica(order_name: str, user=Depends(require_roles('gerente', 'a
                             detail='Solo se puede reintentar réplicas en estado error')
 
     result = _sync_orden(odoo, con, order_name, cfg)
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     if result['estado'] == 'error':
         con.execute("""
             UPDATE ordenes_replica SET estado='error', error_detalle=?, actualizado_en=?

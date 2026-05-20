@@ -1,4 +1,5 @@
 import io
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from database import get_con
@@ -7,6 +8,8 @@ from routers.ventas import get_odoo
 from routers.precios import precio_con_lista
 from models.schemas import rows_to_list
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy, tasa_bcv_en_fecha
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/reportes', tags=['reportes'])
 
@@ -269,7 +272,8 @@ def reporte_cxc(lista_id: int = None,
 
     try:
         ventas_odoo = odoo.get_ventas()
-    except Exception:
+    except Exception as e:
+        logger.warning('reportes: get_ventas falló — %s', e)
         ventas_odoo = []
 
     con = get_con()
@@ -300,7 +304,8 @@ def reporte_cxc(lista_id: int = None,
     try:
         order_names    = [v['name'] for v in ventas_odoo]
         facturas_map   = odoo.get_facturas_por_orden(order_names)
-    except Exception:
+    except Exception as e:
+        logger.warning('reportes: get_facturas_por_orden falló — %s', e)
         facturas_map   = {}
 
     resultado = []
@@ -534,7 +539,8 @@ def reporte_ventas(vendedor_id: int = None, cliente: str = None,
     odoo = get_odoo()
     try:
         ventas_odoo = odoo.get_ventas()
-    except Exception:
+    except Exception as e:
+        logger.warning('reportes: get_ventas falló — %s', e)
         ventas_odoo = []
 
     con = get_con()

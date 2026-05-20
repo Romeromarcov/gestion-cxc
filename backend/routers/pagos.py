@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -80,7 +80,7 @@ def registrar_pago(body: PagoCreate, user=Depends(get_current_user)):
             '',                          # cliente_nombre: se puede editar desde Zelle
             body.odoo_order_name or '',
             pago_id, user['id'],
-            datetime.utcnow().isoformat()
+            datetime.now(timezone.utc).isoformat()
         ))
         con.commit()
 
@@ -129,7 +129,7 @@ def marcar_recibido(pago_id: int, user=Depends(require_roles('gerente', 'admin')
     con.execute("""
         UPDATE pagos SET estado='recibido', recibido_por=?, recibido_en=?
         WHERE id=?
-    """, (user['id'], datetime.utcnow().isoformat(), pago_id))
+    """, (user['id'], datetime.now(timezone.utc).isoformat(), pago_id))
 
     # Auto-registro en maestro de operaciones como ingreso de cobranza
     _registrar_en_maestro(con, pago, user['id'])

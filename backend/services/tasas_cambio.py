@@ -1,7 +1,10 @@
 import httpx
 import re
+import logging
 from datetime import date
 from database import get_con
+
+logger = logging.getLogger(__name__)
 
 
 async def obtener_tasa_bcv():
@@ -12,8 +15,7 @@ async def obtener_tasa_bcv():
         'Accept-Language': 'es-VE,es;q=0.9',
     }
     try:
-        async with httpx.AsyncClient(timeout=20, verify=False,
-                                     follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
             r = await client.get(url, headers=headers)
         html = r.text
 
@@ -36,8 +38,8 @@ async def obtener_tasa_bcv():
                 strong = div_eur.find('strong')
                 if strong:
                     tasa_eur = float(strong.get_text(strip=True).replace(',', '.'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning('obtener_tasa_bcv: BeautifulSoup parse error — %s', e)
 
         # Método 2: regex como fallback
         if not tasa_usd:
@@ -78,10 +80,14 @@ async def obtener_tasa_bcv():
 
         resultado = {'fecha': hoy, 'usd_ves': tasa_usd, 'eur_ves': tasa_eur}
         if not tasa_usd and not tasa_eur:
+            logger.warning('obtener_tasa_bcv: no se encontraron tasas en el HTML del BCV')
             resultado['advertencia'] = 'No se encontraron tasas en el HTML del BCV'
+        else:
+            logger.info('obtener_tasa_bcv: USD=%s EUR=%s', tasa_usd, tasa_eur)
         return resultado
 
     except Exception as e:
+        logger.error('obtener_tasa_bcv: error al consultar BCV — %s', e)
         return {'error': str(e)}
 
 

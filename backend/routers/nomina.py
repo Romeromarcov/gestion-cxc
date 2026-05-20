@@ -16,7 +16,7 @@ Todo elemento tiene cuenta contable configurable en nomina_config_cuentas.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -140,7 +140,7 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
             body.setdefault('odoo_cuenta_gasto_codigo', cfg.get('odoo_cuenta_gasto_codigo'))
             body.setdefault('odoo_journal_id', cfg.get('odoo_journal_id'))
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
         INSERT INTO nomina_registros
             (periodo, tipo, descripcion, origen,
@@ -336,7 +336,7 @@ def importar_odoo(body: dict, user=Depends(require_roles('gerente', 'admin'))):
         "SELECT odoo_payslip_batch_id FROM nomina_registros WHERE odoo_payslip_batch_id IS NOT NULL"
     ).fetchall()}
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     importados = 0
     for b in batches:
         if b['id'] in ya_importados:
@@ -404,7 +404,7 @@ def crear_tercero(body: dict, user=Depends(require_roles('gerente', 'admin'))):
         if not body.get(f):
             raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
     con = get_con()
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
         INSERT INTO nomina_terceros
             (nomina_id, periodo, descripcion, empleado_nombre, monto, moneda,

@@ -11,7 +11,7 @@ Configuración contable por categoría → tabla gastos_config_cuentas.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -211,7 +211,7 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
             body.setdefault('odoo_cuenta_gasto_codigo', cfg.get('odoo_cuenta_gasto_codigo'))
             body.setdefault('odoo_journal_id', cfg.get('odoo_journal_id'))
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
         INSERT INTO gastos
             (tipo, categoria, subcategoria, descripcion, proveedor_nombre, proveedor_odoo_id,
@@ -327,7 +327,7 @@ def pagar(gasto_id: int, body: dict = None,
     maestro_id = cur.lastrowid
 
     if g.get('es_recurrente'):
-        periodo = body.get('periodo') or datetime.utcnow().strftime('%Y-%m')
+        periodo = body.get('periodo') or datetime.now(timezone.utc).strftime('%Y-%m')
         con.execute("""
             INSERT OR REPLACE INTO gastos_pagos_mensuales
                 (gasto_id, periodo, monto_pagado, fecha_pago, referencia, maestro_op_id, estado)
@@ -361,7 +361,7 @@ def enviar_odoo(gasto_id: int, body: dict = None,
 
     pago_mensual = None
     if g.get('es_recurrente'):
-        periodo = body.get('periodo') or datetime.utcnow().strftime('%Y-%m')
+        periodo = body.get('periodo') or datetime.now(timezone.utc).strftime('%Y-%m')
         pago_mensual = row_to_dict(con.execute(
             "SELECT * FROM gastos_pagos_mensuales WHERE gasto_id=? AND periodo=?",
             (gasto_id, periodo)

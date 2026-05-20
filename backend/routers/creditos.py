@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from models.schemas import rows_to_list, row_to_dict
@@ -139,7 +139,7 @@ def crear_credito(body: dict, user=Depends(require_roles('gerente', 'admin'))):
         raise HTTPException(status_code=400, detail='motivo inválido')
 
     con = get_con()
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
         INSERT INTO creditos_cliente
             (partner_id, partner_nombre, odoo_order_name, monto, moneda,
@@ -187,7 +187,7 @@ def aplicar_credito(credito_id: int, body: dict,
             detail=f'No se puede aplicar un crédito en estado "{credito["estado"]}"'
         )
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     notas_extra = body.get('notas') or ''
     notas_nueva = f"{credito.get('notas') or ''}\n[Aplicado {ahora}] {notas_extra}".strip()
 
@@ -215,7 +215,7 @@ def devolver_credito(credito_id: int, body: dict = None,
             detail=f'No se puede devolver un crédito en estado "{credito["estado"]}"'
         )
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     notas_extra = (body or {}).get('notas') or ''
     notas_nueva = f"{credito.get('notas') or ''}\n[Devuelto {ahora}] {notas_extra}".strip()
 
@@ -243,7 +243,7 @@ def anular_credito(credito_id: int, body: dict = None,
             detail=f'Solo se pueden anular créditos disponibles'
         )
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     notas_extra = (body or {}).get('notas') or ''
     notas_nueva = f"{credito.get('notas') or ''}\n[Anulado {ahora}] {notas_extra}".strip()
 

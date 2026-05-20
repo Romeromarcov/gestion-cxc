@@ -12,7 +12,7 @@ Flujo:
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
@@ -92,7 +92,7 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
         if not body.get(f):
             raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
 
-    ahora = datetime.utcnow().isoformat()
+    ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
     cur = con.execute("""
         INSERT INTO zelle_terceros

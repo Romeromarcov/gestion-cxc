@@ -1,5 +1,8 @@
 import sqlite3
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # DATA_DIR puede sobreescribirse con variable de entorno (ej: Railway Volume en /app/data)
 _data_dir = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(__file__), '..', 'data'))
@@ -989,7 +992,12 @@ def _seed(con):
     except Exception:
         pw_hash = hashlib.sha256(b'admin1234').hexdigest()
 
-    con.execute("""INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol)
+    inserted = con.execute("""INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol)
                    VALUES(?,?,?,?)""",
                 ('Administrador', 'admin@gestioncxc.local', pw_hash, 'admin'))
+    if inserted.rowcount:
+        logger.warning(
+            'Usuario admin creado con contraseña por defecto (admin1234). '
+            'Cámbiala inmediatamente desde la interfaz de administración.'
+        )
     con.commit()
