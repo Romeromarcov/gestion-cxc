@@ -33,3 +33,16 @@ ALLOWED_ORIGINS: list[str] = (
 
 GOOGLE_SHEETS_CRED = os.getenv('GOOGLE_SHEETS_CRED', 'credentials.json')
 GOOGLE_SHEET_ID    = os.getenv('GOOGLE_SHEET_ID', '')
+
+# ── Base de datos ─────────────────────────────────────────────────────────────
+# En desarrollo local apunta a PostgreSQL local (o el servicio 'db' de Docker).
+# En docker-compose el valor se sobreescribe vía la sección `environment:`.
+_DEFAULT_DB = 'postgresql://gestion_user:gestion_pass@localhost:5432/gestion_cxc'
+DATABASE_URL = os.getenv('DATABASE_URL', _DEFAULT_DB)
+if not DATABASE_URL.startswith('postgresql'):
+    warnings.warn(
+        'DATABASE_URL no parece una URL de PostgreSQL. '
+        'Formato esperado: postgresql://usuario:clave@host:5432/base',
+        RuntimeWarning,
+        stacklevel=1,
+    )

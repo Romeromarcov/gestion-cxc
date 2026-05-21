@@ -192,6 +192,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.get('/health', include_in_schema=False)
+def health():
+    """Healthcheck para Docker / Railway. Verifica conexión a la BD."""
+    try:
+        from database import get_con
+        con = get_con()
+        con.execute('SELECT 1')
+        con.close()
+        return {'status': 'ok', 'db': 'connected'}
+    except Exception as e:
+        from fastapi import Response
+        return Response(
+            content=f'{{"status":"error","detail":"{e}"}}',
+            status_code=503,
+            media_type='application/json',
+        )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,

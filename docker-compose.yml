@@ -1,0 +1,51 @@
+services:
+
+  # ── Base de datos PostgreSQL ─────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       gestion_cxc
+      POSTGRES_USER:     gestion_user
+      POSTGRES_PASSWORD: gestion_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"       # expuesto para acceso con DBeaver/pgAdmin en desarrollo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestion_user -d gestion_cxc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Aplicación FastAPI ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      # Sobreescribe DATABASE_URL del .env para apuntar al servicio 'db'
+      DATABASE_URL: postgresql://gestion_user:gestion_pass@db:5432/gestion_cxc
+    depends_on:
+      db:
+        condition: service_healthy
+    develop:
+      # Hot-reload del código fuente en desarrollo
+      watch:
+        - action: sync+restart
+          path: ./backend
+          target: /app/backend
+        - action: sync+restart
+          path: ./frontend
+          target: /app/frontend
+
+
+volumes:
+  postgres_data:
+    driver: local

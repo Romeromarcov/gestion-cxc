@@ -1,0 +1,49 @@
+# Secretos y datos locales — NUNCA en la imagen
+.env
+backend/.env
+credentials.json
+token.json
+service_account.json
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# IDE y OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# CI / deploy
+.github/
+railway.json
+Procfile
+runtime.txt
+nixpacks.toml
+
+# Docs y binarios
+*.md
+*.docx
+*.xlsx
+*.pptx
+check_routes.js
+fix_venc.py

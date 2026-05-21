@@ -1,19 +1,15 @@
-import sqlite3
-import os
 import logging
 
 logger = logging.getLogger(__name__)
 
-# DATA_DIR puede sobreescribirse con variable de entorno (ej: Railway Volume en /app/data)
-_data_dir = os.environ.get('DATA_DIR', os.path.join(os.path.dirname(__file__), '..', 'data'))
-DB = os.path.join(_data_dir, 'gestion_cxc.db')
-
 
 def get_con():
-    con = sqlite3.connect(DB)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA foreign_keys = ON")
-    return con
+    """Devuelve una conexión PostgreSQL envuelta en el adaptador sqlite3-compatible."""
+    import psycopg2
+    from config import DATABASE_URL
+    from db_adapter import CompatConnection
+    pg = psycopg2.connect(DATABASE_URL)
+    return CompatConnection(pg)
 
 
 def migrate(con):
@@ -804,8 +800,8 @@ def migrate_v27(con):
 
 
 def init_db():
-    os.makedirs(os.path.dirname(DB), exist_ok=True)
-    con = sqlite3.connect(DB)
+    con = get_con()
+    # El adaptador traduce AUTOINCREMENT→SERIAL y omite los PRAGMA de SQLite
     con.executescript('''
     PRAGMA foreign_keys = ON;
 
