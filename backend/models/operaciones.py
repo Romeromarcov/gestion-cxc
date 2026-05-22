@@ -137,3 +137,54 @@ class ProductoExtraUpdate(BaseModel):
     marca: Optional[str] = None
     categoria_local: Optional[str] = None
     datos_extra: Optional[str] = None
+
+
+# ── MÓDULO INTERNO (ventas / compras / inventario / CxP) ──────────────────────
+
+class VentaInternaCreate(BaseModel):
+    cliente_nombre: str
+    cliente_id_odoo: Optional[int] = None
+    notas: Optional[str] = None
+
+
+class LineaVentaInterna(BaseModel):
+    producto_codigo: str
+    producto_nombre: str
+    cantidad: float
+    precio_unitario: float
+    descuento_pct: float = 0.0
+
+
+class ProductoInventario(BaseModel):
+    producto_codigo: str
+    producto_nombre: str
+    stock_actual: float = 0
+    costo_usd: Optional[float] = None
+
+
+class AjusteInventario(BaseModel):
+    cantidad_delta: float
+    motivo: Optional[str] = None
+
+
+class LineaCompraInterna(BaseModel):
+    producto_codigo: str
+    producto_nombre: str
+    cantidad: float
+    costo_unitario: float
+
+
+class CompraInternaCreate(BaseModel):
+    proveedor: str
+    fecha: str
+    total_usd: float
+    lineas: List[LineaCompraInterna] = []
+
+
+class PagoCxPCreate(BaseModel):
+    monto: float
+    moneda: str = 'USD'
+    metodo: str
+    referencia: Optional[str] = None
+    fecha_pago: Optional[str] = None
+    notas: Optional[str] = None

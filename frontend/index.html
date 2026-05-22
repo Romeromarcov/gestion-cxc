@@ -250,6 +250,24 @@
       <span class="ico">📦</span> Catálogo Productos
     </a>
 
+    <!-- Módulo Interno — oculto hasta que modulo_interno_activo=1 -->
+    <div id="nav-modulo-interno" style="display:none">
+      <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                  letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Módulo Interno</div>
+      <a href="#" onclick="showView('ventas-internas')" data-roles="gerente,admin,vendedor">
+        <span class="ico">🧾</span> Ventas Internas
+      </a>
+      <a href="#" onclick="showView('compras-internas')" data-roles="gerente,admin">
+        <span class="ico">📥</span> Compras Internas
+      </a>
+      <a href="#" onclick="showView('inv-interno')" data-roles="gerente,admin">
+        <span class="ico">🏗️</span> Inventario Interno
+      </a>
+      <a href="#" onclick="showView('cxp-internas')" data-roles="gerente,admin">
+        <span class="ico">💸</span> CxP Internas
+      </a>
+    </div>
+
     <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
                 letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Comercial</div>
     <a href="#" onclick="showView('precios')" data-roles="gerente,admin">
@@ -657,6 +675,37 @@
         <button class="btn btn-primary" onclick="guardarConfigApp()">Guardar Configuración</button>
       </div>
 
+      <!-- Módulo Interno — Feature flag -->
+      <div class="form-section" style="grid-column:1/-1" id="cfg-modulo-interno-section">
+        <h3>🏗️ Módulo Interno</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+          Habilita el registro de <strong>Ventas Internas</strong>,
+          <strong>Compras Internas</strong>, <strong>Inventario Interno</strong>
+          y <strong>Cuentas por Pagar</strong> directamente en la aplicación,
+          sin pasar por Odoo.
+        </p>
+        <div style="display:flex;align-items:center;gap:16px">
+          <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <div style="position:relative">
+              <input type="checkbox" id="toggle-modulo-interno"
+                     onchange="toggleModuloInterno(this.checked)"
+                     style="opacity:0;width:0;height:0;position:absolute">
+              <div id="toggle-modulo-slider"
+                   style="width:46px;height:24px;background:#ccc;border-radius:12px;
+                          transition:background .2s;position:relative;cursor:pointer"
+                   onclick="document.getElementById('toggle-modulo-interno').click()">
+                <div id="toggle-modulo-knob"
+                     style="width:20px;height:20px;background:#fff;border-radius:50%;
+                            position:absolute;top:2px;left:2px;transition:left .2s;
+                            box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>
+              </div>
+            </div>
+            <span id="toggle-modulo-label" style="font-size:.92rem;font-weight:600">Módulo desactivado</span>
+          </label>
+          <span id="toggle-modulo-saving" style="font-size:.8rem;color:var(--muted);display:none">Guardando…</span>
+        </div>
+      </div>
+
       <!-- Notas de Crédito — Condiciones múltiples -->
       <div class="form-section" style="grid-column:1/-1">
         <h3>Condiciones para Notas de Crédito</h3>
@@ -666,6 +715,222 @@
         </p>
         <button class="btn btn-primary" style="margin-bottom:12px" onclick="showModal('modal-nueva-nc-cond')">+ Nueva Condición</button>
         <div id="tb-nc-condiciones">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- MÓDULO INTERNO                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- ── VENTAS INTERNAS ── -->
+  <div id="view-ventas-internas" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div></div>
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-venta-interna')">+ Nueva Venta</button>
+    </div>
+    <!-- KPI cards -->
+    <div class="cards-row">
+      <div class="card"><div class="num" id="vi-total-borradores">—</div><div class="lbl">En borrador</div></div>
+      <div class="card"><div class="num" id="vi-total-confirmadas" style="color:var(--success)">—</div><div class="lbl">Confirmadas (mes)</div></div>
+      <div class="card"><div class="num" id="vi-monto-mes" style="color:var(--primary)">—</div><div class="lbl">Monto mes (USD)</div></div>
+    </div>
+    <div class="form-section">
+      <div class="filters" style="margin-bottom:12px">
+        <select id="vi-filtro-estado" onchange="loadVentasInternas()">
+          <option value="">Todos los estados</option>
+          <option value="borrador">Borrador</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="anulada">Anulada</option>
+        </select>
+        <input id="vi-filtro-cliente" placeholder="Buscar cliente…" oninput="loadVentasInternas()" style="width:200px">
+      </div>
+      <div id="tb-ventas-internas">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── COMPRAS INTERNAS ── -->
+  <div id="view-compras-internas" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div></div>
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-compra-interna')">+ Nueva Compra</button>
+    </div>
+    <div class="form-section">
+      <div id="tb-compras-internas">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── INVENTARIO INTERNO ── -->
+  <div id="view-inv-interno" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div></div>
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-producto-inv')">+ Agregar Producto</button>
+    </div>
+    <!-- KPI cards -->
+    <div class="cards-row">
+      <div class="card"><div class="num" id="inv-total-productos">—</div><div class="lbl">Productos</div></div>
+      <div class="card"><div class="num" id="inv-stock-cero" style="color:var(--danger)">—</div><div class="lbl">Sin stock</div></div>
+    </div>
+    <div class="form-section">
+      <input id="inv-filtro" placeholder="Buscar producto…" oninput="loadInventarioInterno()" style="width:240px;margin-bottom:12px">
+      <div id="tb-inventario-interno">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── CxP INTERNAS ── -->
+  <div id="view-cxp-internas" class="view">
+    <!-- KPI cards -->
+    <div class="cards-row">
+      <div class="card"><div class="num" id="cxp-pendiente" style="color:var(--danger)">—</div><div class="lbl">Saldo pendiente (USD)</div></div>
+      <div class="card"><div class="num" id="cxp-vencido" style="color:var(--danger)">—</div><div class="lbl">Vencido (USD)</div></div>
+      <div class="card"><div class="num" id="cxp-pagado" style="color:var(--success)">—</div><div class="lbl">Pagado total (USD)</div></div>
+      <div class="card"><div class="num" id="cxp-count">—</div><div class="lbl">CxP pendientes</div></div>
+    </div>
+    <div class="form-section">
+      <div class="filters" style="margin-bottom:12px">
+        <select id="cxp-filtro-estado" onchange="loadCxPInternas()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="parcial">Parcial</option>
+          <option value="pagada">Pagada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+        <input id="cxp-filtro-proveedor" placeholder="Buscar proveedor…" oninput="loadCxPInternas()" style="width:200px">
+      </div>
+      <div id="tb-cxp-internas">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ── MODALES MÓDULO INTERNO ── -->
+
+  <!-- Modal: Nueva Venta Interna -->
+  <div id="modal-nueva-venta-interna" class="modal" style="display:none">
+    <div class="modal-box" style="max-width:500px">
+      <h3>Nueva Venta Interna</h3>
+      <div class="form-group"><label>Cliente *</label><input id="vi-cliente-nombre" placeholder="Nombre del cliente"></div>
+      <div class="form-group"><label>Notas</label><textarea id="vi-notas" rows="2"></textarea></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="crearVentaInterna()">Crear Venta</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-nueva-venta-interna')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Detalle / Agregar líneas a Venta Interna -->
+  <div id="modal-detalle-venta-interna" class="modal" style="display:none">
+    <div class="modal-box" style="max-width:700px">
+      <h3 id="vi-detalle-titulo">Venta Interna</h3>
+      <div id="vi-detalle-info" style="margin-bottom:12px;font-size:.85rem;color:var(--muted)"></div>
+      <div id="vi-detalle-lineas" style="margin-bottom:16px"></div>
+      <div id="vi-agregar-linea-form">
+        <h4 style="margin-bottom:8px">Agregar línea</h4>
+        <div class="form-row">
+          <div class="form-group"><label>Código</label><input id="vil-codigo" placeholder="PROD-001"></div>
+          <div class="form-group"><label>Nombre</label><input id="vil-nombre" placeholder="Descripción"></div>
+          <div class="form-group"><label>Cantidad</label><input id="vil-cantidad" type="number" value="1" min="0.01" step="0.01"></div>
+          <div class="form-group"><label>Precio USD</label><input id="vil-precio" type="number" step="0.01" min="0"></div>
+          <div class="form-group"><label>Desc. %</label><input id="vil-desc" type="number" value="0" min="0" max="100"></div>
+        </div>
+        <button class="btn btn-primary" onclick="agregarLineaVentaInterna()">+ Línea</button>
+      </div>
+      <div id="vi-acciones" style="display:flex;gap:10px;margin-top:16px"></div>
+      <button class="btn btn-outline" onclick="closeModal('modal-detalle-venta-interna')" style="margin-top:10px">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Nueva Compra Interna -->
+  <div id="modal-nueva-compra-interna" class="modal" style="display:none">
+    <div class="modal-box" style="max-width:640px">
+      <h3>Nueva Compra Interna</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Proveedor *</label><input id="ci-proveedor" placeholder="Nombre del proveedor"></div>
+        <div class="form-group"><label>Fecha *</label><input id="ci-fecha" type="date"></div>
+      </div>
+      <h4 style="margin:12px 0 8px">Líneas de la compra</h4>
+      <div id="ci-lineas-lista"></div>
+      <div class="form-row" style="background:var(--bg);padding:10px;border-radius:8px;margin-top:8px">
+        <div class="form-group"><label>Código</label><input id="ci-l-codigo" placeholder="PROD-001"></div>
+        <div class="form-group"><label>Nombre</label><input id="ci-l-nombre" placeholder="Descripción"></div>
+        <div class="form-group"><label>Cantidad</label><input id="ci-l-cantidad" type="number" value="1" min="0.01" step="0.01"></div>
+        <div class="form-group"><label>Costo USD</label><input id="ci-l-costo" type="number" step="0.01" min="0"></div>
+        <div class="form-group" style="align-self:flex-end">
+          <button class="btn btn-outline" onclick="ciAgregarLinea()">+ Línea</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:.9rem">
+        Total calculado: <strong id="ci-total-calculado">$0.00</strong>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="crearCompraInterna()">Registrar Compra</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-nueva-compra-interna')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Agregar Producto Inventario -->
+  <div id="modal-nuevo-producto-inv" class="modal" style="display:none">
+    <div class="modal-box" style="max-width:460px">
+      <h3>Agregar Producto al Inventario</h3>
+      <div class="form-group"><label>Código *</label><input id="inv-new-codigo" placeholder="PROD-001"></div>
+      <div class="form-group"><label>Nombre *</label><input id="inv-new-nombre" placeholder="Descripción del producto"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Stock inicial</label><input id="inv-new-stock" type="number" value="0" min="0"></div>
+        <div class="form-group"><label>Costo USD</label><input id="inv-new-costo" type="number" step="0.01" min="0"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="crearProductoInventario()">Agregar</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-nuevo-producto-inv')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Ajustar Stock -->
+  <div id="modal-ajustar-stock" class="modal" style="display:none">
+    <div class="modal-box" style="max-width:400px">
+      <h3>Ajustar Stock</h3>
+      <p id="inv-ajuste-nombre" style="font-size:.9rem;margin-bottom:12px;color:var(--muted)"></p>
+      <div class="form-group">
+        <label>Cantidad a sumar/restar (ej: +5 ó -3)</label>
+        <input id="inv-ajuste-delta" type="number" step="0.01" placeholder="0">
+      </div>
+      <div class="form-group"><label>Motivo</label><input id="inv-ajuste-motivo" placeholder="Opcional"></div>
+      <input type="hidden" id="inv-ajuste-codigo">
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="ajustarStock()">Aplicar</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-ajustar-stock')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Registrar Pago CxP -->
+  <div id="modal-pago-cxp" class="modal" style="display:none">
+    <div class="modal-box" style="max-width:460px">
+      <h3>Registrar Pago — CxP</h3>
+      <p id="cxp-pago-info" style="font-size:.85rem;margin-bottom:12px;color:var(--muted)"></p>
+      <div class="form-row">
+        <div class="form-group"><label>Monto *</label><input id="cxp-pago-monto" type="number" step="0.01" min="0.01"></div>
+        <div class="form-group"><label>Moneda</label>
+          <select id="cxp-pago-moneda"><option value="USD">USD</option><option value="VES">VES</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Método *</label>
+          <select id="cxp-pago-metodo">
+            <option value="transferencia">Transferencia</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="pago_movil">Pago Móvil</option>
+            <option value="zelle">Zelle</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Fecha</label><input id="cxp-pago-fecha" type="date"></div>
+      </div>
+      <div class="form-group"><label>Referencia</label><input id="cxp-pago-ref" placeholder="Nro de confirmación"></div>
+      <div class="form-group"><label>Notas</label><textarea id="cxp-pago-notas" rows="2"></textarea></div>
+      <input type="hidden" id="cxp-pago-id">
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="registrarPagoCxP()">Registrar Pago</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-pago-cxp')">Cancelar</button>
       </div>
     </div>
   </div>
@@ -3323,7 +3588,11 @@ function showView(name) {
     cxp: 'CxP — Cuentas por Pagar',
     gastos: 'Gastos y Compromisos',
     nomina: 'Nómina',
-    config: 'Configuración'
+    config: 'Configuración',
+    'ventas-internas':   'Ventas Internas',
+    'compras-internas':  'Compras Internas',
+    'inv-interno':       'Inventario Interno',
+    'cxp-internas':      'Cuentas por Pagar Internas',
   };
   document.getElementById('view-title').textContent = titles[name] || name;
 
@@ -3346,7 +3615,11 @@ function showView(name) {
     cxp: loadCxP,
     gastos: loadGastos,
     nomina: loadNomina,
-    config: loadConfig
+    config: loadConfig,
+    'ventas-internas':  loadVentasInternas,
+    'compras-internas': loadComprasInternas,
+    'inv-interno':      loadInventarioInterno,
+    'cxp-internas':     loadCxPInternas,
   };
   if (loaders[name]) loaders[name]();
 }
@@ -5776,7 +6049,7 @@ async function eliminarItemLista(listaId, itemId) {
 // ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 async function loadConfig() {
   loadMonedas(); loadMetodos(); loadLimitesDesc(); loadUsuarios();
-  loadNcCondiciones(); loadConfigApp();
+  loadNcCondiciones(); loadConfigApp(); loadModuloInternoToggle();
 }
 
 async function loadConfigApp() {
@@ -8337,6 +8610,434 @@ document.addEventListener('click', e => {
 
 // Inicializar estado del campo banco
 toggleBanco();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO INTERNO — Ventas Internas, Compras Internas, Inventario, CxP
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Feature-flag toggle ───────────────────────────────────────────────────
+async function loadModuloInternoToggle() {
+  try {
+    const cfg = await api('GET', '/config/app');
+    if (!cfg) return;
+    const activo = cfg.modulo_interno_activo === '1' || cfg.modulo_interno_activo === 1;
+    _applyModuloInternoUI(activo);
+  } catch(e) {}
+}
+
+function _applyModuloInternoUI(activo) {
+  const chk    = document.getElementById('toggle-modulo-interno');
+  const slider = document.getElementById('toggle-modulo-slider');
+  const knob   = document.getElementById('toggle-modulo-knob');
+  const label  = document.getElementById('toggle-modulo-label');
+  const nav    = document.getElementById('nav-modulo-interno');
+  if (chk) chk.checked = activo;
+  if (slider) slider.style.background = activo ? 'var(--primary, #0d6efd)' : '#ccc';
+  if (knob)   knob.style.left = activo ? '24px' : '2px';
+  if (label)  label.textContent = activo ? 'Módulo activado' : 'Módulo desactivado';
+  if (nav)    nav.style.display = activo ? '' : 'none';
+}
+
+async function toggleModuloInterno(activo) {
+  const saving = document.getElementById('toggle-modulo-saving');
+  if (saving) saving.style.display = '';
+  try {
+    await api('PUT', '/config/app', { modulo_interno_activo: activo ? '1' : '0' });
+    _applyModuloInternoUI(activo);
+  } catch(e) {
+    alert('Error al guardar: ' + e.message);
+    // Revertir
+    const chk = document.getElementById('toggle-modulo-interno');
+    if (chk) { chk.checked = !activo; _applyModuloInternoUI(!activo); }
+  } finally {
+    if (saving) saving.style.display = 'none';
+  }
+}
+
+// ── Ventas Internas ───────────────────────────────────────────────────────
+let _viCurrentId = null;
+
+async function loadVentasInternas() {
+  const estado   = document.getElementById('vi-filtro-estado')?.value || '';
+  const cliente  = document.getElementById('vi-filtro-cliente')?.value?.toLowerCase() || '';
+  const rows     = await api('GET', '/ventas-internas') || [];
+  const filtered = rows.filter(r =>
+    (!estado  || r.estado === estado) &&
+    (!cliente || (r.cliente_nombre||'').toLowerCase().includes(cliente))
+  );
+
+  // KPIs
+  const mes = new Date().toISOString().slice(0, 7);
+  const borr = filtered.filter(r => r.estado === 'borrador').length;
+  const conf = filtered.filter(r => r.estado === 'confirmada' && (r.creado_en||'').startsWith(mes)).length;
+  const monto = filtered
+    .filter(r => r.estado === 'confirmada' && (r.creado_en||'').startsWith(mes))
+    .reduce((s, r) => s + (r.total_usd || 0), 0);
+  const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  setEl('vi-total-borradores',  borr);
+  setEl('vi-total-confirmadas', conf);
+  setEl('vi-monto-mes',         '$' + monto.toFixed(2));
+
+  const stColors = { borrador:'var(--warning)', confirmada:'var(--success)', anulada:'var(--danger)' };
+  const tb = document.getElementById('tb-ventas-internas');
+  if (!tb) return;
+  if (!filtered.length) { tb.innerHTML = '<p style="color:var(--muted)">Sin resultados.</p>'; return; }
+  tb.innerHTML = `<table class="tabla">
+    <thead><tr><th>Código</th><th>Cliente</th><th>Total USD</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
+    <tbody>${filtered.map(r => `<tr>
+      <td><strong>${r.codigo}</strong></td>
+      <td>${r.cliente_nombre}</td>
+      <td>$${(r.total_usd||0).toFixed(2)}</td>
+      <td><span style="color:${stColors[r.estado]||''}">${r.estado}</span></td>
+      <td>${(r.creado_en||'').slice(0,10)}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="abrirDetalleVentaInterna(${r.id})">Ver</button>
+        ${r.estado==='borrador'?`<button class="btn btn-sm btn-primary" onclick="confirmarVentaInterna(${r.id})">Confirmar</button>`:''}
+        ${r.estado!=='anulada'&&r.estado!=='confirmada'?`<button class="btn btn-sm btn-danger" onclick="anularVentaInterna(${r.id})">Anular</button>`:''}
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function crearVentaInterna() {
+  const nombre = document.getElementById('vi-cliente-nombre')?.value?.trim();
+  if (!nombre) { alert('Ingresa el nombre del cliente'); return; }
+  const notas  = document.getElementById('vi-notas')?.value?.trim();
+  const r = await api('POST', '/ventas-internas/crear', { cliente_nombre: nombre, notas: notas || null });
+  if (!r) return;
+  closeModal('modal-nueva-venta-interna');
+  document.getElementById('vi-cliente-nombre').value = '';
+  document.getElementById('vi-notas').value = '';
+  await loadVentasInternas();
+  abrirDetalleVentaInterna(r.id);
+}
+
+async function abrirDetalleVentaInterna(id) {
+  _viCurrentId = id;
+  const data = await api('GET', `/ventas-internas/${id}`);
+  if (!data) return;
+  const stColors = { borrador:'var(--warning)', confirmada:'var(--success)', anulada:'var(--danger)' };
+  document.getElementById('vi-detalle-titulo').textContent = `Venta Interna ${data.codigo}`;
+  document.getElementById('vi-detalle-info').innerHTML =
+    `Cliente: <strong>${data.cliente_nombre}</strong> &nbsp;|&nbsp;
+     Estado: <strong style="color:${stColors[data.estado]||''}">${data.estado}</strong> &nbsp;|&nbsp;
+     Total: <strong>$${(data.total_usd||0).toFixed(2)}</strong>`;
+
+  // Líneas
+  const lineas = data.lineas || [];
+  document.getElementById('vi-detalle-lineas').innerHTML = lineas.length
+    ? `<table class="tabla"><thead><tr><th>Código</th><th>Nombre</th><th>Cant</th><th>Precio</th><th>Desc%</th><th>Subtotal</th>${data.estado==='borrador'?'<th></th>':''}</tr></thead>
+       <tbody>${lineas.map(l => {
+         const sub = l.cantidad * l.precio_unitario * (1 - l.descuento_pct/100);
+         return `<tr><td>${l.producto_codigo}</td><td>${l.producto_nombre}</td>
+           <td>${l.cantidad}</td><td>$${(l.precio_unitario||0).toFixed(2)}</td>
+           <td>${l.descuento_pct}%</td><td>$${sub.toFixed(2)}</td>
+           ${data.estado==='borrador'?`<td><button class="btn btn-sm btn-danger" onclick="eliminarLineaVI(${id},${l.id})">✕</button></td>`:''}
+           </tr>`;
+       }).join('')}</tbody></table>`
+    : '<p style="color:var(--muted);font-size:.85rem">Sin líneas todavía.</p>';
+
+  // Formulario agregar línea (solo en borrador)
+  const fAgregar = document.getElementById('vi-agregar-linea-form');
+  if (fAgregar) fAgregar.style.display = data.estado === 'borrador' ? '' : 'none';
+
+  // Botones de acción
+  const acciones = document.getElementById('vi-acciones');
+  if (acciones) {
+    acciones.innerHTML = data.estado === 'borrador'
+      ? `<button class="btn btn-primary" onclick="confirmarVentaInterna(${id})">Confirmar Venta</button>
+         <button class="btn btn-danger" onclick="anularVentaInterna(${id})">Anular</button>`
+      : '';
+  }
+  showModal('modal-detalle-venta-interna');
+}
+
+async function agregarLineaVentaInterna() {
+  if (!_viCurrentId) return;
+  const body = {
+    producto_codigo: document.getElementById('vil-codigo')?.value?.trim(),
+    producto_nombre: document.getElementById('vil-nombre')?.value?.trim(),
+    cantidad:        parseFloat(document.getElementById('vil-cantidad')?.value) || 1,
+    precio_unitario: parseFloat(document.getElementById('vil-precio')?.value) || 0,
+    descuento_pct:   parseFloat(document.getElementById('vil-desc')?.value) || 0,
+  };
+  if (!body.producto_codigo || !body.producto_nombre) { alert('Código y nombre son requeridos'); return; }
+  const r = await api('POST', `/ventas-internas/${_viCurrentId}/agregar-linea`, body);
+  if (!r) return;
+  // Limpiar campos de línea
+  ['vil-codigo','vil-nombre'].forEach(id => { const e = document.getElementById(id); if(e) e.value=''; });
+  ['vil-cantidad'].forEach(id => { const e = document.getElementById(id); if(e) e.value='1'; });
+  ['vil-precio','vil-desc'].forEach(id => { const e = document.getElementById(id); if(e) e.value='0'; });
+  abrirDetalleVentaInterna(_viCurrentId);
+}
+
+async function eliminarLineaVI(ventaId, lineaId) {
+  if (!confirm('¿Eliminar esta línea?')) return;
+  await api('DELETE', `/ventas-internas/${ventaId}/linea/${lineaId}`);
+  abrirDetalleVentaInterna(ventaId);
+}
+
+async function confirmarVentaInterna(id) {
+  if (!confirm('¿Confirmar venta? Se descontará el inventario.')) return;
+  const r = await api('PUT', `/ventas-internas/${id}/confirmar`);
+  if (!r) return;
+  if (_viCurrentId === id) closeModal('modal-detalle-venta-interna');
+  loadVentasInternas();
+}
+
+async function anularVentaInterna(id) {
+  if (!confirm('¿Anular esta venta?')) return;
+  await api('PUT', `/ventas-internas/${id}/anular`);
+  if (_viCurrentId === id) closeModal('modal-detalle-venta-interna');
+  loadVentasInternas();
+}
+
+// ── Compras Internas ──────────────────────────────────────────────────────
+let _ciLineas = [];
+
+function ciAgregarLinea() {
+  const codigo   = document.getElementById('ci-l-codigo')?.value?.trim();
+  const nombre   = document.getElementById('ci-l-nombre')?.value?.trim();
+  const cantidad = parseFloat(document.getElementById('ci-l-cantidad')?.value) || 1;
+  const costo    = parseFloat(document.getElementById('ci-l-costo')?.value) || 0;
+  if (!codigo || !nombre) { alert('Código y nombre son requeridos'); return; }
+  _ciLineas.push({ producto_codigo: codigo, producto_nombre: nombre, cantidad, costo_unitario: costo });
+  _renderCiLineas();
+  ['ci-l-codigo','ci-l-nombre'].forEach(id => { const e = document.getElementById(id); if(e) e.value=''; });
+  ['ci-l-cantidad'].forEach(id => { const e = document.getElementById(id); if(e) e.value='1'; });
+  ['ci-l-costo'].forEach(id => { const e = document.getElementById(id); if(e) e.value=''; });
+}
+
+function _renderCiLineas() {
+  const total = _ciLineas.reduce((s, l) => s + l.cantidad * l.costo_unitario, 0);
+  const el = document.getElementById('ci-lineas-lista');
+  if (el) el.innerHTML = _ciLineas.length ? `<table class="tabla" style="font-size:.82rem">
+    <thead><tr><th>Código</th><th>Nombre</th><th>Cant</th><th>Costo</th><th>Subtotal</th><th></th></tr></thead>
+    <tbody>${_ciLineas.map((l, i) =>
+      `<tr><td>${l.producto_codigo}</td><td>${l.producto_nombre}</td>
+       <td>${l.cantidad}</td><td>$${l.costo_unitario.toFixed(2)}</td>
+       <td>$${(l.cantidad*l.costo_unitario).toFixed(2)}</td>
+       <td><button class="btn btn-sm btn-danger" onclick="_ciRemoveLinea(${i})">✕</button></td></tr>`
+    ).join('')}</tbody></table>` : '';
+  const tot = document.getElementById('ci-total-calculado');
+  if (tot) tot.textContent = '$' + total.toFixed(2);
+}
+
+function _ciRemoveLinea(idx) { _ciLineas.splice(idx, 1); _renderCiLineas(); }
+
+async function crearCompraInterna() {
+  const proveedor = document.getElementById('ci-proveedor')?.value?.trim();
+  const fecha     = document.getElementById('ci-fecha')?.value;
+  if (!proveedor) { alert('Ingresa el nombre del proveedor'); return; }
+  if (!fecha)     { alert('Selecciona la fecha'); return; }
+  if (!_ciLineas.length) { alert('Agrega al menos una línea'); return; }
+  const total = _ciLineas.reduce((s, l) => s + l.cantidad * l.costo_unitario, 0);
+  const r = await api('POST', '/compras-internas/crear', {
+    proveedor, fecha, total_usd: total, lineas: _ciLineas
+  });
+  if (!r) return;
+  alert(`Compra registrada. CxP generada (ID ${r.cxp_id}).`);
+  closeModal('modal-nueva-compra-interna');
+  _ciLineas = [];
+  document.getElementById('ci-proveedor').value = '';
+  document.getElementById('ci-fecha').value = '';
+  _renderCiLineas();
+  loadComprasInternas();
+  loadCxPInternas();
+}
+
+async function loadComprasInternas() {
+  const rows = await api('GET', '/compras-internas') || [];
+  const tb = document.getElementById('tb-compras-internas');
+  if (!tb) return;
+  if (!rows.length) { tb.innerHTML = '<p style="color:var(--muted)">Sin compras registradas.</p>'; return; }
+  const stColors = { confirmada:'var(--success)', anulada:'var(--danger)' };
+  tb.innerHTML = `<table class="tabla">
+    <thead><tr><th>ID</th><th>Proveedor</th><th>Fecha</th><th>Total USD</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td>${r.id}</td>
+      <td>${r.proveedor}</td>
+      <td>${r.fecha}</td>
+      <td>$${(r.total_usd||0).toFixed(2)}</td>
+      <td><span style="color:${stColors[r.estado]||''}">${r.estado}</span></td>
+      <td>${r.estado!=='anulada'?`<button class="btn btn-sm btn-danger" onclick="anularCompraInterna(${r.id})">Anular</button>`:''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function anularCompraInterna(id) {
+  if (!confirm('¿Anular esta compra? La CxP asociada también se cancelará.')) return;
+  await api('DELETE', `/compras-internas/${id}`);
+  loadComprasInternas(); loadCxPInternas();
+}
+
+// ── Inventario Interno ────────────────────────────────────────────────────
+async function loadInventarioInterno() {
+  const filtro = document.getElementById('inv-filtro')?.value?.toLowerCase() || '';
+  const rows   = await api('GET', '/inventario-interno') || [];
+  const filtered = rows.filter(r =>
+    !filtro ||
+    (r.producto_codigo||'').toLowerCase().includes(filtro) ||
+    (r.producto_nombre||'').toLowerCase().includes(filtro)
+  );
+  const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  setEl('inv-total-productos', rows.length);
+  setEl('inv-stock-cero', rows.filter(r => (r.stock_actual||0) <= 0).length);
+
+  const tb = document.getElementById('tb-inventario-interno');
+  if (!tb) return;
+  if (!filtered.length) { tb.innerHTML = '<p style="color:var(--muted)">Sin productos.</p>'; return; }
+  tb.innerHTML = `<table class="tabla">
+    <thead><tr><th>Código</th><th>Nombre</th><th>Stock</th><th>Costo USD</th><th>Actualizado</th><th>Acciones</th></tr></thead>
+    <tbody>${filtered.map(r => `<tr>
+      <td><strong>${r.producto_codigo}</strong></td>
+      <td>${r.producto_nombre}</td>
+      <td style="color:${(r.stock_actual||0)<=0?'var(--danger)':'var(--success)'}">${r.stock_actual}</td>
+      <td>${r.costo_usd!=null?'$'+parseFloat(r.costo_usd).toFixed(2):'—'}</td>
+      <td>${(r.ultima_actualizacion||'').slice(0,10)}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="abrirAjusteStock('${r.producto_codigo}','${r.producto_nombre}')">Ajustar</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarProductoInv('${r.producto_codigo}')">Eliminar</button>
+      </td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function crearProductoInventario() {
+  const body = {
+    producto_codigo: document.getElementById('inv-new-codigo')?.value?.trim(),
+    producto_nombre: document.getElementById('inv-new-nombre')?.value?.trim(),
+    stock_actual:    parseFloat(document.getElementById('inv-new-stock')?.value) || 0,
+    costo_usd:       parseFloat(document.getElementById('inv-new-costo')?.value) || null,
+  };
+  if (!body.producto_codigo || !body.producto_nombre) { alert('Código y nombre son requeridos'); return; }
+  const r = await api('POST', '/inventario-interno', body);
+  if (!r) return;
+  closeModal('modal-nuevo-producto-inv');
+  ['inv-new-codigo','inv-new-nombre','inv-new-stock','inv-new-costo'].forEach(id => {
+    const e = document.getElementById(id); if(e) e.value = '';
+  });
+  loadInventarioInterno();
+}
+
+function abrirAjusteStock(codigo, nombre) {
+  document.getElementById('inv-ajuste-codigo').value = codigo;
+  document.getElementById('inv-ajuste-nombre').textContent = `Producto: ${nombre} (${codigo})`;
+  document.getElementById('inv-ajuste-delta').value = '';
+  document.getElementById('inv-ajuste-motivo').value = '';
+  showModal('modal-ajustar-stock');
+}
+
+async function ajustarStock() {
+  const codigo = document.getElementById('inv-ajuste-codigo')?.value;
+  const delta  = parseFloat(document.getElementById('inv-ajuste-delta')?.value);
+  const motivo = document.getElementById('inv-ajuste-motivo')?.value?.trim();
+  if (!codigo || isNaN(delta)) { alert('Ingresa una cantidad válida'); return; }
+  const r = await api('PUT', `/inventario-interno/${codigo}/ajustar`, { cantidad_delta: delta, motivo: motivo||null });
+  if (!r) return;
+  closeModal('modal-ajustar-stock');
+  loadInventarioInterno();
+}
+
+async function eliminarProductoInv(codigo) {
+  if (!confirm(`¿Eliminar el producto ${codigo} del inventario?`)) return;
+  await api('DELETE', `/inventario-interno/${codigo}`);
+  loadInventarioInterno();
+}
+
+// ── CxP Internas ──────────────────────────────────────────────────────────
+async function loadCxPInternas() {
+  // KPIs
+  const resumen = await api('GET', '/cuentas-por-pagar-internas/resumen').catch(()=>null);
+  if (resumen) {
+    const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+    setEl('cxp-pendiente', '$' + (resumen.total_pendiente_usd||0).toFixed(2));
+    setEl('cxp-vencido',   '$' + (resumen.total_vencido_usd||0).toFixed(2));
+    setEl('cxp-pagado',    '$' + (resumen.total_pagado_usd||0).toFixed(2));
+    setEl('cxp-count',     resumen.count_pendiente||0);
+  }
+
+  const estado    = document.getElementById('cxp-filtro-estado')?.value || '';
+  const proveedor = document.getElementById('cxp-filtro-proveedor')?.value?.trim() || '';
+  const params    = new URLSearchParams();
+  if (estado)    params.append('estado', estado);
+  if (proveedor) params.append('proveedor', proveedor);
+  const qs   = params.toString() ? '?' + params.toString() : '';
+  const rows = await api('GET', '/cuentas-por-pagar-internas' + qs) || [];
+
+  const tb = document.getElementById('tb-cxp-internas');
+  if (!tb) return;
+  if (!rows.length) { tb.innerHTML = '<p style="color:var(--muted)">Sin CxP registradas.</p>'; return; }
+  const stColors = { pendiente:'var(--warning)', parcial:'var(--primary)', pagada:'var(--success)', cancelada:'var(--muted)' };
+  const hoy = new Date().toISOString().slice(0,10);
+  tb.innerHTML = `<table class="tabla">
+    <thead><tr><th>ID</th><th>Proveedor</th><th>Emisión</th><th>Vencimiento</th><th>Total</th><th>Saldo</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>${rows.map(r => {
+      const venc  = r.fecha_vencimiento || '—';
+      const venc_color = r.fecha_vencimiento && r.fecha_vencimiento < hoy && r.estado==='pendiente'
+        ? 'color:var(--danger);font-weight:600' : '';
+      return `<tr>
+        <td>${r.id}</td>
+        <td>${r.proveedor}</td>
+        <td>${r.fecha_emision}</td>
+        <td style="${venc_color}">${venc}</td>
+        <td>$${(r.monto_total||0).toFixed(2)}</td>
+        <td>$${(r.saldo_pendiente||0).toFixed(2)}</td>
+        <td><span style="color:${stColors[r.estado]||''}">${r.estado}</span></td>
+        <td style="display:flex;gap:6px">
+          ${r.estado!=='pagada'&&r.estado!=='cancelada'
+            ? `<button class="btn btn-sm btn-primary" onclick="abrirPagoCxP(${r.id},'${r.proveedor}',${r.saldo_pendiente})">Pagar</button>`
+            : ''}
+          ${r.estado==='pendiente'||r.estado==='parcial'
+            ? `<button class="btn btn-sm btn-danger" onclick="cancelarCxP(${r.id})">Cancelar</button>`
+            : ''}
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function abrirPagoCxP(id, proveedor, saldo) {
+  document.getElementById('cxp-pago-id').value = id;
+  document.getElementById('cxp-pago-info').textContent =
+    `Proveedor: ${proveedor} | Saldo pendiente: $${parseFloat(saldo).toFixed(2)}`;
+  document.getElementById('cxp-pago-monto').value = parseFloat(saldo).toFixed(2);
+  document.getElementById('cxp-pago-ref').value = '';
+  document.getElementById('cxp-pago-notas').value = '';
+  document.getElementById('cxp-pago-fecha').value = new Date().toISOString().slice(0,10);
+  showModal('modal-pago-cxp');
+}
+
+async function registrarPagoCxP() {
+  const id = document.getElementById('cxp-pago-id')?.value;
+  const body = {
+    monto:      parseFloat(document.getElementById('cxp-pago-monto')?.value),
+    moneda:     document.getElementById('cxp-pago-moneda')?.value,
+    metodo:     document.getElementById('cxp-pago-metodo')?.value,
+    referencia: document.getElementById('cxp-pago-ref')?.value?.trim() || null,
+    fecha_pago: document.getElementById('cxp-pago-fecha')?.value || null,
+    notas:      document.getElementById('cxp-pago-notas')?.value?.trim() || null,
+  };
+  if (!body.monto || body.monto <= 0) { alert('Ingresa un monto válido'); return; }
+  const r = await api('POST', `/cuentas-por-pagar-internas/${id}/registrar-pago`, body);
+  if (!r) return;
+  closeModal('modal-pago-cxp');
+  loadCxPInternas();
+}
+
+async function cancelarCxP(id) {
+  if (!confirm('¿Cancelar esta Cuenta por Pagar?')) return;
+  await api('PUT', `/cuentas-por-pagar-internas/${id}/cancelar`);
+  loadCxPInternas();
+}
+
+// On app init: check module status to show/hide sidebar nav
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const cfg = await api('GET', '/config/app').catch(() => null);
+    if (cfg) {
+      const activo = cfg.modulo_interno_activo === '1' || cfg.modulo_interno_activo === 1;
+      _applyModuloInternoUI(activo);
+    }
+  } catch(e) {}
+});
 
 initApp();
 </script>

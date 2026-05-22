@@ -20,7 +20,9 @@ from routers import (auth, ventas, descuentos, promociones,
                      precios, reportes, config_app, maestro,
                      cobranza, acuerdos_pago, replicas, creditos,
                      cambios_divisa, pagos_fiscales, requisiciones,
-                     zelle_terceros, gastos, nomina, compras_odoo)
+                     zelle_terceros, gastos, nomina, compras_odoo,
+                     ventas_internas, compras_internas,
+                     inventario_interno, cuentas_por_pagar)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -262,7 +264,9 @@ for r in [auth, ventas, descuentos, promociones, pagos,
           inventario, precios, reportes, config_app, maestro,
           cobranza, acuerdos_pago, replicas, creditos,
           cambios_divisa, pagos_fiscales, requisiciones,
-          zelle_terceros, gastos, nomina, compras_odoo]:
+          zelle_terceros, gastos, nomina, compras_odoo,
+          ventas_internas, compras_internas,
+          inventario_interno, cuentas_por_pagar]:
     app.include_router(r.router)
 
 # Frontend estático

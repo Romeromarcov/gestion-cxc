@@ -769,6 +769,125 @@ def migrate_v18(con):
     con.commit()
 
 
+def migrate_modulo_interno(con):
+    """
+    Módulo Interno — tablas para ventas internas, inventario local,
+    compras internas y cuentas por pagar.
+    Deshabilitado por defecto (config_app.modulo_interno_activo = '0').
+    """
+    # Ventas internas (cabecera)
+    con.execute("""CREATE TABLE IF NOT EXISTS ventas_internas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        cliente_nombre TEXT NOT NULL,
+        cliente_id_odoo INTEGER,
+        vendedor_id INTEGER,
+        total_usd REAL DEFAULT 0,
+        estado TEXT DEFAULT 'borrador',   -- borrador | confirmada | anulada
+        notas TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(vendedor_id) REFERENCES usuarios(id)
+    )""")
+
+    # Ventas internas (líneas de detalle)
+    con.execute("""CREATE TABLE IF NOT EXISTS ventas_internas_lineas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        venta_id INTEGER NOT NULL,
+        producto_codigo TEXT NOT NULL,
+        producto_nombre TEXT NOT NULL,
+        cantidad REAL NOT NULL DEFAULT 1,
+        precio_unitario REAL NOT NULL DEFAULT 0,
+        descuento_pct REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY(venta_id) REFERENCES ventas_internas(id)
+    )""")
+
+    # Inventario interno (stock local)
+    con.execute("""CREATE TABLE IF NOT EXISTS inventario_interno (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        producto_codigo TEXT UNIQUE NOT NULL,
+        producto_nombre TEXT NOT NULL,
+        stock_actual REAL NOT NULL DEFAULT 0,
+        costo_usd REAL,
+        ultima_actualizacion TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # Compras internas (cabecera)
+    con.execute("""CREATE TABLE IF NOT EXISTS compras_internas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        proveedor TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        total_usd REAL NOT NULL DEFAULT 0,
+        estado TEXT DEFAULT 'confirmada',   -- confirmada | anulada
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # Compras internas (líneas de detalle)
+    con.execute("""CREATE TABLE IF NOT EXISTS compras_internas_lineas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        compra_id INTEGER NOT NULL,
+        producto_codigo TEXT NOT NULL,
+        producto_nombre TEXT NOT NULL,
+        cantidad REAL NOT NULL DEFAULT 1,
+        costo_unitario REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY(compra_id) REFERENCES compras_internas(id)
+    )""")
+
+    # Cuentas por Pagar (generadas desde compras internas)
+    con.execute("""CREATE TABLE IF NOT EXISTS cuentas_por_pagar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        compra_id INTEGER,                        -- compra interna que la originó
+        proveedor TEXT NOT NULL,
+        fecha_emision TEXT NOT NULL,
+        fecha_vencimiento TEXT,
+        monto_total REAL NOT NULL,
+        moneda TEXT NOT NULL DEFAULT 'USD',
+        saldo_pendiente REAL NOT NULL,
+        estado TEXT DEFAULT 'pendiente',          -- pendiente | parcial | pagada | cancelada
+        notas TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(compra_id) REFERENCES compras_internas(id)
+    )""")
+
+    # Pagos registrados contra CxP
+    con.execute("""CREATE TABLE IF NOT EXISTS cuentas_por_pagar_pagos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cxp_id INTEGER NOT NULL,
+        monto REAL NOT NULL,
+        moneda TEXT NOT NULL DEFAULT 'USD',
+        metodo TEXT NOT NULL,
+        referencia TEXT,
+        fecha_pago TEXT NOT NULL,
+        notas TEXT,
+        registrado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(cxp_id) REFERENCES cuentas_por_pagar(id),
+        FOREIGN KEY(registrado_por) REFERENCES usuarios(id)
+    )""")
+    con.commit()
+
+    # Seed: clave de feature-flag (desactivada por defecto)
+    con.execute("""INSERT OR IGNORE INTO config_app(clave, valor, descripcion)
+                   VALUES('modulo_interno_activo', '0',
+                          'Activa Ventas Internas, Compras Internas, Inventario Interno y CxP')""")
+    con.commit()
+
+    # Índices para el módulo interno
+    for ddl in [
+        "CREATE INDEX IF NOT EXISTS idx_vi_vendedor   ON ventas_internas(vendedor_id)",
+        "CREATE INDEX IF NOT EXISTS idx_vi_estado     ON ventas_internas(estado)",
+        "CREATE INDEX IF NOT EXISTS idx_ci_fecha      ON compras_internas(fecha)",
+        "CREATE INDEX IF NOT EXISTS idx_cxp_proveedor ON cuentas_por_pagar(proveedor)",
+        "CREATE INDEX IF NOT EXISTS idx_cxp_estado    ON cuentas_por_pagar(estado)",
+        "CREATE INDEX IF NOT EXISTS idx_cxp_venc      ON cuentas_por_pagar(fecha_vencimiento)",
+    ]:
+        try:
+            con.execute(ddl)
+        except Exception as e:
+            logger.warning('migrate_modulo_interno idx: %s', e)
+    con.commit()
+    logger.info('migrate_modulo_interno: tablas e índices verificados.')
+
+
 def migrate_v27(con):
     """v2.7 — Requisiciones: odoo_employee_id + config por defecto."""
     # Columna para vincular al empleado de Odoo HR
@@ -955,6 +1074,7 @@ def init_db():
     migrate_v25(con)
     migrate_v26(con)
     migrate_v27(con)
+    migrate_modulo_interno(con)
     _create_indexes(con)
     con.close()
 
