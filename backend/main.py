@@ -1,12 +1,14 @@
 import sys
 import os
+import time
 import logging
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -26,6 +28,39 @@ logging.basicConfig(
     datefmt='%Y-%m-%dT%H:%M:%S',
 )
 logger = logging.getLogger(__name__)
+
+
+# ── Middleware: logging de requests ──────────────────────────────────────────
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Registra método, path, status y duración de cada request."""
+    _skip = {'/health', '/static'}
+
+    async def dispatch(self, request: Request, call_next):
+        # No loguear healthchecks ni assets estáticos
+        if any(request.url.path.startswith(p) for p in self._skip):
+            return await call_next(request)
+        t0 = time.monotonic()
+        response = await call_next(request)
+        ms = round((time.monotonic() - t0) * 1000)
+        logger.info('%s %s → %s  (%dms)',
+                    request.method, request.url.path,
+                    response.status_code, ms)
+        return response
+
+
+# ── Middleware: security headers ──────────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Agrega headers de seguridad HTTP en todas las respuestas."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options']    = 'nosniff'
+        response.headers['X-Frame-Options']           = 'DENY'
+        response.headers['X-XSS-Protection']         = '1; mode=block'
+        response.headers['Referrer-Policy']           = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy']        = 'geolocation=(), microphone=()'
+        # HSTS: sólo aplica cuando hay TLS (Railway lo provee)
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        return response
 
 scheduler = AsyncIOScheduler()
 
@@ -210,6 +245,8 @@ def health():
             media_type='application/json',
         )
 
+# Orden importante: el último add_middleware se ejecuta primero.
+# SecurityHeaders → RequestLogging → CORS → router
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -217,6 +254,8 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Registrar todos los routers
 for r in [auth, ventas, descuentos, promociones, pagos,

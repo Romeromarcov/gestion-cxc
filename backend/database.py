@@ -955,7 +955,50 @@ def init_db():
     migrate_v25(con)
     migrate_v26(con)
     migrate_v27(con)
+    _create_indexes(con)
     con.close()
+
+
+def _create_indexes(con):
+    """
+    Índices para las columnas más consultadas.
+    Todos usan IF NOT EXISTS para ser idempotentes.
+    """
+    indexes = [
+        # pagos — filtros frecuentes en reportes CxC y sync Odoo
+        "CREATE INDEX IF NOT EXISTS idx_pagos_order      ON pagos(odoo_order_name)",
+        "CREATE INDEX IF NOT EXISTS idx_pagos_estado     ON pagos(estado)",
+        "CREATE INDEX IF NOT EXISTS idx_pagos_odoo_id    ON pagos(odoo_payment_id)",
+        "CREATE INDEX IF NOT EXISTS idx_pagos_vendedor   ON pagos(vendedor_id)",
+        # maestro_operaciones — libro mayor, filtros por fecha/tipo/conciliación
+        "CREATE INDEX IF NOT EXISTS idx_maestro_fecha    ON maestro_operaciones(fecha)",
+        "CREATE INDEX IF NOT EXISTS idx_maestro_tipo     ON maestro_operaciones(tipo)",
+        "CREATE INDEX IF NOT EXISTS idx_maestro_origen   ON maestro_operaciones(origen)",
+        "CREATE INDEX IF NOT EXISTS idx_maestro_odoo_pid ON maestro_operaciones(odoo_payment_id)",
+        "CREATE INDEX IF NOT EXISTS idx_maestro_concil   ON maestro_operaciones(odoo_conciliado)",
+        # tasas_cambio — consulta diaria BCV
+        "CREATE INDEX IF NOT EXISTS idx_tasas_par_fecha  ON tasas_cambio(par, fecha DESC)",
+        # notas_credito — filtro por orden y estado
+        "CREATE INDEX IF NOT EXISTS idx_nc_order         ON notas_credito(odoo_order_name)",
+        "CREATE INDEX IF NOT EXISTS idx_nc_estado        ON notas_credito(estado)",
+        # cobranza_gestiones — filtro por cliente y fecha
+        "CREATE INDEX IF NOT EXISTS idx_cobr_cliente     ON cobranza_gestiones(cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_cobr_fecha       ON cobranza_gestiones(fecha_gestion)",
+        # ordenes_replica — join frecuente en reportes
+        "CREATE INDEX IF NOT EXISTS idx_replica_order    ON ordenes_replica(odoo_order_name)",
+        "CREATE INDEX IF NOT EXISTS idx_replica_estado   ON ordenes_replica(estado)",
+        # gastos y nómina — filtro por periodo y estado
+        "CREATE INDEX IF NOT EXISTS idx_gastos_periodo   ON gastos(periodo)",
+        "CREATE INDEX IF NOT EXISTS idx_gastos_estado    ON gastos(estado)",
+        "CREATE INDEX IF NOT EXISTS idx_nomina_periodo   ON nomina_registros(periodo)",
+    ]
+    for ddl in indexes:
+        try:
+            con.execute(ddl)
+        except Exception as e:
+            logger.warning('_create_indexes: %s — %s', ddl[:60], e)
+    con.commit()
+    logger.info('Índices de BD verificados/creados.')
 
 
 def _seed(con):
