@@ -7590,10 +7590,6 @@ async function guardarAcuerdo() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function abrirSaldosBanco() {
-  const hoy = new Date().toISOString().split('T')[0];
-  const primerDia = hoy.substring(0,7) + '-01';
-  document.getElementById('sb-desde').value = primerDia;
-  document.getElementById('sb-hasta').value = hoy;
   showModal('modal-saldos-banco');
   loadSaldosBanco();
 }
