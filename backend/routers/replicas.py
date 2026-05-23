@@ -17,50 +17,60 @@ def _calcular_replica(odoo, order_name: str, cfg: dict) -> dict:
     """
     Calcula los datos de réplica para una orden SIN persistir en BD.
     Útil para preview y diagnóstico.
-    Retorna dict con: estado, error, pricelist_name, currency, lineas, totales.
+    Retorna dict con: estado, error, pricelist_name, pricelist_id, currency, lineas, totales.
+    Usa IDs de Odoo para todas las comparaciones (sin matching por nombre).
     """
-    pl_ves_nombre = cfg.get('pricelist_ves_nombre', 'Precio USD Pago VES')
-    pl_usd_nombre = cfg.get('pricelist_usd_nombre', 'Lista USD')
+    pl_ves_id = int(cfg.get('pricelist_ves_id') or 0)
+    pl_usd_id = int(cfg.get('pricelist_usd_id') or 0)
+
+    if not pl_ves_id or not pl_usd_id:
+        return {
+            'estado': 'error',
+            'error': 'Listas de precios no configuradas. Ve a Configuración y selecciona la Lista VES y Lista USD.',
+            'lineas': [], 'pricelist_name': '', 'pricelist_id': 0,
+        }
 
     ordenes = odoo.get_venta_por_nombre(order_name)
     if not ordenes:
         return {'estado': 'error', 'error': f'Orden {order_name} no encontrada en Odoo',
-                'lineas': [], 'pricelist_name': ''}
+                'lineas': [], 'pricelist_name': '', 'pricelist_id': 0}
 
     orden = ordenes[0]
+    order_pl_id   = (orden['pricelist_id'][0]
+                     if isinstance(orden.get('pricelist_id'), list) else 0) or 0
     pricelist_name = (orden['pricelist_id'][1]
                       if isinstance(orden.get('pricelist_id'), list) else '') or ''
-    currency = (orden['currency_id'][1]
-                if isinstance(orden.get('currency_id'), list) else '') or ''
+    currency       = (orden['currency_id'][1]
+                      if isinstance(orden.get('currency_id'), list) else '') or ''
 
-    if pricelist_name == pl_usd_nombre:
+    if order_pl_id == pl_usd_id:
         return {'estado': 'skip_usd', 'error': None,
-                'pricelist_name': pricelist_name, 'lineas': []}
+                'pricelist_id': order_pl_id, 'pricelist_name': pricelist_name, 'lineas': []}
 
-    if pricelist_name != pl_ves_nombre:
+    if order_pl_id != pl_ves_id:
         return {
             'estado': 'skip', 'error': None,
-            'pricelist_name': pricelist_name, 'lineas': [],
-            'motivo': (f'Lista "{pricelist_name or "(sin lista)"}" no coincide con '
-                       f'VES="{pl_ves_nombre}" ni USD="{pl_usd_nombre}"'),
+            'pricelist_id': order_pl_id, 'pricelist_name': pricelist_name, 'lineas': [],
+            'motivo': (f'Lista de la orden: "{pricelist_name}" (ID {order_pl_id}) '
+                       f'— no coincide con VES ID={pl_ves_id} ni USD ID={pl_usd_id}'),
         }
 
-    pl_ves = odoo.get_pricelist_by_name(pl_ves_nombre)
-    pl_usd = odoo.get_pricelist_by_name(pl_usd_nombre)
-    if not pl_usd:
+    # Ya tenemos los IDs, no hay que buscar por nombre
+    if not pl_usd_id:
         return {'estado': 'error',
-                'error': f'Lista "{pl_usd_nombre}" no encontrada en Odoo',
-                'pricelist_name': pricelist_name, 'lineas': []}
+                'error': 'Lista USD no configurada',
+                'pricelist_id': order_pl_id, 'pricelist_name': pricelist_name, 'lineas': []}
 
     lineas_odoo = odoo.get_lineas_venta(orden['id'])
     if not lineas_odoo:
         return {'estado': 'error', 'error': 'La orden no tiene líneas',
-                'pricelist_name': pricelist_name, 'lineas': []}
+                'pricelist_id': order_pl_id, 'pricelist_name': pricelist_name, 'lineas': []}
 
     product_ids = [l['product_id'][0] for l in lineas_odoo if l.get('product_id')]
 
-    precios_ves = odoo.get_precios_lista(pl_ves['id'], product_ids) if pl_ves else {}
-    precios_usd = odoo.get_precios_lista(pl_usd['id'], product_ids)
+    # Usar IDs directamente — sin búsqueda por nombre
+    precios_ves = odoo.get_precios_lista(pl_ves_id, product_ids)
+    precios_usd = odoo.get_precios_lista(pl_usd_id, product_ids)
 
     faltantes = [pid for pid in product_ids if not precios_usd.get(pid)]
     if faltantes:
@@ -70,8 +80,8 @@ def _calcular_replica(odoo, order_name: str, cfg: dict) -> dict:
         ]
         return {
             'estado': 'error',
-            'error': f'Sin precio en "{pl_usd_nombre}": {", ".join(prods_sin_precio)}',
-            'pricelist_name': pricelist_name, 'lineas': [],
+            'error': f'Sin precio en lista USD (ID {pl_usd_id}): {", ".join(prods_sin_precio)}',
+            'pricelist_id': order_pl_id, 'pricelist_name': pricelist_name, 'lineas': [],
         }
 
     lineas_replica = []
@@ -115,9 +125,10 @@ def _calcular_replica(odoo, order_name: str, cfg: dict) -> dict:
         'estado':             'activa',
         'error':              None,
         'order_name':         order_name,
+        'pricelist_id':       order_pl_id,
         'pricelist_name':     pricelist_name,
-        'pl_ves_nombre':      pl_ves_nombre,
-        'pl_usd_nombre':      pl_usd_nombre,
+        'pl_ves_id':          pl_ves_id,
+        'pl_usd_id':          pl_usd_id,
         'currency':           currency,
         'lineas':             lineas_replica,
         'subtotal_lista_ves': sum_sub_ves,
@@ -204,8 +215,13 @@ def sync_replicas(user=Depends(require_roles('gerente', 'admin'))):
     odoo = get_odoo()
     con = get_con()
     cfg = _get_config(con)
-    pl_ves_nombre = cfg.get('pricelist_ves_nombre', 'Precio USD Pago VES')
-    pl_usd_nombre = cfg.get('pricelist_usd_nombre', 'Lista USD')
+    pl_ves_id = int(cfg.get('pricelist_ves_id') or 0)
+    pl_usd_id = int(cfg.get('pricelist_usd_id') or 0)
+
+    if not pl_ves_id or not pl_usd_id:
+        con.close()
+        raise HTTPException(status_code=400,
+            detail='Listas de precios no configuradas. Ve a Configuración y selecciona la Lista VES y Lista USD.')
 
     try:
         ventas = odoo.get_ventas()
@@ -219,17 +235,16 @@ def sync_replicas(user=Depends(require_roles('gerente', 'admin'))):
     skip_usd = 0
 
     for v in ventas:
-        order_name = v['name']
-        pricelist_name = ''
-        if v.get('pricelist_id'):
-            pricelist_name = v['pricelist_id'][1] if isinstance(v['pricelist_id'], list) else ''
+        order_name  = v['name']
+        order_pl_id = (v['pricelist_id'][0]
+                       if isinstance(v.get('pricelist_id'), list) else 0) or 0
 
-        # Órdenes que no son ni VES ni USD list → ignorar
-        if pricelist_name not in (pl_ves_nombre, pl_usd_nombre):
+        # Órdenes sin lista ni con lista distinta → ignorar
+        if order_pl_id not in (pl_ves_id, pl_usd_id):
             continue
 
         # Órdenes con Lista USD directamente → no necesitan réplica
-        if pricelist_name == pl_usd_nombre:
+        if order_pl_id == pl_usd_id:
             skip_usd += 1
             continue
 
@@ -275,14 +290,18 @@ def sync_replicas(user=Depends(require_roles('gerente', 'admin'))):
 
 @router.get('/diagnostico')
 def diagnostico_replicas(user=Depends(require_roles('gerente', 'admin'))):
-    """Muestra qué lista usa cada orden de Odoo y si necesita réplica."""
+    """Muestra qué lista usa cada orden de Odoo y si necesita réplica.
+    Compara por ID de lista, no por nombre."""
     odoo = get_odoo()
     con  = get_con()
     cfg  = _get_config(con)
     con.close()
 
-    pl_ves = cfg.get('pricelist_ves_nombre', 'Precio USD Pago VES')
-    pl_usd = cfg.get('pricelist_usd_nombre', 'Lista USD')
+    pl_ves_id = int(cfg.get('pricelist_ves_id') or 0)
+    pl_usd_id = int(cfg.get('pricelist_usd_id') or 0)
+    # Nombres solo para display
+    pl_ves_nom = cfg.get('pricelist_ves_nombre', '')
+    pl_usd_nom = cfg.get('pricelist_usd_nombre', '')
 
     try:
         ventas = odoo.get_ventas()
@@ -291,29 +310,32 @@ def diagnostico_replicas(user=Depends(require_roles('gerente', 'admin'))):
 
     ordenes = []
     for v in ventas:
-        pl = (v['pricelist_id'][1] if isinstance(v.get('pricelist_id'), list)
-              else (v.get('pricelist_id') or '')) or ''
-        if pl == pl_ves:
+        pl_id  = (v['pricelist_id'][0] if isinstance(v.get('pricelist_id'), list) else 0) or 0
+        pl_nom = (v['pricelist_id'][1] if isinstance(v.get('pricelist_id'), list) else '') or ''
+        if pl_ves_id and pl_id == pl_ves_id:
             diag = 'necesita_replica'
-        elif pl == pl_usd:
+        elif pl_usd_id and pl_id == pl_usd_id:
             diag = 'usa_lista_usd'
-        elif not pl:
+        elif not pl_id:
             diag = 'sin_lista'
         else:
-            diag = f'otra_lista'
+            diag = 'otra_lista'
         ordenes.append({
-            'orden':   v['name'],
-            'cliente': v['partner_id'][1] if isinstance(v.get('partner_id'), list) else '',
-            'pricelist': pl,
+            'orden':              v['name'],
+            'cliente':            v['partner_id'][1] if isinstance(v.get('partner_id'), list) else '',
+            'pricelist_id':       pl_id,
+            'pricelist_nombre':   pl_nom,
             'estado_diagnostico': diag,
         })
 
     resumen = {k: sum(1 for o in ordenes if o['estado_diagnostico'] == k)
-               for k in ('necesita_replica', 'usa_lista_usd', 'sin_lista')}
-    resumen['otra_lista'] = sum(1 for o in ordenes if o['estado_diagnostico'] == 'otra_lista')
+               for k in ('necesita_replica', 'usa_lista_usd', 'sin_lista', 'otra_lista')}
 
     return {
-        'config':  {'pl_ves_nombre': pl_ves, 'pl_usd_nombre': pl_usd},
+        'config': {
+            'pl_ves_id': pl_ves_id, 'pl_ves_nombre': pl_ves_nom,
+            'pl_usd_id': pl_usd_id, 'pl_usd_nombre': pl_usd_nom,
+        },
         'resumen': resumen,
         'ordenes': ordenes,
     }

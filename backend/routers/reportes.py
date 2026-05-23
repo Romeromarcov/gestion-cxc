@@ -279,9 +279,9 @@ def reporte_cxc(lista_id: int = None,
 
     con = get_con()
     cfg = _get_config(con)
-    tolerancia    = float(cfg.get('tolerancia_pago_usd', '0.01') or 0.01)
-    pl_usd_nombre = cfg.get('pricelist_usd_nombre', 'Lista USD')
-    pl_ves_nombre = cfg.get('pricelist_ves_nombre', 'Precio USD Pago VES')
+    tolerancia = float(cfg.get('tolerancia_pago_usd', '0.01') or 0.01)
+    pl_usd_id  = int(cfg.get('pricelist_usd_id') or 0)
+    pl_ves_id  = int(cfg.get('pricelist_ves_id') or 0)
 
     # Batch: pagos del sistema agrupados por orden
     pagos_rows = rows_to_list(con.execute("""
@@ -322,8 +322,10 @@ def reporte_cxc(lista_id: int = None,
         # Moneda / lista de la orden en Odoo
         moneda_orden = (v['currency_id'][1]
                         if isinstance(v.get('currency_id'), list) else 'USD')
-        pricelist_odoo = (v['pricelist_id'][1]
-                          if isinstance(v.get('pricelist_id'), list) else '')
+        pricelist_odoo    = (v['pricelist_id'][1]
+                              if isinstance(v.get('pricelist_id'), list) else '') or ''
+        pricelist_odoo_id = (v['pricelist_id'][0]
+                              if isinstance(v.get('pricelist_id'), list) else 0) or 0
 
         replica = replicas_map.get(order_name)
 
@@ -336,7 +338,7 @@ def reporte_cxc(lista_id: int = None,
             tax_usd = replica.get('tax_lista_usd')
             tot_usd = replica.get('total_lista_usd')
             moneda_orden = replica.get('moneda_orden') or moneda_orden
-        elif pricelist_odoo == pl_usd_nombre:
+        elif pl_usd_id and pricelist_odoo_id == pl_usd_id:
             sub_ves, tax_ves, tot_ves = None, None, None
             sub_usd = subtotal_odoo
             tax_usd = tax_odoo
@@ -414,7 +416,7 @@ def reporte_cxc(lista_id: int = None,
             'residual_odoo': cobro.get('residual_odoo'),
             'pendiente_envio_usd': cobro.get('pendiente_envio_usd', 0),
             'tiene_replica': replica is not None,
-            'lista_usd_directo': pricelist_odoo == pl_usd_nombre,
+            'lista_usd_directo': bool(pl_usd_id and pricelist_odoo_id == pl_usd_id),
             'facturas_odoo': [
                 {'nombre': f.get('name'), 'total': f.get('amount_total'),
                  'residual': f.get('amount_residual'),

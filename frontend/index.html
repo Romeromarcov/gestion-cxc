@@ -685,24 +685,22 @@
       <div class="form-section" style="grid-column:1/-1">
         <h3>Configuración General</h3>
         <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
-          Parámetros globales de la aplicación. Los nombres de listas deben coincidir exactamente con los configurados en Odoo.
+          Selecciona las listas de Odoo. Se guarda el <strong>ID interno</strong> de cada lista — los nombres son solo para visualización.
         </p>
         <div class="form-row">
           <div class="form-group">
-            <label>Lista de precios VES (nombre en Odoo)</label>
-            <select id="cfg-pricelist-ves-select" onchange="document.getElementById('cfg-pricelist-ves').value=this.value" style="margin-bottom:4px">
-              <option value="">— Seleccionar de Odoo —</option>
+            <label>Lista de precios VES</label>
+            <select id="cfg-pricelist-ves-select" onchange="_onPlSelect('ves',this)">
+              <option value="">— Cargando listas de Odoo… —</option>
             </select>
-            <small style="color:var(--muted)">O escribe manualmente:</small>
-            <input id="cfg-pricelist-ves" placeholder="Precio USD Pago VES">
+            <small id="cfg-ves-info" style="color:var(--muted);font-size:.75rem;display:block;margin-top:3px"></small>
           </div>
           <div class="form-group">
-            <label>Lista de precios USD (nombre en Odoo)</label>
-            <select id="cfg-pricelist-usd-select" onchange="document.getElementById('cfg-pricelist-usd').value=this.value" style="margin-bottom:4px">
-              <option value="">— Seleccionar de Odoo —</option>
+            <label>Lista de precios USD</label>
+            <select id="cfg-pricelist-usd-select" onchange="_onPlSelect('usd',this)">
+              <option value="">— Cargando listas de Odoo… —</option>
             </select>
-            <small style="color:var(--muted)">O escribe manualmente:</small>
-            <input id="cfg-pricelist-usd" placeholder="Lista USD">
+            <small id="cfg-usd-info" style="color:var(--muted);font-size:.75rem;display:block;margin-top:3px"></small>
           </div>
           <div class="form-group" style="max-width:200px">
             <label>Tolerancia pago (USD)</label>
@@ -6535,15 +6533,18 @@ async function loadConfig() {
   loadNcCondiciones(); loadConfigApp(); loadModuloInternoToggle(); loadFraccionamientoToggle();
 }
 
+function _onPlSelect(which, sel) {
+  const id   = sel.value;
+  const name = id ? (sel.options[sel.selectedIndex]?.text || '') : '';
+  const info = document.getElementById(`cfg-${which}-info`);
+  if (info) info.textContent = id ? `ID Odoo: ${id}` : '';
+}
+
 async function loadConfigApp() {
   try {
     const cfg = await api('GET', '/config/app');
     if (!cfg) return;
-    const v = document.getElementById('cfg-pricelist-ves');
-    const u = document.getElementById('cfg-pricelist-usd');
     const t = document.getElementById('cfg-tolerancia');
-    if (v) v.value = cfg.pricelist_ves_nombre || '';
-    if (u) u.value = cfg.pricelist_usd_nombre || '';
     if (t) t.value = cfg.tolerancia_pago_usd || '0.01';
     loadOdooPricelists(cfg);
   } catch(e) {}
@@ -6551,42 +6552,36 @@ async function loadConfigApp() {
 
 async function loadOdooPricelists(cfg) {
   try {
-    // Cargar listas de Odoo Y locales en paralelo
-    const [pricelists, localListas] = await Promise.all([
-      api('GET', '/config/odoo-pricelists').catch(() => []),
-      api('GET', '/precios').catch(() => []),
-    ]);
+    // Solo listas de Odoo — el valor guardado y comparado es el ID numérico
+    const pricelists = await api('GET', '/config/odoo-pricelists').catch(() => []);
 
     const vesSelect = document.getElementById('cfg-pricelist-ves-select');
     const usdSelect = document.getElementById('cfg-pricelist-usd-select');
     if (!vesSelect && !usdSelect) return;
 
-    let optsHtml = '<option value="">— Seleccionar —</option>';
-
+    let optsHtml = '<option value="">— Seleccionar lista de Odoo —</option>';
     if (pricelists && pricelists.length) {
-      optsHtml += '<optgroup label="Listas de Odoo">';
       optsHtml += pricelists.map(p => {
         const mon = Array.isArray(p.currency_id) ? p.currency_id[1] : (p.currency_id || '');
-        return `<option value="${p.name}">${p.name}${mon ? ' (' + mon + ')' : ''}</option>`;
+        return `<option value="${p.id}">${p.name}${mon ? ' (' + mon + ')' : ''}</option>`;
       }).join('');
-      optsHtml += '</optgroup>';
-    }
-
-    if (localListas && localListas.length) {
-      optsHtml += '<optgroup label="Listas Locales">';
-      optsHtml += localListas.map(l =>
-        `<option value="${l.nombre}">${l.nombre} (${l.moneda})</option>`
-      ).join('');
-      optsHtml += '</optgroup>';
+    } else {
+      optsHtml += '<option value="" disabled>⚠ No se pudo conectar a Odoo</option>';
     }
 
     if (vesSelect) {
       vesSelect.innerHTML = optsHtml;
-      if (cfg && cfg.pricelist_ves_nombre) vesSelect.value = cfg.pricelist_ves_nombre;
+      if (cfg && cfg.pricelist_ves_id) {
+        vesSelect.value = cfg.pricelist_ves_id;
+        _onPlSelect('ves', vesSelect);
+      }
     }
     if (usdSelect) {
       usdSelect.innerHTML = optsHtml;
-      if (cfg && cfg.pricelist_usd_nombre) usdSelect.value = cfg.pricelist_usd_nombre;
+      if (cfg && cfg.pricelist_usd_id) {
+        usdSelect.value = cfg.pricelist_usd_id;
+        _onPlSelect('usd', usdSelect);
+      }
     }
   } catch(e) { /* fail silently if Odoo not connected */ }
 }
@@ -6610,17 +6605,27 @@ async function actualizarBinance() {
 }
 
 async function guardarConfigApp() {
-  const ves = document.getElementById('cfg-pricelist-ves')?.value?.trim();
-  const usd = document.getElementById('cfg-pricelist-usd')?.value?.trim();
-  const tol = document.getElementById('cfg-tolerancia')?.value?.trim();
-  if (!ves || !usd) { alert('Los nombres de listas no pueden estar vacíos'); return; }
+  const vesSelect = document.getElementById('cfg-pricelist-ves-select');
+  const usdSelect = document.getElementById('cfg-pricelist-usd-select');
+  const vesId  = vesSelect?.value;
+  const usdId  = usdSelect?.value;
+  const vesNom = vesId ? (vesSelect.options[vesSelect.selectedIndex]?.text || '') : '';
+  const usdNom = usdId ? (usdSelect.options[usdSelect.selectedIndex]?.text || '') : '';
+  const tol    = document.getElementById('cfg-tolerancia')?.value?.trim();
+
+  if (!vesId || !usdId) {
+    alert('Selecciona la Lista VES y la Lista USD antes de guardar.');
+    return;
+  }
   try {
     await api('PUT', '/config/app', {
-      pricelist_ves_nombre: ves,
-      pricelist_usd_nombre: usd,
-      tolerancia_pago_usd: tol || '0.01'
+      pricelist_ves_id:     vesId,
+      pricelist_usd_id:     usdId,
+      pricelist_ves_nombre: vesNom,   // solo para display / logs
+      pricelist_usd_nombre: usdNom,   // solo para display / logs
+      tolerancia_pago_usd:  tol || '0.01',
     });
-    alert('Configuración guardada');
+    alert(`Configuración guardada\nVES: ${vesNom} (ID ${vesId})\nUSD: ${usdNom} (ID ${usdId})`);
   } catch(e) { alert('Error: ' + e.message); }
 }
 
