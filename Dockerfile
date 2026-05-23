@@ -18,9 +18,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Librerías de runtime para psycopg2 (sin gcc)
+# Librerías de runtime: psycopg2 + bundle completo de CAs del sistema
+# (ca-certificates resuelve el SSL incompleto de sitios como bcv.org.ve)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \
+        ca-certificates \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar paquetes instalados desde la etapa de build

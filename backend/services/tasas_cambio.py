@@ -1,10 +1,33 @@
 import httpx
+import ssl
 import re
 import logging
 from datetime import date
 from database import get_con
 
 logger = logging.getLogger(__name__)
+
+# bcv.org.ve tiene una cadena de certificados incompleta; usamos el bundle
+# del sistema operativo (ca-certificates en Dockerfile) en lugar de certifi.
+def _bcv_ssl_context() -> ssl.SSLContext:
+    """Crea un SSL context que usa el bundle completo del SO."""
+    ctx = ssl.create_default_context()
+    # Intenta cargar el bundle del sistema (disponible tras apt ca-certificates)
+    for bundle in (
+        '/etc/ssl/certs/ca-certificates.crt',   # Debian/Ubuntu/Railway
+        '/etc/pki/tls/certs/ca-bundle.crt',     # RHEL/CentOS
+        '/etc/ssl/cert.pem',                     # Alpine / macOS
+    ):
+        try:
+            ctx.load_verify_locations(cafile=bundle)
+            logger.debug('_bcv_ssl_context: cargado %s', bundle)
+            return ctx
+        except (FileNotFoundError, ssl.SSLError):
+            continue
+    logger.warning('_bcv_ssl_context: no se encontró bundle del SO, usando certifi')
+    import certifi
+    ctx.load_verify_locations(cafile=certifi.where())
+    return ctx
 
 
 async def obtener_tasa_bcv():
@@ -15,7 +38,9 @@ async def obtener_tasa_bcv():
         'Accept-Language': 'es-VE,es;q=0.9',
     }
     try:
-        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        ssl_ctx = _bcv_ssl_context()
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True,
+                                     verify=ssl_ctx) as client:
             r = await client.get(url, headers=headers)
         html = r.text
 
