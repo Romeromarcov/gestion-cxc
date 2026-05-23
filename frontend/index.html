@@ -268,6 +268,17 @@
       </a>
     </div>
 
+    <div id="nav-fraccionamiento" style="display:none">
+      <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
+                  letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Fraccionamiento</div>
+      <a href="#" onclick="showView('frac-lotes')" data-roles="gerente,admin">
+        <span class="ico">📦</span> Lotes
+      </a>
+      <a href="#" onclick="showView('frac-ventas')" data-roles="gerente,admin,vendedor">
+        <span class="ico">🧮</span> Ventas Fracción
+      </a>
+    </div>
+
     <div style="padding:6px 16px 2px;font-size:.68rem;text-transform:uppercase;
                 letter-spacing:.08em;color:rgba(255,255,255,.4);margin-top:6px">Comercial</div>
     <a href="#" onclick="showView('precios')" data-roles="gerente,admin">
@@ -337,6 +348,10 @@
       <div class="card" style="cursor:pointer;border-left:4px solid var(--danger)" onclick="showView('cxp')">
         <div class="num" id="d-cxp-usd" style="color:var(--danger)">—</div>
         <div class="lbl">🏭 CxP proveedores (USD)</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="showView('gastos')">
+        <div class="num" id="d-aprob-egresos">—</div>
+        <div class="lbl">Egresos por aprobar</div>
       </div>
     </div>
     <div id="alert-pagadas-sin-factura" style="margin-bottom:16px"></div>
@@ -661,10 +676,18 @@
         <div class="form-row">
           <div class="form-group">
             <label>Lista de precios VES (nombre en Odoo)</label>
+            <select id="cfg-pricelist-ves-select" onchange="document.getElementById('cfg-pricelist-ves').value=this.value" style="margin-bottom:4px">
+              <option value="">— Seleccionar de Odoo —</option>
+            </select>
+            <small style="color:var(--muted)">O escribe manualmente:</small>
             <input id="cfg-pricelist-ves" placeholder="Precio USD Pago VES">
           </div>
           <div class="form-group">
             <label>Lista de precios USD (nombre en Odoo)</label>
+            <select id="cfg-pricelist-usd-select" onchange="document.getElementById('cfg-pricelist-usd').value=this.value" style="margin-bottom:4px">
+              <option value="">— Seleccionar de Odoo —</option>
+            </select>
+            <small style="color:var(--muted)">O escribe manualmente:</small>
             <input id="cfg-pricelist-usd" placeholder="Lista USD">
           </div>
           <div class="form-group" style="max-width:200px">
@@ -703,6 +726,47 @@
             <span id="toggle-modulo-label" style="font-size:.92rem;font-weight:600">Módulo desactivado</span>
           </label>
           <span id="toggle-modulo-saving" style="font-size:.8rem;color:var(--muted);display:none">Guardando…</span>
+        </div>
+      </div>
+
+      <!-- Tasas de Cambio — actualización manual -->
+      <div class="form-section" style="grid-column:1/-1">
+        <h3>Tasas de Cambio</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+          Actualiza manualmente las tasas de cambio (BCV y Binance P2P). Las actualizaciones también ocurren automáticamente según el horario programado.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-outline" onclick="actualizarBCV()">↺ Actualizar BCV ahora</button>
+          <button class="btn btn-outline" onclick="actualizarBinance()">↺ Actualizar Binance P2P ahora</button>
+          <span id="tasas-update-msg" style="font-size:.82rem;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <!-- Módulo de Fraccionamiento — Feature flag -->
+      <div class="form-section" style="grid-column:1/-1" id="cfg-fraccionamiento-section">
+        <h3>🧮 Módulo de Fraccionamiento</h3>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+          Permite fraccionar unidades (ej: caja → litros) y llevar ventas, pagos y regalos por sub-unidad.
+        </p>
+        <div style="display:flex;align-items:center;gap:16px">
+          <label class="toggle-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <div style="position:relative">
+              <input type="checkbox" id="toggle-fraccionamiento"
+                     onchange="toggleFraccionamiento(this.checked)"
+                     style="opacity:0;width:0;height:0;position:absolute">
+              <div id="toggle-frac-slider"
+                   style="width:46px;height:24px;background:#ccc;border-radius:12px;
+                          transition:background .2s;position:relative;cursor:pointer"
+                   onclick="document.getElementById('toggle-fraccionamiento').click()">
+                <div id="toggle-frac-knob"
+                     style="width:20px;height:20px;background:#fff;border-radius:50%;
+                            position:absolute;top:2px;left:2px;transition:left .2s;
+                            box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>
+              </div>
+            </div>
+            <span id="toggle-frac-label" style="font-size:.92rem;font-weight:600">Módulo desactivado</span>
+          </label>
+          <span id="toggle-frac-saving" style="font-size:.8rem;color:var(--muted);display:none">Guardando…</span>
         </div>
       </div>
 
@@ -935,6 +999,49 @@
     </div>
   </div>
 
+  <!-- ── FRACCIONAMIENTO — LOTES ── -->
+  <div id="view-frac-lotes" class="view">
+    <div class="cards-row" id="frac-lotes-kpis" style="margin-bottom:16px">
+      <div class="card"><div class="num" id="fkpi-lotes-activos">—</div><div class="lbl">Lotes activos</div></div>
+      <div class="card"><div class="num" id="fkpi-sub-disponible">—</div><div class="lbl">Sub-unidades disponibles</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="filters" style="margin:0">
+        <select id="frac-lote-estado" onchange="loadFracLotes()" style="padding:6px 10px;border:1px solid #dee2e6;border-radius:6px">
+          <option value="">Todos los estados</option>
+          <option value="activo">Activo</option>
+          <option value="agotado">Agotado</option>
+          <option value="cerrado">Cerrado</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="showModal('modal-nuevo-lote')">+ Nuevo Lote</button>
+    </div>
+    <div id="tb-frac-lotes"><div class="loader">Cargando...</div></div>
+  </div>
+
+  <!-- ── FRACCIONAMIENTO — VENTAS ── -->
+  <div id="view-frac-ventas" class="view">
+    <div class="cards-row" id="frac-ventas-kpis" style="margin-bottom:16px">
+      <div class="card"><div class="num" id="fvkpi-borradores">—</div><div class="lbl">Borradores</div></div>
+      <div class="card"><div class="num" id="fvkpi-conf-mes">—</div><div class="lbl">Confirmadas (mes)</div></div>
+      <div class="card"><div class="num" id="fvkpi-monto-mes">—</div><div class="lbl">Monto mes (USD)</div></div>
+      <div class="card"><div class="num" id="fvkpi-pendiente">—</div><div class="lbl">Pendiente cobro</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="filters" style="margin:0;display:flex;gap:8px">
+        <select id="frac-venta-estado" onchange="loadFracVentas()" style="padding:6px 10px;border:1px solid #dee2e6;border-radius:6px">
+          <option value="">Todos los estados</option>
+          <option value="borrador">Borrador</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="anulada">Anulada</option>
+        </select>
+        <input id="frac-venta-cliente" placeholder="Filtrar cliente..." oninput="loadFracVentas()" style="padding:6px 10px;border:1px solid #dee2e6;border-radius:6px">
+      </div>
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-venta-frac')">+ Nueva Venta</button>
+    </div>
+    <div id="tb-frac-ventas"><div class="loader">Cargando...</div></div>
+  </div>
+
   <!-- ── MAESTRO DE OPERACIONES ── -->
   <div id="view-maestro" class="view">
     <!-- Balance vs Odoo panel -->
@@ -1147,9 +1254,9 @@
         <th>ID</th><th>Fecha</th><th>Descripción</th>
         <th>Egreso</th><th>Banco salida</th>
         <th>Ingreso</th><th>Banco entrada</th>
-        <th>Tasa</th><th>Estado</th><th>Odoo</th><th>Acciones</th>
+        <th>Tasa</th><th>Estado</th><th>Aprobación</th><th>Odoo</th><th>Acciones</th>
       </tr></thead>
-      <tbody id="tb-cambios-divisa"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+      <tbody id="tb-cambios-divisa"><tr><td colspan="12" class="loader">Cargando...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1387,9 +1494,9 @@
         <table><thead><tr>
           <th>ID</th><th>Tipo</th><th>Categoría</th><th>Descripción</th>
           <th style="text-align:right">Monto</th><th>Mon.</th><th>Fecha</th>
-          <th>Estado</th><th>Recurrente</th><th>Odoo</th><th>Acciones</th>
+          <th>Estado</th><th>Recurrente</th><th>Odoo</th><th>Aprobación</th><th>Acciones</th>
         </tr></thead>
-        <tbody id="tb-gastos"><tr><td colspan="11" class="loader">Cargando...</td></tr></tbody>
+        <tbody id="tb-gastos"><tr><td colspan="12" class="loader">Cargando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -3474,6 +3581,182 @@
   </div>
 </div>
 
+<!-- ── FRACCIONAMIENTO MODALS ── -->
+<div id="modal-nuevo-lote" class="modal-bg">
+  <div class="modal" style="max-width:500px">
+    <h3>Nuevo Lote de Fraccionamiento</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Ref. Producto Inventario (opcional)</label>
+        <input id="fl-producto-ref" placeholder="Código inventario interno">
+      </div>
+      <div class="form-group">
+        <label>Nombre del Producto *</label>
+        <input id="fl-producto-nombre" placeholder="Ej: Aceite Mineral 5W-30">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Unidad Padre *</label>
+        <input id="fl-unidad-padre" placeholder="Ej: barril, caja">
+      </div>
+      <div class="form-group">
+        <label>Cantidad Padre *</label>
+        <input id="fl-cantidad-padre" type="number" step="0.01" value="1" min="0.01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Sub-unidad *</label>
+        <input id="fl-subunidad-nombre" placeholder="Ej: litro, unidad">
+      </div>
+      <div class="form-group">
+        <label>Factor de Conversión *</label>
+        <input id="fl-factor-conversion" type="number" step="0.01" placeholder="Sub-unidades por unidad padre">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Costo Padre (USD)</label>
+        <input id="fl-costo-padre" type="number" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Precio Venta Sub-unidad (USD)</label>
+        <input id="fl-precio-venta" type="number" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <input id="fl-notas" placeholder="Opcional">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="crearLote()">Crear Lote</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nuevo-lote')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-detalle-lote" class="modal-bg">
+  <div class="modal" style="max-width:620px">
+    <h3>Detalle de Lote</h3>
+    <input type="hidden" id="dl-lote-id">
+    <div id="dl-info" style="font-size:.88rem;color:var(--muted);margin-bottom:12px"></div>
+    <h4 style="margin-bottom:8px">Movimientos</h4>
+    <div id="dl-movimientos" style="max-height:220px;overflow-y:auto"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="abrirRegaloLote()">🎁 Registrar Regalo</button>
+      <button class="btn btn-outline" onclick="abrirAjusteLote()">📐 Ajuste Stock</button>
+      <button class="btn btn-danger" onclick="cerrarLote(document.getElementById('dl-lote-id').value)">Cerrar Lote</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-detalle-lote')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-regalo-lote" class="modal-bg">
+  <div class="modal" style="max-width:400px">
+    <h3>Registrar Regalo</h3>
+    <input type="hidden" id="rgl-lote-id">
+    <div class="form-group"><label>Cantidad *</label><input id="rgl-cantidad" type="number" step="0.01" min="0.01"></div>
+    <div class="form-group"><label>Destinatario</label><input id="rgl-destinatario" placeholder="Nombre del destinatario"></div>
+    <div class="form-group"><label>Notas</label><input id="rgl-notas" placeholder="Opcional"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="registrarRegalo()">Registrar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-regalo-lote')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-ajuste-lote" class="modal-bg">
+  <div class="modal" style="max-width:400px">
+    <h3>Ajustar Stock</h3>
+    <input type="hidden" id="ajl-lote-id">
+    <div class="form-group"><label>Delta de Cantidad (+ o -) *</label><input id="ajl-delta" type="number" step="0.01" placeholder="Ej: -5 ó +10"></div>
+    <div class="form-group"><label>Motivo *</label><input id="ajl-motivo" placeholder="Razón del ajuste"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="ajustarLote()">Aplicar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-ajuste-lote')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-nueva-venta-frac" class="modal-bg">
+  <div class="modal" style="max-width:400px">
+    <h3>Nueva Venta Fraccionamiento</h3>
+    <div class="form-group"><label>Cliente *</label><input id="fv-cliente-nombre" placeholder="Nombre del cliente"></div>
+    <div class="form-group"><label>Notas</label><input id="fv-notas" placeholder="Opcional"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="crearVentaFrac()">Crear</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-nueva-venta-frac')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-detalle-venta-frac" class="modal-bg">
+  <div class="modal" style="max-width:680px">
+    <h3>Detalle Venta Fracción</h3>
+    <input type="hidden" id="dvf-venta-id">
+    <div id="dvf-info" style="font-size:.88rem;margin-bottom:12px"></div>
+    <h4>Líneas</h4>
+    <div id="dvf-lineas" style="max-height:180px;overflow-y:auto;margin-bottom:12px"></div>
+    <div id="dvf-add-linea" class="form-row" style="background:#f8f9fa;padding:10px;border-radius:6px;margin-bottom:12px">
+      <div class="form-group" style="min-width:180px">
+        <label>Lote</label>
+        <select id="dvf-lote-sel"></select>
+      </div>
+      <div class="form-group" style="max-width:100px"><label>Cantidad</label><input id="dvf-cantidad" type="number" step="0.01" value="1" min="0.01"></div>
+      <div class="form-group" style="max-width:100px"><label>Precio USD</label><input id="dvf-precio" type="number" step="0.01" value="0"></div>
+      <div class="form-group" style="max-width:80px"><label>Desc %</label><input id="dvf-descuento" type="number" value="0" min="0" max="100"></div>
+      <div class="form-group" style="align-self:flex-end">
+        <button class="btn btn-primary btn-sm" onclick="agregarLineaFrac()">+ Agregar</button>
+      </div>
+    </div>
+    <h4>Pagos</h4>
+    <div id="dvf-pagos" style="max-height:120px;overflow-y:auto;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-success" id="dvf-btn-confirmar" onclick="confirmarVentaFrac(document.getElementById('dvf-venta-id').value)">✓ Confirmar</button>
+      <button class="btn btn-outline" id="dvf-btn-pago" onclick="registrarPagoFrac(document.getElementById('dvf-venta-id').value)">💵 Registrar Pago</button>
+      <button class="btn btn-danger" onclick="anularVentaFrac(document.getElementById('dvf-venta-id').value)">Anular</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-detalle-venta-frac')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-pago-frac" class="modal-bg">
+  <div class="modal" style="max-width:420px">
+    <h3>Registrar Pago</h3>
+    <input type="hidden" id="pf-venta-id">
+    <div class="form-row">
+      <div class="form-group"><label>Monto *</label><input id="pf-monto" type="number" step="0.01" min="0.01"></div>
+      <div class="form-group">
+        <label>Moneda</label>
+        <select id="pf-moneda">
+          <option value="USD">USD</option>
+          <option value="VES">VES</option>
+          <option value="USDT">USDT</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Método *</label>
+        <select id="pf-metodo">
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+          <option value="zelle">Zelle</option>
+          <option value="binance">Binance</option>
+          <option value="pago_movil">Pago Móvil</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Referencia</label><input id="pf-referencia" placeholder="Nro. confirmación"></div>
+    </div>
+    <div class="form-group"><label>Fecha Pago *</label><input id="pf-fecha" type="date"></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-primary" onclick="guardarPagoFrac()">Guardar</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-pago-frac')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '';
 let token = localStorage.getItem('token') || '';
@@ -3593,6 +3876,8 @@ function showView(name) {
     'compras-internas':  'Compras Internas',
     'inv-interno':       'Inventario Interno',
     'cxp-internas':      'Cuentas por Pagar Internas',
+    'frac-lotes':        'Fraccionamiento — Lotes',
+    'frac-ventas':       'Fraccionamiento — Ventas',
   };
   document.getElementById('view-title').textContent = titles[name] || name;
 
@@ -3620,6 +3905,8 @@ function showView(name) {
     'compras-internas': loadComprasInternas,
     'inv-interno':      loadInventarioInterno,
     'cxp-internas':     loadCxPInternas,
+    'frac-lotes':       loadFracLotes,
+    'frac-ventas':      loadFracVentas,
   };
   if (loaders[name]) loaders[name]();
 }
@@ -3644,6 +3931,11 @@ async function loadDashboard() {
     }
     if (dCxp) {
       dCxp.textContent = r.cxp_total_usd != null ? '$' + fmtNum(r.cxp_total_usd, 2) : '—';
+    }
+    const dAprobEgr = document.getElementById('d-aprob-egresos');
+    if (dAprobEgr && r.pendientes_aprobacion !== undefined) {
+      dAprobEgr.textContent = r.pendientes_aprobacion;
+      dAprobEgr.style.color = r.pendientes_aprobacion > 0 ? 'var(--danger)' : '';
     }
   } catch(e) {}
 
@@ -4734,7 +5026,7 @@ let _cambiosDivisaData = [];
 async function loadCambiosDivisa() {
   const tb = document.getElementById('tb-cambios-divisa');
   if (!tb) return;
-  tb.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
+  tb.innerHTML = '<tr><td colspan="12" class="loader">Cargando...</td></tr>';
   try {
     const estado = document.getElementById('cd-f-estado')?.value || '';
     const desde  = document.getElementById('cd-f-desde')?.value  || '';
@@ -4746,32 +5038,44 @@ async function loadCambiosDivisa() {
     const path = '/cambios-divisa' + (qs.length ? '?' + qs.join('&') : '');
     _cambiosDivisaData = await api('GET', path) || [];
     if (!_cambiosDivisaData.length) {
-      tb.innerHTML = '<tr><td colspan="11" class="loader">Sin registros</td></tr>'; return;
+      tb.innerHTML = '<tr><td colspan="12" class="loader">Sin registros</td></tr>'; return;
     }
     const estadoBadge = {borrador:'b-pendiente',validado:'b-confirmado',enviado_odoo:'b-recibido'};
-    tb.innerHTML = _cambiosDivisaData.map(c => `<tr>
-      <td>${c.id}</td>
-      <td>${c.fecha||''}</td>
-      <td>${c.descripcion||'—'}</td>
-      <td style="text-align:right;color:var(--danger)"><strong>${fmtNum(c.monto_egreso,2)}</strong> ${c.moneda_egreso}</td>
-      <td style="font-size:.82rem">${c.banco_egreso||'—'}</td>
-      <td style="text-align:right;color:var(--success)"><strong>${fmtNum(c.monto_ingreso,2)}</strong> ${c.moneda_ingreso}</td>
-      <td style="font-size:.82rem">${c.banco_ingreso||'—'}</td>
-      <td style="text-align:right">${fmtNum(c.tasa_cambio,4)}</td>
-      <td><span class="badge ${estadoBadge[c.estado]||'b-pendiente'}">${c.estado}</span></td>
-      <td style="font-size:.8rem;color:var(--muted)">${c.odoo_move_id ? `#${c.odoo_move_id}` : '—'}</td>
-      <td>
-        ${c.estado==='borrador' ? `
-          <button class="btn btn-sm btn-success" onclick="validarCambioDivisa(${c.id})">Validar</button>
-          <button class="btn btn-sm btn-danger" onclick="eliminarCambioDivisa(${c.id})" style="margin-left:4px">🗑</button>
-        ` : ''}
-        ${c.estado==='validado' ? `
-          <button class="btn btn-sm btn-primary" onclick="abrirEnviarCambioOdoo(${c.id})">→ Odoo</button>
-        ` : ''}
-      </td>
-    </tr>`).join('');
+    const aprobColors = { sin_solicitar:'#6c757d', pendiente:'#fd7e14', aprobado:'var(--success)', rechazado:'var(--danger)' };
+    const isGerente = currentUser && (currentUser.rol === 'admin' || currentUser.rol === 'gerente');
+    tb.innerHTML = _cambiosDivisaData.map(c => {
+      const aprobEstado = c.aprobacion_estado || 'sin_solicitar';
+      let aprobBtns = `<span style="font-size:.72rem;color:${aprobColors[aprobEstado]||'#6c757d'};font-weight:600">${aprobEstado}</span>`;
+      if (aprobEstado === 'sin_solicitar') aprobBtns += ` <button class="btn btn-sm" style="font-size:.7rem;padding:2px 5px" onclick="solicitarAprobacionCambio(${c.id})">⏳</button>`;
+      else if (aprobEstado === 'pendiente' && isGerente) {
+        aprobBtns += ` <button class="btn btn-sm btn-success" style="font-size:.7rem;padding:2px 5px" onclick="aprobarCambio(${c.id})">✅</button>`;
+        aprobBtns += ` <button class="btn btn-sm btn-danger" style="font-size:.7rem;padding:2px 5px" onclick="rechazarCambio(${c.id})">❌</button>`;
+      }
+      return `<tr>
+        <td>${c.id}</td>
+        <td>${c.fecha||''}</td>
+        <td>${c.descripcion||'—'}</td>
+        <td style="text-align:right;color:var(--danger)"><strong>${fmtNum(c.monto_egreso,2)}</strong> ${c.moneda_egreso}</td>
+        <td style="font-size:.82rem">${c.banco_egreso||'—'}</td>
+        <td style="text-align:right;color:var(--success)"><strong>${fmtNum(c.monto_ingreso,2)}</strong> ${c.moneda_ingreso}</td>
+        <td style="font-size:.82rem">${c.banco_ingreso||'—'}</td>
+        <td style="text-align:right">${fmtNum(c.tasa_cambio,4)}</td>
+        <td><span class="badge ${estadoBadge[c.estado]||'b-pendiente'}">${c.estado}</span></td>
+        <td style="font-size:.8rem">${aprobBtns}</td>
+        <td style="font-size:.8rem;color:var(--muted)">${c.odoo_move_id ? `#${c.odoo_move_id}` : '—'}</td>
+        <td>
+          ${c.estado==='borrador' ? `
+            <button class="btn btn-sm btn-success" onclick="validarCambioDivisa(${c.id})">Validar</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarCambioDivisa(${c.id})" style="margin-left:4px">🗑</button>
+          ` : ''}
+          ${c.estado==='validado' ? `
+            <button class="btn btn-sm btn-primary" onclick="abrirEnviarCambioOdoo(${c.id})">→ Odoo</button>
+          ` : ''}
+        </td>
+      </tr>`;
+    }).join('');
   } catch(e) {
-    tb.innerHTML = `<tr><td colspan="11" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="12" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
   }
 }
 
@@ -6049,7 +6353,7 @@ async function eliminarItemLista(listaId, itemId) {
 // ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 async function loadConfig() {
   loadMonedas(); loadMetodos(); loadLimitesDesc(); loadUsuarios();
-  loadNcCondiciones(); loadConfigApp(); loadModuloInternoToggle();
+  loadNcCondiciones(); loadConfigApp(); loadModuloInternoToggle(); loadFraccionamientoToggle();
 }
 
 async function loadConfigApp() {
@@ -6062,7 +6366,44 @@ async function loadConfigApp() {
     if (v) v.value = cfg.pricelist_ves_nombre || '';
     if (u) u.value = cfg.pricelist_usd_nombre || '';
     if (t) t.value = cfg.tolerancia_pago_usd || '0.01';
+    loadOdooPricelists(cfg);
   } catch(e) {}
+}
+
+async function loadOdooPricelists(cfg) {
+  try {
+    const pricelists = await api('GET', '/config/odoo-pricelists');
+    if (!pricelists || !Array.isArray(pricelists)) return;
+    const vesSelect = document.getElementById('cfg-pricelist-ves-select');
+    const usdSelect = document.getElementById('cfg-pricelist-usd-select');
+    const opts = pricelists.map(p => `<option value="${p.name}">${p.id} — ${p.name}</option>`).join('');
+    if (vesSelect) {
+      vesSelect.innerHTML = '<option value="">— Seleccionar de Odoo —</option>' + opts;
+      if (cfg && cfg.pricelist_ves_nombre) vesSelect.value = cfg.pricelist_ves_nombre;
+    }
+    if (usdSelect) {
+      usdSelect.innerHTML = '<option value="">— Seleccionar de Odoo —</option>' + opts;
+      if (cfg && cfg.pricelist_usd_nombre) usdSelect.value = cfg.pricelist_usd_nombre;
+    }
+  } catch(e) { /* Odoo may not be connected, fail silently */ }
+}
+
+async function actualizarBCV() {
+  const msg = document.getElementById('tasas-update-msg');
+  if (msg) msg.textContent = 'Actualizando BCV...';
+  try {
+    const r = await api('POST', '/config/tasas/actualizar-bcv');
+    if (msg) msg.textContent = r.error ? ('Error: ' + r.error) : `BCV: ${r.tasa_bcv || r.promedio || 'ok'} (${r.fecha || ''})`;
+  } catch(e) { if (msg) msg.textContent = 'Error: ' + e.message; }
+}
+
+async function actualizarBinance() {
+  const msg = document.getElementById('tasas-update-msg');
+  if (msg) msg.textContent = 'Actualizando Binance P2P...';
+  try {
+    const r = await api('POST', '/config/tasas/actualizar-binance');
+    if (msg) msg.textContent = r.error ? ('Error: ' + r.error) : `Binance: ${r.promedio || 'ok'} VES/USDT (${r.fecha || ''})`;
+  } catch(e) { if (msg) msg.textContent = 'Error: ' + e.message; }
 }
 
 async function guardarConfigApp() {
@@ -6259,14 +6600,6 @@ let _maestroCats = [];
 let _maestroTab = 'lista';
 
 async function initMaestroView() {
-  // Setear rango por defecto: mes actual
-  const hoy   = new Date();
-  const desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-  const hasta = hoy.toISOString().split('T')[0];
-  document.getElementById('mf-desde').value = desde;
-  document.getElementById('mf-hasta').value = hasta;
-  document.getElementById('imp-desde').value = desde;
-  document.getElementById('imp-hasta').value = hasta;
   await loadMaestroCategorias();
   loadMaestro();
 }
@@ -7885,30 +8218,41 @@ async function loadGastos() {
   if (tipo)   qs.push(`tipo=${tipo}`);
   if (estado) qs.push(`estado=${estado}`);
   const tbody = document.getElementById('tb-gastos');
-  tbody.innerHTML = '<tr><td colspan="11" class="loader">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" class="loader">Cargando...</td></tr>';
   try {
     const rows = await api('GET', `/gastos?${qs.join('&')}`) || [];
     _gastosData = rows;
     renderGastos(rows);
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="11" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="color:var(--danger);padding:12px">${e.message}</td></tr>`;
   }
 }
 
 function renderGastos(rows) {
   const tbody = document.getElementById('tb-gastos');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="loader">Sin registros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="loader">Sin registros</td></tr>';
     return;
   }
   const tipoBadge = { unico:'b-en-proceso-odoo', recurrente:'b-propuesto', servicio_publico:'b-disponible' };
   const estadoBadge = { borrador:'b-pendiente', pagado:'b-pagado-completo', enviado_odoo:'b-enviada' };
+  const aprobBadge = { sin_solicitar:'#6c757d', pendiente:'#fd7e14', aprobado:'var(--success)', rechazado:'var(--danger)' };
+  const isGerente = currentUser && (currentUser.rol === 'admin' || currentUser.rol === 'gerente');
   tbody.innerHTML = rows.map(r => {
     const tCls = tipoBadge[r.tipo] || '';
     const eCls = estadoBadge[r.estado] || 'b-pendiente';
     const odooInfo = r.odoo_move_id
       ? `<span style="color:var(--success);font-size:.8rem">✓ #${r.odoo_move_id}</span>`
       : '<span style="color:var(--muted);font-size:.8rem">—</span>';
+    const aprobEstado = r.aprobacion_estado || 'sin_solicitar';
+    const aprobColor = aprobBadge[aprobEstado] || '#6c757d';
+    let aprobBtns = `<span style="font-size:.75rem;color:${aprobColor};font-weight:600">${aprobEstado}</span>`;
+    if (aprobEstado === 'sin_solicitar') {
+      aprobBtns += ` <button class="btn btn-sm" style="font-size:.72rem;padding:2px 6px" onclick="solicitarAprobacionGasto(${r.id})">⏳ Solicitar</button>`;
+    } else if (aprobEstado === 'pendiente' && isGerente) {
+      aprobBtns += ` <button class="btn btn-sm btn-success" style="font-size:.72rem;padding:2px 6px" onclick="aprobarGasto(${r.id})">✅</button>`;
+      aprobBtns += ` <button class="btn btn-sm btn-danger" style="font-size:.72rem;padding:2px 6px" onclick="rechazarGasto(${r.id})">❌</button>`;
+    }
     const acciones = [];
     if (r.estado === 'borrador') {
       acciones.push(`<button class="btn btn-sm btn-success" onclick="abrirPagarGasto(${r.id})" title="Registrar pago">✓ Pagar</button>`);
@@ -7927,9 +8271,58 @@ function renderGastos(rows) {
       <td><span class="badge ${eCls}">${r.estado}</span></td>
       <td style="font-size:.8rem;color:var(--muted)">${r.es_recurrente ? `☑ día ${r.dia_pago||'—'}` : '—'}</td>
       <td>${odooInfo}</td>
+      <td style="white-space:nowrap;font-size:.8rem">${aprobBtns}</td>
       <td style="white-space:nowrap">${acciones.join('')}</td>
     </tr>`;
   }).join('');
+}
+
+async function solicitarAprobacionGasto(id) {
+  await api('POST', `/gastos/${id}/solicitar-aprobacion`);
+  loadGastos();
+}
+async function aprobarGasto(id) {
+  if (!confirm('¿Aprobar este gasto?')) return;
+  await api('POST', `/gastos/${id}/aprobar`);
+  loadGastos();
+}
+async function rechazarGasto(id) {
+  const motivo = prompt('Motivo del rechazo:');
+  if (motivo === null) return;
+  await api('POST', `/gastos/${id}/rechazar`, { motivo });
+  loadGastos();
+}
+
+async function solicitarAprobacionCambio(id) {
+  await api('POST', `/cambios-divisa/${id}/solicitar-aprobacion`);
+  loadCambiosDivisa();
+}
+async function aprobarCambio(id) {
+  if (!confirm('¿Aprobar este cambio de divisa?')) return;
+  await api('POST', `/cambios-divisa/${id}/aprobar`);
+  loadCambiosDivisa();
+}
+async function rechazarCambio(id) {
+  const motivo = prompt('Motivo del rechazo:');
+  if (motivo === null) return;
+  await api('POST', `/cambios-divisa/${id}/rechazar`, { motivo });
+  loadCambiosDivisa();
+}
+
+async function solicitarAprobacionCompra(id) {
+  await api('POST', `/compras-internas/${id}/solicitar-aprobacion`);
+  loadComprasInternas();
+}
+async function aprobarCompra(id) {
+  if (!confirm('¿Aprobar esta compra?')) return;
+  await api('POST', `/compras-internas/${id}/aprobar`);
+  loadComprasInternas();
+}
+async function rechazarCompra(id) {
+  const motivo = prompt('Motivo del rechazo:');
+  if (motivo === null) return;
+  await api('POST', `/compras-internas/${id}/rechazar`, { motivo });
+  loadComprasInternas();
 }
 
 function gastosTab(tab) {
@@ -9029,12 +9422,352 @@ async function cancelarCxP(id) {
 }
 
 // On app init: check module status to show/hide sidebar nav
+// ── FRACCIONAMIENTO ───────────────────────────────────────────────────────────
+
+async function loadFraccionamientoToggle() {
+  try {
+    const cfg = await api('GET', '/config/app');
+    if (!cfg) return;
+    const activo = cfg.modulo_fraccionamiento_activo === '1' || cfg.modulo_fraccionamiento_activo === 1;
+    _applyFraccionamientoUI(activo);
+  } catch(e) {}
+}
+
+function _applyFraccionamientoUI(activo) {
+  const chk    = document.getElementById('toggle-fraccionamiento');
+  const slider = document.getElementById('toggle-frac-slider');
+  const knob   = document.getElementById('toggle-frac-knob');
+  const label  = document.getElementById('toggle-frac-label');
+  const nav    = document.getElementById('nav-fraccionamiento');
+  if (chk)    chk.checked = activo;
+  if (slider) slider.style.background = activo ? 'var(--primary, #0d6efd)' : '#ccc';
+  if (knob)   knob.style.left = activo ? '24px' : '2px';
+  if (label)  label.textContent = activo ? 'Módulo activado' : 'Módulo desactivado';
+  if (nav)    nav.style.display = activo ? '' : 'none';
+}
+
+async function toggleFraccionamiento(activo) {
+  const saving = document.getElementById('toggle-frac-saving');
+  if (saving) saving.style.display = '';
+  try {
+    await api('PUT', '/config/app', { modulo_fraccionamiento_activo: activo ? '1' : '0' });
+    _applyFraccionamientoUI(activo);
+  } catch(e) {
+    alert('Error al guardar: ' + e.message);
+    const chk = document.getElementById('toggle-fraccionamiento');
+    if (chk) { chk.checked = !activo; _applyFraccionamientoUI(!activo); }
+  } finally {
+    if (saving) saving.style.display = 'none';
+  }
+}
+
+async function loadFracLotes() {
+  const estado = document.getElementById('frac-lote-estado')?.value || '';
+  const tb = document.getElementById('tb-frac-lotes');
+  if (!tb) return;
+  tb.innerHTML = '<div class="loader">Cargando...</div>';
+  try {
+    let rows = await api('GET', '/fraccionamiento/lotes') || [];
+    if (estado) rows = rows.filter(r => r.estado === estado);
+    const resumen = await api('GET', '/fraccionamiento/resumen').catch(() => null);
+    if (resumen) {
+      const e1 = document.getElementById('fkpi-lotes-activos'); if (e1) e1.textContent = resumen.lotes_activos ?? '—';
+      const e2 = document.getElementById('fkpi-sub-disponible'); if (e2) e2.textContent = fmtNum(resumen.total_subunidades_disponible, 2);
+    }
+    if (!rows.length) { tb.innerHTML = '<p style="color:var(--muted);padding:16px">Sin lotes</p>'; return; }
+    const estadoColor = { activo:'var(--success)', agotado:'var(--warning)', cerrado:'var(--muted)' };
+    tb.innerHTML = `<table class="tabla"><thead><tr>
+      <th>Código</th><th>Producto</th><th>Unidad Padre</th><th>Sub-unidad</th>
+      <th>Stock Disponible</th><th>Estado</th><th>Acciones</th>
+    </tr></thead><tbody>${rows.map(r => `<tr>
+      <td><strong>${r.codigo||r.id}</strong></td>
+      <td style="font-size:.88rem">${r.producto_nombre}</td>
+      <td style="font-size:.82rem">${r.cantidad_padre} ${r.unidad_padre}</td>
+      <td style="font-size:.82rem">${r.subunidad_nombre}</td>
+      <td style="text-align:right;font-weight:600">${fmtNum(r.stock_disponible,2)}</td>
+      <td><span style="color:${estadoColor[r.estado]||'#666'};font-weight:600">${r.estado}</span></td>
+      <td><button class="btn btn-sm btn-outline" onclick="abrirDetalleLote(${r.id})">Ver</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  } catch(e) { tb.innerHTML = `<p style="color:var(--danger);padding:16px">${e.message}</p>`; }
+}
+
+async function crearLote() {
+  const body = {
+    producto_ref: document.getElementById('fl-producto-ref')?.value?.trim() || null,
+    producto_nombre: document.getElementById('fl-producto-nombre')?.value?.trim(),
+    unidad_padre: document.getElementById('fl-unidad-padre')?.value?.trim(),
+    cantidad_padre: parseFloat(document.getElementById('fl-cantidad-padre')?.value) || 1,
+    subunidad_nombre: document.getElementById('fl-subunidad-nombre')?.value?.trim(),
+    factor_conversion: parseFloat(document.getElementById('fl-factor-conversion')?.value) || 0,
+    costo_padre_usd: parseFloat(document.getElementById('fl-costo-padre')?.value) || null,
+    precio_venta_usd: parseFloat(document.getElementById('fl-precio-venta')?.value) || null,
+    notas: document.getElementById('fl-notas')?.value?.trim() || null,
+  };
+  if (!body.producto_nombre || !body.unidad_padre || !body.subunidad_nombre || !body.factor_conversion) {
+    alert('Completa los campos obligatorios'); return;
+  }
+  try {
+    await api('POST', '/fraccionamiento/lotes', body);
+    closeModal('modal-nuevo-lote');
+    loadFracLotes();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirDetalleLote(id) {
+  try {
+    const lote = await api('GET', `/fraccionamiento/lotes/${id}`);
+    document.getElementById('dl-lote-id').value = id;
+    document.getElementById('dl-info').innerHTML = `
+      <strong>${lote.codigo}</strong> — ${lote.producto_nombre}<br>
+      Padre: ${lote.cantidad_padre} ${lote.unidad_padre} → ${fmtNum(lote.total_subunidades,2)} ${lote.subunidad_nombre}<br>
+      <strong>Stock disponible: ${fmtNum(lote.stock_disponible,2)} ${lote.subunidad_nombre}</strong> | Estado: ${lote.estado}
+    `;
+    const movs = lote.movimientos || [];
+    document.getElementById('dl-movimientos').innerHTML = movs.length ? `<table class="tabla" style="font-size:.82rem">
+      <thead><tr><th>Tipo</th><th>Cantidad</th><th>Destinatario</th><th>Fecha</th></tr></thead>
+      <tbody>${movs.map(m => `<tr>
+        <td>${m.tipo}</td>
+        <td style="text-align:right">${fmtNum(m.cantidad,2)}</td>
+        <td>${m.destinatario||m.referencia||'—'}</td>
+        <td>${(m.creado_en||'').slice(0,10)}</td>
+      </tr>`).join('')}</tbody></table>`
+      : '<p style="color:var(--muted);font-size:.85rem">Sin movimientos</p>';
+    showModal('modal-detalle-lote');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function abrirRegaloLote() {
+  const id = document.getElementById('dl-lote-id').value;
+  document.getElementById('rgl-lote-id').value = id;
+  document.getElementById('rgl-cantidad').value = '';
+  document.getElementById('rgl-destinatario').value = '';
+  document.getElementById('rgl-notas').value = '';
+  showModal('modal-regalo-lote');
+}
+
+async function registrarRegalo() {
+  const id = document.getElementById('rgl-lote-id').value;
+  const body = {
+    cantidad: parseFloat(document.getElementById('rgl-cantidad').value),
+    destinatario: document.getElementById('rgl-destinatario').value.trim(),
+    notas: document.getElementById('rgl-notas').value.trim(),
+  };
+  if (!body.cantidad || body.cantidad <= 0) { alert('Ingresa una cantidad válida'); return; }
+  try {
+    await api('POST', `/fraccionamiento/lotes/${id}/regalo`, body);
+    closeModal('modal-regalo-lote');
+    loadFracLotes();
+    abrirDetalleLote(id);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function abrirAjusteLote() {
+  const id = document.getElementById('dl-lote-id').value;
+  document.getElementById('ajl-lote-id').value = id;
+  document.getElementById('ajl-delta').value = '';
+  document.getElementById('ajl-motivo').value = '';
+  showModal('modal-ajuste-lote');
+}
+
+async function ajustarLote() {
+  const id = document.getElementById('ajl-lote-id').value;
+  const body = {
+    cantidad_delta: parseFloat(document.getElementById('ajl-delta').value),
+    motivo: document.getElementById('ajl-motivo').value.trim(),
+  };
+  if (isNaN(body.cantidad_delta)) { alert('Ingresa un delta válido'); return; }
+  try {
+    await api('POST', `/fraccionamiento/lotes/${id}/ajuste`, body);
+    closeModal('modal-ajuste-lote');
+    loadFracLotes();
+    abrirDetalleLote(id);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function cerrarLote(id) {
+  if (!confirm('¿Cerrar este lote? Esta acción no se puede deshacer.')) return;
+  try {
+    await api('PUT', `/fraccionamiento/lotes/${id}/cerrar`);
+    closeModal('modal-detalle-lote');
+    loadFracLotes();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function loadFracVentas() {
+  const estado = document.getElementById('frac-venta-estado')?.value || '';
+  const cliente = document.getElementById('frac-venta-cliente')?.value?.toLowerCase() || '';
+  const tb = document.getElementById('tb-frac-ventas');
+  if (!tb) return;
+  tb.innerHTML = '<div class="loader">Cargando...</div>';
+  try {
+    let rows = await api('GET', '/fraccionamiento/ventas') || [];
+    if (estado) rows = rows.filter(r => r.estado === estado);
+    if (cliente) rows = rows.filter(r => (r.cliente_nombre||'').toLowerCase().includes(cliente));
+    const resumen = await api('GET', '/fraccionamiento/resumen').catch(() => null);
+    if (resumen) {
+      const mes = new Date().toISOString().slice(0,7);
+      const borr = rows.filter(r => r.estado === 'borrador').length;
+      const confMes = rows.filter(r => r.estado === 'confirmada' && (r.creado_en||'').startsWith(mes)).length;
+      const montoMes = rows.filter(r => r.estado === 'confirmada' && (r.creado_en||'').startsWith(mes)).reduce((s,r) => s + (r.total_usd||0), 0);
+      const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+      setEl('fvkpi-borradores', borr);
+      setEl('fvkpi-conf-mes', confMes);
+      setEl('fvkpi-monto-mes', '$' + fmtNum(montoMes,2));
+      setEl('fvkpi-pendiente', '$' + fmtNum(resumen.pendiente_cobro,2));
+    }
+    if (!rows.length) { tb.innerHTML = '<p style="color:var(--muted);padding:16px">Sin ventas</p>'; return; }
+    const stColor = { borrador:'var(--warning)', confirmada:'var(--success)', anulada:'var(--danger)' };
+    tb.innerHTML = `<table class="tabla"><thead><tr>
+      <th>Código</th><th>Cliente</th><th>Total USD</th><th>Saldo Pendiente</th><th>Estado</th><th>Fecha</th><th>Acciones</th>
+    </tr></thead><tbody>${rows.map(r => `<tr>
+      <td><strong>${r.codigo||r.id}</strong></td>
+      <td>${r.cliente_nombre}</td>
+      <td style="text-align:right">$${fmtNum(r.total_usd,2)}</td>
+      <td style="text-align:right;color:${(r.saldo_pendiente||0)>0?'var(--danger)':'var(--success)'}">$${fmtNum(r.saldo_pendiente||0,2)}</td>
+      <td><span style="color:${stColor[r.estado]||''};font-weight:600">${r.estado}</span></td>
+      <td>${(r.creado_en||'').slice(0,10)}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="abrirDetalleVentaFrac(${r.id})">Ver</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  } catch(e) { tb.innerHTML = `<p style="color:var(--danger);padding:16px">${e.message}</p>`; }
+}
+
+async function crearVentaFrac() {
+  const body = {
+    cliente_nombre: document.getElementById('fv-cliente-nombre')?.value?.trim(),
+    notas: document.getElementById('fv-notas')?.value?.trim() || null,
+  };
+  if (!body.cliente_nombre) { alert('El nombre del cliente es requerido'); return; }
+  try {
+    const venta = await api('POST', '/fraccionamiento/ventas/crear', body);
+    closeModal('modal-nueva-venta-frac');
+    document.getElementById('fv-cliente-nombre').value = '';
+    document.getElementById('fv-notas').value = '';
+    loadFracVentas();
+    abrirDetalleVentaFrac(venta.id);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirDetalleVentaFrac(id) {
+  try {
+    const venta = await api('GET', `/fraccionamiento/ventas/${id}`);
+    document.getElementById('dvf-venta-id').value = id;
+    document.getElementById('dvf-info').innerHTML = `
+      <strong>${venta.codigo}</strong> — ${venta.cliente_nombre} |
+      Total: <strong>$${fmtNum(venta.total_usd,2)}</strong> |
+      Saldo: <strong style="color:${(venta.saldo_pendiente||0)>0?'var(--danger)':'var(--success)'}">$${fmtNum(venta.saldo_pendiente||0,2)}</strong> |
+      Estado: <strong>${venta.estado}</span>
+    `;
+    const lineas = venta.lineas || [];
+    document.getElementById('dvf-lineas').innerHTML = lineas.length ? `<table class="tabla" style="font-size:.82rem">
+      <thead><tr><th>Lote/Producto</th><th>Sub-unidad</th><th>Cantidad</th><th>Precio</th><th>Desc%</th><th>Subtotal</th><th></th></tr></thead>
+      <tbody>${lineas.map(l => `<tr>
+        <td>${l.producto_nombre||'—'}</td>
+        <td>${l.subunidad_nombre||'—'}</td>
+        <td>${fmtNum(l.cantidad,2)}</td>
+        <td>$${fmtNum(l.precio_unitario_usd,2)}</td>
+        <td>${l.descuento_pct||0}%</td>
+        <td>$${fmtNum(l.subtotal_usd,2)}</td>
+        <td>${venta.estado==='borrador'?`<button class="btn btn-sm btn-danger" onclick="eliminarLineaFrac(${id},${l.id})">🗑</button>`:''}</td>
+      </tr>`).join('')}</tbody></table>`
+      : '<p style="color:var(--muted);font-size:.85rem">Sin líneas</p>';
+    const pagos = venta.pagos || [];
+    document.getElementById('dvf-pagos').innerHTML = pagos.length ? `<table class="tabla" style="font-size:.82rem">
+      <thead><tr><th>Fecha</th><th>Método</th><th>Monto</th><th>Ref</th></tr></thead>
+      <tbody>${pagos.map(p => `<tr>
+        <td>${p.fecha_pago}</td><td>${p.metodo}</td>
+        <td>$${fmtNum(p.monto,2)} ${p.moneda||'USD'}</td><td>${p.referencia||'—'}</td>
+      </tr>`).join('')}</tbody></table>`
+      : '<p style="color:var(--muted);font-size:.85rem">Sin pagos</p>';
+    // Load lotes for add-line select
+    const lotes = await api('GET', '/fraccionamiento/lotes').catch(() => []);
+    const activeLotes = (lotes||[]).filter(l => l.estado === 'activo' && l.stock_disponible > 0);
+    document.getElementById('dvf-lote-sel').innerHTML = activeLotes.map(l =>
+      `<option value="${l.id}">${l.codigo||l.id} — ${l.producto_nombre} (${fmtNum(l.stock_disponible,2)} ${l.subunidad_nombre})</option>`
+    ).join('') || '<option value="">Sin lotes activos</option>';
+    const btnConf = document.getElementById('dvf-btn-confirmar');
+    const btnPago = document.getElementById('dvf-btn-pago');
+    if (btnConf) btnConf.style.display = venta.estado === 'borrador' ? '' : 'none';
+    if (btnPago) btnPago.style.display = venta.estado === 'confirmada' ? '' : 'none';
+    document.getElementById('dvf-add-linea').style.display = venta.estado === 'borrador' ? '' : 'none';
+    showModal('modal-detalle-venta-frac');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function agregarLineaFrac() {
+  const id = document.getElementById('dvf-venta-id').value;
+  const body = {
+    lote_id: parseInt(document.getElementById('dvf-lote-sel').value),
+    cantidad: parseFloat(document.getElementById('dvf-cantidad').value) || 1,
+    precio_unitario_usd: parseFloat(document.getElementById('dvf-precio').value) || 0,
+    descuento_pct: parseFloat(document.getElementById('dvf-descuento').value) || 0,
+  };
+  try {
+    await api('POST', `/fraccionamiento/ventas/${id}/agregar-linea`, body);
+    abrirDetalleVentaFrac(id);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarLineaFrac(ventaId, lineaId) {
+  if (!confirm('¿Eliminar esta línea?')) return;
+  try {
+    await api('DELETE', `/fraccionamiento/ventas/${ventaId}/linea/${lineaId}`);
+    abrirDetalleVentaFrac(ventaId);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function confirmarVentaFrac(id) {
+  if (!confirm('¿Confirmar esta venta? Se descontará el stock de los lotes.')) return;
+  try {
+    await api('PUT', `/fraccionamiento/ventas/${id}/confirmar`);
+    closeModal('modal-detalle-venta-frac');
+    loadFracVentas();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function anularVentaFrac(id) {
+  if (!confirm('¿Anular esta venta?')) return;
+  try {
+    await api('PUT', `/fraccionamiento/ventas/${id}/anular`);
+    closeModal('modal-detalle-venta-frac');
+    loadFracVentas();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function registrarPagoFrac(id) {
+  document.getElementById('pf-venta-id').value = id;
+  document.getElementById('pf-monto').value = '';
+  document.getElementById('pf-referencia').value = '';
+  document.getElementById('pf-fecha').value = new Date().toISOString().slice(0,10);
+  showModal('modal-pago-frac');
+}
+
+async function guardarPagoFrac() {
+  const id = document.getElementById('pf-venta-id').value;
+  const body = {
+    monto: parseFloat(document.getElementById('pf-monto').value),
+    moneda: document.getElementById('pf-moneda').value,
+    metodo: document.getElementById('pf-metodo').value,
+    referencia: document.getElementById('pf-referencia').value.trim() || null,
+    fecha_pago: document.getElementById('pf-fecha').value,
+  };
+  if (!body.monto || body.monto <= 0) { alert('Ingresa un monto válido'); return; }
+  if (!body.fecha_pago) { alert('Ingresa la fecha de pago'); return; }
+  try {
+    await api('POST', `/fraccionamiento/ventas/${id}/registrar-pago`, body);
+    closeModal('modal-pago-frac');
+    loadFracVentas();
+    abrirDetalleVentaFrac(id);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const cfg = await api('GET', '/config/app').catch(() => null);
     if (cfg) {
-      const activo = cfg.modulo_interno_activo === '1' || cfg.modulo_interno_activo === 1;
-      _applyModuloInternoUI(activo);
+      const activoInterno = cfg.modulo_interno_activo === '1' || cfg.modulo_interno_activo === 1;
+      _applyModuloInternoUI(activoInterno);
+      const activoFrac = cfg.modulo_fraccionamiento_activo === '1' || cfg.modulo_fraccionamiento_activo === 1;
+      _applyFraccionamientoUI(activoFrac);
     }
   } catch(e) {}
 });

@@ -305,6 +305,42 @@ def enviar_cambio_odoo(cambio_id: int, body: dict = None,
     return {'mensaje': 'Asiento contable creado en Odoo', 'odoo_move_id': move_id, 'cambio': c}
 
 
+@router.post('/{cambio_id}/solicitar-aprobacion')
+def solicitar_aprobacion_cambio(cambio_id: int, user=Depends(get_current_user)):
+    con = get_con()
+    cambio = _get_or_404(con, cambio_id)
+    if cambio.get('aprobacion_estado') == 'aprobado':
+        con.close(); raise HTTPException(400, 'Ya aprobado')
+    con.execute("""UPDATE cambios_divisa SET aprobacion_estado='pendiente',
+                   aprobacion_solicitada_en=? WHERE id=?""",
+                (datetime.now(timezone.utc).isoformat(), cambio_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Aprobación solicitada'}
+
+
+@router.post('/{cambio_id}/aprobar')
+def aprobar_cambio(cambio_id: int, user=Depends(require_roles('gerente', 'admin'))):
+    con = get_con()
+    _get_or_404(con, cambio_id)
+    con.execute("""UPDATE cambios_divisa SET aprobacion_estado='aprobado',
+                   aprobado_por=?, aprobado_en=? WHERE id=?""",
+                (user['id'], datetime.now(timezone.utc).isoformat(), cambio_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Cambio aprobado'}
+
+
+@router.post('/{cambio_id}/rechazar')
+def rechazar_cambio(cambio_id: int, body: dict, user=Depends(require_roles('gerente', 'admin'))):
+    motivo = body.get('motivo', '')
+    con = get_con()
+    _get_or_404(con, cambio_id)
+    con.execute("""UPDATE cambios_divisa SET aprobacion_estado='rechazado',
+                   rechazo_motivo=?, aprobado_por=?, aprobado_en=? WHERE id=?""",
+                (motivo, user['id'], datetime.now(timezone.utc).isoformat(), cambio_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Cambio rechazado'}
+
+
 # ── Helpers para el frontend ──────────────────────────────────────────────────
 
 @router.get('/helpers/journals')

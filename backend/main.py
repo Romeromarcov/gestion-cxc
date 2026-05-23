@@ -14,6 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from database import init_db
 from services.tasas_cambio import obtener_tasa_bcv
+from services.binance_p2p import actualizar_tasa_binance_p2p
 from config import ALLOWED_ORIGINS
 from routers import (auth, ventas, descuentos, promociones,
                      pagos, inventario,
@@ -22,7 +23,8 @@ from routers import (auth, ventas, descuentos, promociones,
                      cambios_divisa, pagos_fiscales, requisiciones,
                      zelle_terceros, gastos, nomina, compras_odoo,
                      ventas_internas, compras_internas,
-                     inventario_interno, cuentas_por_pagar)
+                     inventario_interno, cuentas_por_pagar,
+                     fraccionamiento)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -212,12 +214,17 @@ async def auto_sync_conciliacion():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
     init_db()
-    scheduler.add_job(obtener_tasa_bcv, 'cron', hour=8, minute=0)
+    scheduler.add_job(obtener_tasa_bcv, 'cron', hour='8,14', minute=0)
+    scheduler.add_job(actualizar_tasa_binance_p2p, 'interval', minutes=30)
     scheduler.add_job(sync_pagos_odoo, 'interval', minutes=15)
     scheduler.add_job(auto_sync_pagos_clientes, 'interval', minutes=15)
     scheduler.add_job(auto_sync_conciliacion, 'interval', minutes=30)
     scheduler.start()
+    # Run BCV fetch on startup so we always have today's rate
+    asyncio.create_task(obtener_tasa_bcv())
+    asyncio.create_task(actualizar_tasa_binance_p2p())
     yield
     scheduler.shutdown()
 
@@ -266,7 +273,8 @@ for r in [auth, ventas, descuentos, promociones, pagos,
           cambios_divisa, pagos_fiscales, requisiciones,
           zelle_terceros, gastos, nomina, compras_odoo,
           ventas_internas, compras_internas,
-          inventario_interno, cuentas_por_pagar]:
+          inventario_interno, cuentas_por_pagar,
+          fraccionamiento]:
     app.include_router(r.router)
 
 # Frontend estático

@@ -1,6 +1,6 @@
 import io
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import StreamingResponse
 from database import get_con
 from routers.auth import get_current_user, require_roles
@@ -264,6 +264,7 @@ def _calcular_estado_cobro(con, order_name: str,
 
 @router.get('/cxc')
 def reporte_cxc(lista_id: int = None,
+                skip: int = 0, limit: int = Query(default=200, le=1000),
                 user=Depends(require_roles('gerente', 'admin'))):
     """Reporte CxC con estado de cobro completo: pre/post factura, retención, sobrepago."""
     odoo = get_odoo()
@@ -429,7 +430,8 @@ def reporte_cxc(lista_id: int = None,
         'tasa_custom': tasa_custom,
         'total_saldo_usd': total_saldo,
         'total_saldo_ves_bcv': total_saldo * tasa_bcv,
-        'ventas': resultado,
+        'total': len(resultado),
+        'ventas': resultado[skip:skip + limit],
     }
 
 
@@ -535,6 +537,7 @@ def ordenes_pagadas_pendientes(user=Depends(require_roles('gerente', 'admin'))):
 def reporte_ventas(vendedor_id: int = None, cliente: str = None,
                    fecha_desde: str = None, fecha_hasta: str = None,
                    marca: str = None, lista_id: int = None,
+                   skip: int = 0, limit: int = Query(default=200, le=1000),
                    user=Depends(require_roles('gerente', 'admin'))):
     odoo = get_odoo()
     try:
@@ -586,7 +589,7 @@ def reporte_ventas(vendedor_id: int = None, cliente: str = None,
                 'categoria_local': extra.get('categoria_local'),
             })
     con.close()
-    return resultado
+    return resultado[skip:skip + limit]
 
 
 @router.get('/ventas/exportar-excel')
@@ -674,6 +677,12 @@ def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
     """).fetchone()
     cxp_total_usd = cxp_row[0] if cxp_row else 0
 
+    pendientes_aprobacion = (
+        con.execute("SELECT COUNT(*) FROM gastos WHERE aprobacion_estado='pendiente'").fetchone()[0] +
+        con.execute("SELECT COUNT(*) FROM cambios_divisa WHERE aprobacion_estado='pendiente'").fetchone()[0] +
+        con.execute("SELECT COUNT(*) FROM compras_internas WHERE aprobacion_estado='pendiente'").fetchone()[0]
+    )
+
     con.close()
     return {
         'aprobaciones_pendientes': total_propuestos,
@@ -683,6 +692,7 @@ def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
         'creditos_disponibles': creditos_disponibles,
         'gastos_recurrentes_pendientes': gastos_recurrentes_pendientes,
         'cxp_total_usd': float(cxp_total_usd),
+        'pendientes_aprobacion': pendientes_aprobacion,
     }
 
 

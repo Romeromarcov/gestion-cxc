@@ -918,6 +918,123 @@ def migrate_v27(con):
     con.commit()
 
 
+def migrate_aprobaciones(con):
+    """Approval workflow columns for gastos, cambios_divisa, compras_internas."""
+    for table in ('gastos', 'cambios_divisa', 'compras_internas'):
+        for col, ddl in [
+            ('aprobacion_estado', "TEXT DEFAULT 'sin_solicitar'"),
+            ('aprobacion_solicitada_en', 'TEXT'),
+            ('aprobado_por', 'INTEGER'),
+            ('aprobado_en', 'TEXT'),
+            ('rechazo_motivo', 'TEXT'),
+        ]:
+            try:
+                con.execute(f'ALTER TABLE {table} ADD COLUMN {col} {ddl}')
+                con.commit()
+            except Exception:
+                pass
+    # Seed: feature flag disabled by default
+    con.execute("""INSERT OR IGNORE INTO config_app(clave, valor, descripcion)
+                   VALUES('aprobacion_egresos_activo', '0',
+                          'Requiere aprobación para gastos, cambios de divisa y compras internas')""")
+    con.commit()
+
+
+def migrate_fraccionamiento(con):
+    """Sub-units: break a parent product into traceable sub-units for sale/gift."""
+    con.execute("""CREATE TABLE IF NOT EXISTS fraccionamiento_lotes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE,
+        producto_ref TEXT,
+        producto_nombre TEXT NOT NULL,
+        unidad_padre TEXT NOT NULL,
+        cantidad_padre REAL NOT NULL DEFAULT 1,
+        subunidad_nombre TEXT NOT NULL,
+        factor_conversion REAL NOT NULL,
+        total_subunidades REAL NOT NULL,
+        stock_disponible REAL NOT NULL,
+        costo_padre_usd REAL,
+        costo_subunidad_usd REAL,
+        precio_venta_usd REAL,
+        estado TEXT DEFAULT 'activo',
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS fraccionamiento_movimientos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lote_id INTEGER NOT NULL,
+        tipo TEXT NOT NULL,
+        cantidad REAL NOT NULL,
+        precio_unitario_usd REAL,
+        destinatario TEXT,
+        venta_id INTEGER,
+        referencia TEXT,
+        notas TEXT,
+        creado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(lote_id) REFERENCES fraccionamiento_lotes(id),
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS fraccionamiento_ventas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE,
+        cliente_nombre TEXT NOT NULL,
+        vendedor_id INTEGER,
+        total_usd REAL DEFAULT 0,
+        saldo_pendiente REAL DEFAULT 0,
+        estado TEXT DEFAULT 'borrador',
+        notas TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(vendedor_id) REFERENCES usuarios(id)
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS fraccionamiento_ventas_lineas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        venta_id INTEGER NOT NULL,
+        lote_id INTEGER NOT NULL,
+        cantidad REAL NOT NULL DEFAULT 1,
+        precio_unitario_usd REAL NOT NULL DEFAULT 0,
+        descuento_pct REAL NOT NULL DEFAULT 0,
+        subtotal_usd REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY(venta_id) REFERENCES fraccionamiento_ventas(id),
+        FOREIGN KEY(lote_id) REFERENCES fraccionamiento_lotes(id)
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS fraccionamiento_pagos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        venta_id INTEGER NOT NULL,
+        monto REAL NOT NULL,
+        moneda TEXT DEFAULT 'USD',
+        metodo TEXT NOT NULL,
+        referencia TEXT,
+        fecha_pago TEXT NOT NULL,
+        notas TEXT,
+        estado TEXT DEFAULT 'recibido',
+        registrado_por INTEGER,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(venta_id) REFERENCES fraccionamiento_ventas(id),
+        FOREIGN KEY(registrado_por) REFERENCES usuarios(id)
+    )""")
+    con.commit()
+    # Feature flag
+    con.execute("""INSERT OR IGNORE INTO config_app(clave, valor, descripcion)
+                   VALUES('modulo_fraccionamiento_activo', '0',
+                          'Activa el módulo de Fraccionamiento (sub-unidades)')""")
+    con.commit()
+    # Indexes
+    for ddl in [
+        "CREATE INDEX IF NOT EXISTS idx_frac_lote_estado ON fraccionamiento_lotes(estado)",
+        "CREATE INDEX IF NOT EXISTS idx_frac_mov_lote ON fraccionamiento_movimientos(lote_id)",
+        "CREATE INDEX IF NOT EXISTS idx_frac_vta_estado ON fraccionamiento_ventas(estado)",
+        "CREATE INDEX IF NOT EXISTS idx_frac_pago_venta ON fraccionamiento_pagos(venta_id)",
+    ]:
+        try:
+            con.execute(ddl)
+        except Exception:
+            pass
+    con.commit()
+
+
 def init_db():
     con = get_con()
     # El adaptador traduce AUTOINCREMENT→SERIAL y omite los PRAGMA de SQLite
@@ -1075,6 +1192,8 @@ def init_db():
     migrate_v26(con)
     migrate_v27(con)
     migrate_modulo_interno(con)
+    migrate_aprobaciones(con)
+    migrate_fraccionamiento(con)
     _create_indexes(con)
     con.close()
 

@@ -184,3 +184,28 @@ def update_config_app(body: dict, user=Depends(require_roles('admin'))):
     con.commit()
     con.close()
     return {'mensaje': 'Configuración guardada', 'claves_actualizadas': list(body.keys())}
+
+
+@router.get('/odoo-pricelists')
+def listar_odoo_pricelists(user=Depends(require_roles('admin', 'gerente'))):
+    """Fetch active pricelists from Odoo for configuration mapping."""
+    try:
+        from routers.ventas import get_odoo
+        odoo = get_odoo()
+        return odoo.get_pricelists()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f'Error Odoo: {e}')
+
+
+@router.post('/tasas/actualizar-binance')
+async def actualizar_binance_manual(user=Depends(require_roles('admin', 'gerente'))):
+    from services.binance_p2p import actualizar_tasa_binance_p2p
+    result = await actualizar_tasa_binance_p2p()
+    return result
+
+
+@router.post('/tasas/actualizar-bcv')
+async def actualizar_bcv_manual(user=Depends(require_roles('admin', 'gerente'))):
+    from services.tasas_cambio import obtener_tasa_bcv
+    result = await obtener_tasa_bcv()
+    return result

@@ -139,3 +139,51 @@ def anular_compra(compra_id: int,
     con.commit()
     con.close()
     return {'mensaje': 'Compra anulada y CxP cancelada'}
+
+
+@router.post('/{compra_id}/solicitar-aprobacion')
+def solicitar_aprobacion_compra(compra_id: int, user=Depends(get_current_user)):
+    con = get_con()
+    compra = row_to_dict(con.execute(
+        "SELECT * FROM compras_internas WHERE id=?", (compra_id,)
+    ).fetchone())
+    if not compra:
+        con.close(); raise HTTPException(404, 'Compra no encontrada')
+    if compra.get('aprobacion_estado') == 'aprobado':
+        con.close(); raise HTTPException(400, 'Ya aprobado')
+    con.execute("""UPDATE compras_internas SET aprobacion_estado='pendiente',
+                   aprobacion_solicitada_en=? WHERE id=?""",
+                (datetime.now(timezone.utc).isoformat(), compra_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Aprobación solicitada'}
+
+
+@router.post('/{compra_id}/aprobar')
+def aprobar_compra(compra_id: int, user=Depends(require_roles('gerente', 'admin'))):
+    con = get_con()
+    compra = row_to_dict(con.execute(
+        "SELECT id FROM compras_internas WHERE id=?", (compra_id,)
+    ).fetchone())
+    if not compra:
+        con.close(); raise HTTPException(404, 'Compra no encontrada')
+    con.execute("""UPDATE compras_internas SET aprobacion_estado='aprobado',
+                   aprobado_por=?, aprobado_en=? WHERE id=?""",
+                (user['id'], datetime.now(timezone.utc).isoformat(), compra_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Compra aprobada'}
+
+
+@router.post('/{compra_id}/rechazar')
+def rechazar_compra(compra_id: int, body: dict, user=Depends(require_roles('gerente', 'admin'))):
+    motivo = body.get('motivo', '')
+    con = get_con()
+    compra = row_to_dict(con.execute(
+        "SELECT id FROM compras_internas WHERE id=?", (compra_id,)
+    ).fetchone())
+    if not compra:
+        con.close(); raise HTTPException(404, 'Compra no encontrada')
+    con.execute("""UPDATE compras_internas SET aprobacion_estado='rechazado',
+                   rechazo_motivo=?, aprobado_por=?, aprobado_en=? WHERE id=?""",
+                (motivo, user['id'], datetime.now(timezone.utc).isoformat(), compra_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Compra rechazada'}

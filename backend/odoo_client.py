@@ -29,6 +29,13 @@ class OdooClient:
             'limit': 200
         })
 
+    def get_pricelists(self) -> list:
+        """Returns all active pricelists from Odoo: [{id, name, currency_id}]"""
+        return self.call('product.pricelist', 'search_read',
+            [[['active', '=', True]]],
+            {'fields': ['id', 'name', 'currency_id'], 'limit': 100}
+        )
+
     def get_pricelist_by_name(self, nombre: str):
         """Busca una lista de precios en Odoo por nombre exacto. Retorna dict o None."""
         rows = self.call('product.pricelist', 'search_read',

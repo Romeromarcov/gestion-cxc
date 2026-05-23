@@ -432,6 +432,42 @@ def enviar_odoo(gasto_id: int, body: dict = None,
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+@router.post('/{gasto_id}/solicitar-aprobacion')
+def solicitar_aprobacion_gasto(gasto_id: int, user=Depends(get_current_user)):
+    con = get_con()
+    gasto = _get_or_404(con, gasto_id)
+    if gasto.get('aprobacion_estado') == 'aprobado':
+        con.close(); raise HTTPException(400, 'Ya aprobado')
+    con.execute("""UPDATE gastos SET aprobacion_estado='pendiente',
+                   aprobacion_solicitada_en=? WHERE id=?""",
+                (datetime.now(timezone.utc).isoformat(), gasto_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Aprobación solicitada'}
+
+
+@router.post('/{gasto_id}/aprobar')
+def aprobar_gasto(gasto_id: int, user=Depends(require_roles('gerente', 'admin'))):
+    con = get_con()
+    _get_or_404(con, gasto_id)
+    con.execute("""UPDATE gastos SET aprobacion_estado='aprobado',
+                   aprobado_por=?, aprobado_en=? WHERE id=?""",
+                (user['id'], datetime.now(timezone.utc).isoformat(), gasto_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Gasto aprobado'}
+
+
+@router.post('/{gasto_id}/rechazar')
+def rechazar_gasto(gasto_id: int, body: dict, user=Depends(require_roles('gerente', 'admin'))):
+    motivo = body.get('motivo', '')
+    con = get_con()
+    _get_or_404(con, gasto_id)
+    con.execute("""UPDATE gastos SET aprobacion_estado='rechazado',
+                   rechazo_motivo=?, aprobado_por=?, aprobado_en=? WHERE id=?""",
+                (motivo, user['id'], datetime.now(timezone.utc).isoformat(), gasto_id))
+    con.commit(); con.close()
+    return {'mensaje': 'Gasto rechazado'}
+
+
 @router.get('/helpers/categorias')
 def categorias(user=Depends(get_current_user)):
     con = get_con()
