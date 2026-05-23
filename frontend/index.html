@@ -4864,13 +4864,18 @@ async function previewReplica(orderName) {
     }
 
     // estado='activa' — mostrar desglose completo
+    const tieneAdvertencias = r.advertencias && r.advertencias.length > 0;
     document.getElementById('prv-status').innerHTML = `
       <div style="padding:8px 14px;background:#f0fff4;border-radius:6px;font-size:.85rem;display:flex;gap:20px;flex-wrap:wrap">
         <span>📋 Lista: <strong>${r.pricelist_name}</strong></span>
         <span>💱 Moneda: <strong>${r.currency||'—'}</strong></span>
         <span style="color:#5c3a1a">🟤 VES Total: <strong>$${fmtNum(r.total_lista_ves,2)}</strong></span>
         <span style="color:var(--primary)">🔵 USD Total: <strong>$${fmtNum(r.total_lista_usd,2)}</strong></span>
-      </div>`;
+      </div>
+      ${tieneAdvertencias ? `<div style="margin-top:8px;padding:8px 14px;background:#fff8e1;border-left:3px solid #f59e0b;border-radius:4px;font-size:.82rem;color:#7c4f00">
+        ⚠️ <strong>Advertencias</strong> (la réplica se guarda igual con precio $0 para estas líneas):<br>
+        ${r.advertencias.map(a=>`• ${a}`).join('<br>')}
+      </div>` : ''}`;
 
     document.getElementById('prv-body').innerHTML = `
       <div class="table-wrap" style="max-height:360px;overflow-y:auto;margin-top:10px">
@@ -4886,16 +4891,21 @@ async function previewReplica(orderName) {
             <th style="text-align:right;color:#aaa;font-size:.72rem">Imp%</th>
           </tr></thead>
           <tbody>
-            ${(r.lineas||[]).map(l => `<tr>
-              <td style="font-size:.75rem;color:var(--muted)">${l.producto_ref||'—'}</td>
-              <td style="font-size:.84rem">${l.producto_nombre}</td>
-              <td style="text-align:right">${l.cantidad}</td>
-              <td style="text-align:right">$${fmtNum(l.precio_lista_ves,2)}</td>
-              <td style="text-align:right">$${fmtNum(l.subtotal_ves,2)}</td>
-              <td style="text-align:right">$${fmtNum(l.precio_lista_usd,2)}</td>
-              <td style="text-align:right">$${fmtNum(l.subtotal_usd,2)}</td>
-              <td style="text-align:right;font-size:.75rem;color:var(--muted)">${((l.tax_rate||0)*100).toFixed(0)}%</td>
-            </tr>`).join('')}
+            ${(r.lineas||[]).map(l => {
+              const sinPrecioUsd = !l.precio_lista_usd || l.precio_lista_usd === 0;
+              const rowStyle = sinPrecioUsd ? 'background:#fffbeb' : '';
+              const usdBadge = sinPrecioUsd ? ' <span title="Sin precio en lista USD" style="color:#f59e0b;font-size:.7rem">⚠</span>' : '';
+              return `<tr style="${rowStyle}">
+                <td style="font-size:.75rem;color:var(--muted)">${l.producto_ref||'—'}</td>
+                <td style="font-size:.84rem">${l.producto_nombre}</td>
+                <td style="text-align:right">${l.cantidad}</td>
+                <td style="text-align:right">$${fmtNum(l.precio_lista_ves,2)}</td>
+                <td style="text-align:right">$${fmtNum(l.subtotal_ves,2)}</td>
+                <td style="text-align:right;${sinPrecioUsd?'color:#f59e0b;font-weight:600':''}">$${fmtNum(l.precio_lista_usd,2)}${usdBadge}</td>
+                <td style="text-align:right">$${fmtNum(l.subtotal_usd,2)}</td>
+                <td style="text-align:right;font-size:.75rem;color:var(--muted)">${((l.tax_rate||0)*100).toFixed(0)}%</td>
+              </tr>`;
+            }).join('')}
           </tbody>
           <tfoot>
             <tr style="background:#f5f5f5;font-weight:600">

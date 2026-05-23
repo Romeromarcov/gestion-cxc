@@ -72,17 +72,19 @@ def _calcular_replica(odoo, order_name: str, cfg: dict) -> dict:
     precios_ves = odoo.get_precios_lista(pl_ves_id, product_ids)
     precios_usd = odoo.get_precios_lista(pl_usd_id, product_ids)
 
-    faltantes = [pid for pid in product_ids if not precios_usd.get(pid)]
+    # Productos sin precio en lista USD → advertencia, pero la réplica se crea igual
+    # (precio USD = 0 para esas líneas; el usuario debe añadirlos a la lista en Odoo)
+    faltantes = {pid for pid in product_ids if not precios_usd.get(pid)}
+    advertencias = []
     if faltantes:
         prods_sin_precio = [
-            l['product_id'][1] for l in lineas_odoo
+            f'{l["product_id"][1]}'
+            for l in lineas_odoo
             if l.get('product_id') and l['product_id'][0] in faltantes
         ]
-        return {
-            'estado': 'error',
-            'error': f'Sin precio en lista USD (ID {pl_usd_id}): {", ".join(prods_sin_precio)}',
-            'pricelist_id': order_pl_id, 'pricelist_name': pricelist_name, 'lineas': [],
-        }
+        advertencias.append(
+            f'Sin precio en lista USD (ID {pl_usd_id}): {", ".join(prods_sin_precio)}'
+        )
 
     lineas_replica = []
     sum_sub_ves = sum_tax_ves = sum_sub_usd = sum_tax_usd = 0.0
@@ -124,6 +126,7 @@ def _calcular_replica(odoo, order_name: str, cfg: dict) -> dict:
     return {
         'estado':             'activa',
         'error':              None,
+        'advertencias':       advertencias,   # lista de avisos no bloqueantes
         'order_name':         order_name,
         'pricelist_id':       order_pl_id,
         'pricelist_name':     pricelist_name,
