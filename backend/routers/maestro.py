@@ -63,6 +63,7 @@ def listar_operaciones(
     fecha_hasta: Optional[str] = None,
     moneda: Optional[str] = None,
     origen: Optional[str] = None,
+    skip: int = 0,
     limit: int = Query(200, le=1000),
     user=Depends(get_current_user)
 ):
@@ -92,8 +93,8 @@ def listar_operaciones(
     if origen:
         q += " AND m.origen=?"
         params.append(origen)
-    q += " ORDER BY m.fecha DESC, m.id DESC LIMIT ?"
-    params.append(limit)
+    q += " ORDER BY m.fecha DESC, m.id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, skip])
     rows = rows_to_list(con.execute(q, params).fetchall())
     con.close()
     return rows

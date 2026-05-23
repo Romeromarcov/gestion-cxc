@@ -1,5 +1,5 @@
 """CRM de seguimiento de cobranza."""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from routers.auth import get_current_user, require_roles
 from models.schemas import rows_to_list
 from database import get_con
@@ -13,6 +13,7 @@ router = APIRouter(prefix='/cobranza', tags=['cobranza'])
 @router.get('/gestiones')
 def listar_gestiones(cliente_id: int = None, orden_name: str = None,
                      ejecutivo_id: int = None, desde: str = None, hasta: str = None,
+                     skip: int = 0, limit: int = Query(default=200, le=1000),
                      user=Depends(get_current_user)):
     con = get_con()
     q = "SELECT g.*, u.nombre as ejecutivo_nombre FROM cobranza_gestiones g LEFT JOIN usuarios u ON u.id=g.ejecutivo_id WHERE 1=1"
@@ -27,7 +28,8 @@ def listar_gestiones(cliente_id: int = None, orden_name: str = None,
         q += " AND g.fecha_gestion>=?"; params.append(desde)
     if hasta:
         q += " AND g.fecha_gestion<=?"; params.append(hasta)
-    q += " ORDER BY g.fecha_gestion DESC, g.id DESC LIMIT 500"
+    q += " ORDER BY g.fecha_gestion DESC, g.id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, skip])
     rows = rows_to_list(con.execute(q, params).fetchall())
     con.close()
     return rows
