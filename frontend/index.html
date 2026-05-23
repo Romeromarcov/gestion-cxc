@@ -608,9 +608,22 @@
   <!-- ── PRECIOS ── -->
   <div id="view-precios" class="view">
     <div class="filters">
-      <button class="btn btn-primary" onclick="showModal('modal-nueva-lista')">+ Nueva Lista</button>
+      <button class="btn btn-primary" onclick="showModal('modal-nueva-lista')">+ Nueva Lista Local</button>
       <button class="btn btn-outline" onclick="loadListas()">↺ Actualizar</button>
     </div>
+
+    <!-- Listas de Odoo (traídas automáticamente) -->
+    <h3 style="margin:18px 0 8px;font-size:.95rem;color:var(--muted)">📦 Listas de Precios en Odoo</h3>
+    <div class="table-wrap" style="margin-bottom:22px">
+      <table><thead><tr>
+        <th>#</th><th>Nombre en Odoo</th><th>Moneda</th>
+      </tr></thead>
+      <tbody id="tb-odoo-pricelists"><tr><td colspan="3" class="loader">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Listas locales del sistema -->
+    <h3 style="margin:0 0 8px;font-size:.95rem;color:var(--muted)">🗂️ Listas Locales del Sistema</h3>
     <div class="table-wrap">
       <table><thead><tr>
         <th>Nombre</th><th>Moneda</th><th>Umbral Excluir %</th><th>Activa</th><th>Acciones</th>
@@ -6262,11 +6275,20 @@ async function confirmarValidarPromo() {
 
 // ── LISTAS DE PRECIOS ─────────────────────────────────────────────────────────
 async function loadListas() {
-  const tb = document.getElementById('tb-listas');
-  tb.innerHTML = '<tr><td colspan="5" class="loader">Cargando...</td></tr>';
-  try {
-    const rows = await api('GET', '/precios') || [];
-    tb.innerHTML = rows.map(l => `
+  const tb     = document.getElementById('tb-listas');
+  const tbOdoo = document.getElementById('tb-odoo-pricelists');
+  tb.innerHTML     = '<tr><td colspan="5" class="loader">Cargando...</td></tr>';
+  tbOdoo.innerHTML = '<tr><td colspan="3" class="loader">Cargando desde Odoo…</td></tr>';
+
+  // Cargar ambas fuentes en paralelo
+  const [rows, odooLists] = await Promise.all([
+    api('GET', '/precios').catch(() => []),
+    api('GET', '/config/odoo-pricelists').catch(() => null),
+  ]);
+
+  // Tabla local
+  tb.innerHTML = (rows && rows.length)
+    ? rows.map(l => `
       <tr>
         <td>${l.nombre}</td>
         <td>${l.moneda}</td>
@@ -6275,8 +6297,24 @@ async function loadListas() {
         <td>
           <button class="btn btn-sm btn-outline" onclick="verItemsLista(${l.id},'${l.nombre}')">Ver items</button>
         </td>
-      </tr>`).join('') || '<tr><td colspan="5" class="loader">Sin listas</td></tr>';
-  } catch(e) {}
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Sin listas locales — usa "+ Nueva Lista Local" para crear una</td></tr>';
+
+  // Tabla Odoo
+  if (!odooLists) {
+    tbOdoo.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--danger);padding:12px">⚠ No se pudo conectar a Odoo</td></tr>';
+  } else if (!odooLists.length) {
+    tbOdoo.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:12px">Sin listas activas en Odoo</td></tr>';
+  } else {
+    tbOdoo.innerHTML = odooLists.map(p => {
+      const moneda = Array.isArray(p.currency_id) ? p.currency_id[1] : (p.currency_id || '—');
+      return `<tr>
+        <td style="color:var(--muted);font-size:.82rem">${p.id}</td>
+        <td><strong>${p.name}</strong></td>
+        <td>${moneda}</td>
+      </tr>`;
+    }).join('');
+  }
 }
 
 async function crearLista() {
