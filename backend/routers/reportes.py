@@ -445,6 +445,7 @@ def get_alertas(user=Depends(require_roles('gerente', 'admin'))):
     tol = float(cfg.get('tolerancia_pago_usd', '0.01') or 0.01)
 
     # Sobrepago: sum(equivalente_usd) > total_lista_usd + tolerancia
+    # MIN() para evitar GroupingError en PostgreSQL (cada orden tiene una sola réplica activa)
     sobrepago = con.execute("""
         SELECT COUNT(*) FROM (
             SELECT p.odoo_order_name
@@ -455,7 +456,7 @@ def get_alertas(user=Depends(require_roles('gerente', 'admin'))):
               AND p.equivalente_usd IS NOT NULL
               AND r.total_lista_usd IS NOT NULL
             GROUP BY p.odoo_order_name
-            HAVING SUM(p.equivalente_usd) > r.total_lista_usd + ?
+            HAVING SUM(p.equivalente_usd) > MIN(r.total_lista_usd) + ?
         )
     """, (tol,)).fetchone()[0]
 
@@ -470,8 +471,8 @@ def get_alertas(user=Depends(require_roles('gerente', 'admin'))):
               AND p.equivalente_usd IS NOT NULL
               AND r.subtotal_lista_usd IS NOT NULL AND r.total_lista_usd IS NOT NULL
             GROUP BY p.odoo_order_name
-            HAVING ABS(SUM(p.equivalente_usd) - r.subtotal_lista_usd) <= ?
-               AND SUM(p.equivalente_usd) < r.total_lista_usd - ?
+            HAVING ABS(SUM(p.equivalente_usd) - MIN(r.subtotal_lista_usd)) <= ?
+               AND SUM(p.equivalente_usd) < MIN(r.total_lista_usd) - ?
         )
     """, (tol, tol)).fetchone()[0]
 
@@ -670,14 +671,15 @@ def resumen_dashboard(user=Depends(require_roles('gerente', 'admin'))):
     """, (mes_actual,)).fetchone()[0]
 
     # CxP: total monto pendiente a proveedores (compras sin pagar en maestro)
+    # ROUND en Python para evitar ROUND(real,int) que no existe en PostgreSQL
     cxp_row = con.execute("""
-        SELECT ROUND(COALESCE(SUM(monto_usd_bcv), 0), 2)
+        SELECT COALESCE(SUM(monto_usd_bcv), 0)
         FROM maestro_operaciones
         WHERE tipo='egreso'
           AND origen IN ('odoo_auto_proveedor','zelle_terceros')
           AND estado='registrado'
     """).fetchone()
-    cxp_total_usd = cxp_row[0] if cxp_row else 0
+    cxp_total_usd = round(float(cxp_row[0] or 0), 2) if cxp_row else 0
 
     pendientes_aprobacion = (
         con.execute("SELECT COUNT(*) FROM gastos WHERE aprobacion_estado='pendiente'").fetchone()[0] +
@@ -837,27 +839,28 @@ def exportar_excel_consolidado(
     ws5 = wb.create_sheet('Resumen')
     _wb_header(ws5, ['Concepto', 'Valor'], color='2E75B6')
     # totales rápidos
-    tot_ingreso = con.execute(
-        "SELECT ROUND(COALESCE(SUM(monto_usd_bcv),0),2) FROM maestro_operaciones "
+    # ROUND en Python — PostgreSQL no acepta ROUND(real, int), solo ROUND(numeric, int)
+    tot_ingreso = round(float(con.execute(
+        "SELECT COALESCE(SUM(monto_usd_bcv),0) FROM maestro_operaciones "
         "WHERE tipo='ingreso' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
-    ).fetchone()[0] or 0
-    tot_egreso = con.execute(
-        "SELECT ROUND(COALESCE(SUM(monto_usd_bcv),0),2) FROM maestro_operaciones "
+    ).fetchone()[0] or 0), 2)
+    tot_egreso = round(float(con.execute(
+        "SELECT COALESCE(SUM(monto_usd_bcv),0) FROM maestro_operaciones "
         "WHERE tipo='egreso' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
-    ).fetchone()[0] or 0
-    tot_gastos = con.execute(
-        "SELECT ROUND(COALESCE(SUM(monto),0),2) FROM gastos "
+    ).fetchone()[0] or 0), 2)
+    tot_gastos = round(float(con.execute(
+        "SELECT COALESCE(SUM(monto),0) FROM gastos "
         "WHERE moneda='USD' AND estado='pagado' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
-    ).fetchone()[0] or 0
-    tot_nomina = con.execute(
-        "SELECT ROUND(COALESCE(SUM(monto_usd),0),2) FROM nomina_registros "
+    ).fetchone()[0] or 0), 2)
+    tot_nomina = round(float(con.execute(
+        "SELECT COALESCE(SUM(monto_usd),0) FROM nomina_registros "
         "WHERE estado IN ('enviado_odoo','descontado') "
         "AND creado_en BETWEEN ? AND ?", (f_desde, f_hasta)
-    ).fetchone()[0] or 0
-    tot_fiscal = con.execute(
-        "SELECT ROUND(COALESCE(SUM(monto_usd),0),2) FROM pagos_fiscales "
+    ).fetchone()[0] or 0), 2)
+    tot_fiscal = round(float(con.execute(
+        "SELECT COALESCE(SUM(monto_usd),0) FROM pagos_fiscales "
         "WHERE estado='validado' AND fecha BETWEEN ? AND ?", (f_desde, f_hasta)
-    ).fetchone()[0] or 0
+    ).fetchone()[0] or 0), 2)
     cnt_req = con.execute(
         "SELECT COUNT(*) FROM requisiciones "
         "WHERE creado_en BETWEEN ? AND ?", (f_desde, f_hasta)

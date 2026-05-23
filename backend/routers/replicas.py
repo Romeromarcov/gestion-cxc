@@ -141,7 +141,11 @@ def _calcular_replica(odoo, order_name: str, cfg: dict) -> dict:
 
 
 def _persist_replica(con, order_name: str, result: dict) -> None:
-    """Guarda en BD el resultado de _calcular_replica (estado='activa')."""
+    """Guarda en BD el resultado de _calcular_replica (estado='activa').
+
+    Usa upsert (ON CONFLICT DO UPDATE) para ser atómico y evitar
+    UniqueViolation en requests concurrentes sobre la misma orden.
+    """
     currency        = result['currency']
     sum_sub_ves     = result['subtotal_lista_ves']
     sum_tax_ves     = result['tax_lista_ves']
@@ -152,35 +156,35 @@ def _persist_replica(con, order_name: str, result: dict) -> None:
     lineas_replica  = result['lineas']
     ahora = datetime.now(timezone.utc).isoformat()
 
-    existing = con.execute(
+    # Upsert atómico: INSERT o UPDATE si ya existe (evita UniqueViolation)
+    con.execute("""
+        INSERT INTO ordenes_replica(odoo_order_name, moneda_orden,
+            subtotal_lista_ves, tax_lista_ves, total_lista_ves,
+            subtotal_lista_usd, tax_lista_usd, total_lista_usd,
+            estado, actualizado_en)
+        VALUES(?,?,?,?,?,?,?,?,'activa',?)
+        ON CONFLICT(odoo_order_name) DO UPDATE SET
+            moneda_orden=excluded.moneda_orden,
+            subtotal_lista_ves=excluded.subtotal_lista_ves,
+            tax_lista_ves=excluded.tax_lista_ves,
+            total_lista_ves=excluded.total_lista_ves,
+            subtotal_lista_usd=excluded.subtotal_lista_usd,
+            tax_lista_usd=excluded.tax_lista_usd,
+            total_lista_usd=excluded.total_lista_usd,
+            estado='activa',
+            error_detalle=NULL,
+            actualizado_en=excluded.actualizado_en
+    """, (order_name, currency,
+          sum_sub_ves, sum_tax_ves, total_lista_ves,
+          sum_sub_usd, sum_tax_usd, total_lista_usd, ahora))
+
+    # Obtener id para las líneas (la fila siempre existe tras el upsert)
+    id_row = con.execute(
         "SELECT id FROM ordenes_replica WHERE odoo_order_name=?", (order_name,)
     ).fetchone()
+    replica_id = id_row['id'] if id_row else None
 
-    if existing:
-        replica_id = existing['id']
-        con.execute("""
-            UPDATE ordenes_replica
-            SET moneda_orden=?,
-                subtotal_lista_ves=?, tax_lista_ves=?, total_lista_ves=?,
-                subtotal_lista_usd=?, tax_lista_usd=?, total_lista_usd=?,
-                estado='activa', error_detalle=NULL, actualizado_en=?
-            WHERE id=?
-        """, (currency,
-              sum_sub_ves, sum_tax_ves, total_lista_ves,
-              sum_sub_usd, sum_tax_usd, total_lista_usd,
-              ahora, replica_id))
-        con.execute("DELETE FROM ordenes_replica_lineas WHERE replica_id=?", (replica_id,))
-    else:
-        cur = con.execute("""
-            INSERT INTO ordenes_replica(odoo_order_name, moneda_orden,
-                subtotal_lista_ves, tax_lista_ves, total_lista_ves,
-                subtotal_lista_usd, tax_lista_usd, total_lista_usd,
-                estado, actualizado_en)
-            VALUES(?,?,?,?,?,?,?,?,'activa',?)
-        """, (order_name, currency,
-              sum_sub_ves, sum_tax_ves, total_lista_ves,
-              sum_sub_usd, sum_tax_usd, total_lista_usd, ahora))
-        replica_id = cur.lastrowid
+    con.execute("DELETE FROM ordenes_replica_lineas WHERE replica_id=?", (replica_id,))
 
     for lr in lineas_replica:
         con.execute("""
@@ -261,19 +265,14 @@ def sync_replicas(user=Depends(require_roles('gerente', 'admin'))):
         result = _sync_orden(odoo, con, order_name, cfg)
         if result['estado'] == 'error':
             ahora = datetime.now(timezone.utc).isoformat()
-            existing = con.execute(
-                "SELECT id FROM ordenes_replica WHERE odoo_order_name=?", (order_name,)
-            ).fetchone()
-            if existing:
-                con.execute("""
-                    UPDATE ordenes_replica SET estado='error', error_detalle=?, actualizado_en=?
-                    WHERE odoo_order_name=?
-                """, (result['error'], ahora, order_name))
-            else:
-                con.execute("""
-                    INSERT INTO ordenes_replica(odoo_order_name, estado, error_detalle, actualizado_en)
-                    VALUES(?,?,?,?)
-                """, (order_name, 'error', result['error'], ahora))
+            con.execute("""
+                INSERT INTO ordenes_replica(odoo_order_name, estado, error_detalle, actualizado_en)
+                VALUES(?,?,?,?)
+                ON CONFLICT(odoo_order_name) DO UPDATE SET
+                    estado=excluded.estado,
+                    error_detalle=excluded.error_detalle,
+                    actualizado_en=excluded.actualizado_en
+            """, (order_name, 'error', result['error'], ahora))
             errores += 1
         elif result['estado'] == 'activa':
             creadas += 1
@@ -387,15 +386,14 @@ def sync_una_orden(order_name: str, user=Depends(require_roles('gerente', 'admin
 
     if result['estado'] == 'error':
         ahora = datetime.now(timezone.utc).isoformat()
-        existing = con.execute(
-            "SELECT id FROM ordenes_replica WHERE odoo_order_name=?", (order_name,)
-        ).fetchone()
-        if existing:
-            con.execute("""UPDATE ordenes_replica SET estado='error', error_detalle=?, actualizado_en=?
-                           WHERE odoo_order_name=?""", (result['error'], ahora, order_name))
-        else:
-            con.execute("""INSERT INTO ordenes_replica(odoo_order_name, estado, error_detalle, actualizado_en)
-                           VALUES(?,?,?,?)""", (order_name, 'error', result['error'], ahora))
+        con.execute("""
+            INSERT INTO ordenes_replica(odoo_order_name, estado, error_detalle, actualizado_en)
+            VALUES(?,?,?,?)
+            ON CONFLICT(odoo_order_name) DO UPDATE SET
+                estado=excluded.estado,
+                error_detalle=excluded.error_detalle,
+                actualizado_en=excluded.actualizado_en
+        """, (order_name, 'error', result['error'], ahora))
         con.commit()
         con.close()
         raise HTTPException(status_code=422, detail=result['error'])

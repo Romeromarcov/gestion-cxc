@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, HTTPException, Depends
 from routers.auth import get_current_user, require_roles
 from models.schemas import rows_to_list
@@ -10,19 +11,35 @@ _odoo_instance = None
 
 
 def get_odoo() -> OdooClient:
+    """Devuelve una instancia de OdooClient activa.
+
+    Reutiliza la instancia global si responde al ping; si no,
+    la descarta y crea una nueva. Reintenta una vez con pausa
+    para manejar estados transitorios 'Idle' del servidor Odoo SaaS.
+    """
     global _odoo_instance
-    # Intentar reutilizar instancia existente; si falla, reconectar
+
+    # Validar instancia existente con ping liviano
     if _odoo_instance is not None:
         try:
-            _odoo_instance.call('res.lang', 'search_count', [[]])  # ping liviano
+            _odoo_instance.call('res.lang', 'search_count', [[]])
         except Exception:
             _odoo_instance = None  # forzar reconexión
+
     if _odoo_instance is None:
-        try:
-            _odoo_instance = OdooClient()
-        except Exception as e:
+        last_exc = None
+        for intento in range(2):          # hasta 2 intentos con pausa
+            try:
+                _odoo_instance = OdooClient()
+                break
+            except Exception as e:
+                last_exc = e
+                _odoo_instance = None
+                if intento == 0:
+                    time.sleep(3)         # esperar 3 s antes del reintento
+        if _odoo_instance is None:
             raise HTTPException(status_code=503,
-                                detail=f'No se puede conectar a Odoo: {e}')
+                                detail=f'No se puede conectar a Odoo: {last_exc}')
     return _odoo_instance
 
 
