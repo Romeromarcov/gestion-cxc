@@ -49,9 +49,10 @@ async def _bcv_via_dolarapi() -> dict | None:
         items = r.json() if isinstance(r.json(), list) else []
         tasas = {}
         for item in items:
-            fuente = (item.get('fuente') or '').upper()
-            nombre = (item.get('nombre') or '').lower()
-            if fuente == 'BCV' or 'bcv' in nombre or 'oficial' in nombre:
+            fuente = (item.get('fuente') or '').lower()
+            moneda = (item.get('moneda') or '').upper()
+            # dolarapi.com returns fuente='oficial' for the BCV rate
+            if moneda == 'USD' and fuente in ('oficial', 'bcv'):
                 val = item.get('promedio') or item.get('venta') or item.get('precio')
                 if val:
                     tasas['usd_ves'] = float(val)

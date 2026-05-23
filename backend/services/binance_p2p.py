@@ -21,7 +21,7 @@ _HEADERS = {
 }
 
 
-async def _fetch_prices(trade_type: str, rows: int = 20) -> list[float]:
+async def _fetch_prices(trade_type: str, rows: int = 50) -> list[float]:
     """
     Pide las primeras `rows` ofertas de Binance P2P para USDT/VES.
     trade_type: 'BUY' (compradores) | 'SELL' (vendedores).
@@ -60,7 +60,7 @@ async def _fetch_prices(trade_type: str, rows: int = 20) -> list[float]:
 
 async def actualizar_tasa_binance_p2p() -> dict:
     """
-    Promedia las primeras 20 ofertas BUY + las primeras 20 ofertas SELL (hasta 40 precios)
+    Promedia las primeras 50 ofertas BUY + las primeras 50 ofertas SELL (hasta 100 precios)
     y persiste el resultado como tasa_custom en tasas_cambio.
     """
     buy_prices, sell_prices = await _fetch_prices('BUY'), await _fetch_prices('SELL')
