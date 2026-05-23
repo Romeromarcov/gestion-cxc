@@ -47,10 +47,85 @@ class OdooClient:
                           quantity: float = 1.0, date: str = None):
         """Obtiene precios de una lista para una lista de product.product IDs.
         Retorna dict {product_id: precio}.
-        Usa product.pricelist.get_product_price en batch.
+
+        Estrategia:
+        1. Lee product.pricelist.item en batch (una sola llamada, fiable en Odoo 16+/18)
+           - Soporta reglas por variante (0_product_variant) y por plantilla (1_product)
+        2. Para productos sin ítem, intenta get_product_price como fallback.
         """
-        precios = {}
-        for pid in product_ids:
+        import logging as _log
+        logger = _log.getLogger(__name__)
+
+        if not product_ids:
+            return {}
+
+        precios: dict = {}
+        product_ids_set = set(int(p) for p in product_ids)
+
+        # ── Estrategia 1: leer ítems de la lista de precios en un solo call ────
+        try:
+            items = self.call('product.pricelist.item', 'search_read', [[
+                ['pricelist_id', '=', pricelist_id],
+                ['compute_price', '=', 'fixed'],
+            ]], {
+                'fields': ['product_id', 'product_tmpl_id',
+                           'fixed_price', 'applied_on', 'min_quantity'],
+                'limit': 5000,
+            })
+
+            if items:
+                # Necesitamos saber la plantilla de cada variante para cruzar
+                prods = self.call('product.product', 'read',
+                                  [list(product_ids_set)],
+                                  {'fields': ['id', 'product_tmpl_id']})
+                tmpl_of = {}
+                variant_by_tmpl: dict = {}
+                for p in (prods or []):
+                    tid = (p['product_tmpl_id'][0]
+                           if isinstance(p.get('product_tmpl_id'), list)
+                           else p.get('product_tmpl_id'))
+                    tmpl_of[p['id']] = tid
+                    variant_by_tmpl.setdefault(tid, []).append(p['id'])
+
+                # Ordenar: variante primero, luego plantilla, luego global
+                order_map = {'0_product_variant': 0, '1_product': 1,
+                             '2_product_category': 2, '3_global': 3}
+                items_sorted = sorted(
+                    items,
+                    key=lambda x: (order_map.get(x.get('applied_on', ''), 9),
+                                   float(x.get('min_quantity') or 0))
+                )
+
+                for item in items_sorted:
+                    price = float(item.get('fixed_price') or 0)
+                    applied = item.get('applied_on', '')
+
+                    if applied == '0_product_variant' and item.get('product_id'):
+                        pid = (item['product_id'][0]
+                               if isinstance(item['product_id'], list)
+                               else item['product_id'])
+                        if pid in product_ids_set:
+                            precios[pid] = price
+
+                    elif applied == '1_product' and item.get('product_tmpl_id'):
+                        tid = (item['product_tmpl_id'][0]
+                               if isinstance(item['product_tmpl_id'], list)
+                               else item['product_tmpl_id'])
+                        for pid in variant_by_tmpl.get(tid, []):
+                            if pid in product_ids_set and pid not in precios:
+                                precios[pid] = price
+
+                    elif applied == '3_global':
+                        for pid in product_ids_set:
+                            if pid not in precios:
+                                precios[pid] = price
+
+        except Exception as exc:
+            logger.warning('get_precios_lista(items) pricelist=%s: %s', pricelist_id, exc)
+
+        # ── Estrategia 2: fallback get_product_price para los que faltan ────────
+        missing = [pid for pid in product_ids if pid not in precios]
+        for pid in missing:
             try:
                 precio = self.call('product.pricelist', 'get_product_price',
                                    [[pricelist_id]],
@@ -60,6 +135,7 @@ class OdooClient:
                 precios[pid] = float(precio) if precio is not None else None
             except Exception:
                 precios[pid] = None
+
         return precios
 
     def get_venta_por_nombre(self, nombre):

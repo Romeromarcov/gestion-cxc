@@ -538,6 +538,7 @@
           <th colspan="5" style="text-align:center;background:#1a3a5c">Lista USD</th>
           <th rowspan="2">Estado</th>
           <th rowspan="2">Factura</th>
+          <th rowspan="2">Acciones</th>
         </tr>
         <tr>
           <th style="background:#1a4f82;font-weight:normal;font-size:.78rem">Sub</th>
@@ -555,7 +556,7 @@
           <th style="background:#1a3a5c;font-weight:normal;font-size:.78rem">A pagar ✓</th>
         </tr>
       </thead>
-      <tbody id="tb-cxc"><tr><td colspan="20" class="loader">Cargando...</td></tr></tbody>
+      <tbody id="tb-cxc"><tr><td colspan="21" class="loader">Cargando...</td></tr></tbody>
       </table>
     </div>
 
@@ -3204,6 +3205,22 @@
   </div>
 </div>
 
+<!-- Modal: Preview Réplica -->
+<div id="modal-replica-preview" class="modal-bg">
+  <div class="modal" style="max-width:820px">
+    <h3>🔍 Preview Réplica — <span id="prv-order-name" style="color:var(--primary)"></span></h3>
+    <div id="prv-status" style="margin-bottom:12px"></div>
+    <div id="prv-body"></div>
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" id="prv-sync-btn" onclick="syncOrdenDesdePreview()" style="display:none">
+        ⟳ Crear / Actualizar Réplica
+      </button>
+      <button class="btn btn-outline" onclick="closeModal('modal-replica-preview')">Cerrar</button>
+      <span id="prv-sync-result" style="font-size:.85rem"></span>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Validar Promoción -->
 <div id="modal-validar-promo" class="modal-bg">
   <div class="modal" style="max-width:400px">
@@ -4747,8 +4764,13 @@ async function loadCxC() {
         ? `${fmtD(v.a_pagar_lista_usd)}${v.pagado_lista_usd ? ' '+okIcon : ''}`
         : fmtNoR();
 
+      // Lista de precios usada en Odoo
+      const plBadge = v.pricelist_odoo
+        ? `<br><span style="font-size:.68rem;color:var(--muted);font-style:italic">${v.pricelist_odoo}</span>`
+        : '';
+
       return `<tr style="${rowBg}">
-        <td><strong>${v.codigo}</strong>${alertIcon}</td>
+        <td><strong>${v.codigo}</strong>${alertIcon}${plBadge}</td>
         <td style="white-space:nowrap">${v.cliente||''}</td>
         <td><span class="badge ${monBadge}">${v.moneda_orden||'USD'}</span></td>
         <td style="text-align:right">${fmtD(v.subtotal_odoo)}</td>
@@ -4771,10 +4793,14 @@ async function loadCxC() {
           ${crearCreditoBtn}
         </td>
         <td style="text-align:center;min-width:90px">${facturaCell}</td>
+        <td style="text-align:center;white-space:nowrap">
+          <button class="btn btn-sm btn-outline" style="font-size:.75rem"
+            onclick="previewReplica('${v.codigo.replace(/'/g,"\\'")}')">🔍 Preview</button>
+        </td>
       </tr>`;
-    }).join('') || `<tr><td colspan="${N+1}" class="loader">Sin datos</td></tr>`;
+    }).join('') || `<tr><td colspan="21" class="loader">Sin datos</td></tr>`;
   } catch(e) {
-    tb.innerHTML = `<tr><td colspan="20" style="color:red;padding:12px">${e.message}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="21" style="color:red;padding:12px">${e.message}</td></tr>`;
   }
 }
 
@@ -4803,6 +4829,121 @@ async function reintentarReplica(orderName, btn) {
     alert('Error: ' + (e.message || 'No se pudo crear la réplica'));
     btn.disabled = false;
     btn.textContent = 'Reintentar';
+  }
+}
+
+// ── PREVIEW RÉPLICA ──────────────────────────────────────────────────────────
+let _previewOrderName = null;
+
+async function previewReplica(orderName) {
+  _previewOrderName = orderName;
+  document.getElementById('prv-order-name').textContent = orderName;
+  document.getElementById('prv-body').innerHTML = '<div class="loader" style="padding:20px">Calculando desde Odoo…</div>';
+  document.getElementById('prv-status').innerHTML = '';
+  document.getElementById('prv-sync-btn').style.display = 'none';
+  document.getElementById('prv-sync-result').textContent = '';
+  showModal('modal-replica-preview');
+
+  try {
+    const r = await api('GET', `/replicas/${encodeURIComponent(orderName)}/preview`);
+
+    if (r.estado === 'skip' || r.estado === 'skip_usd') {
+      const msg = r.estado === 'skip_usd'
+        ? `Esta orden usa <strong>${r.pricelist_name}</strong> (Lista USD directa) — no necesita réplica`
+        : `<span style="color:var(--danger)">⚠ Lista "<strong>${r.pricelist_name||'(sin lista)'}</strong>" no coincide con ninguna lista configurada</span>`;
+      document.getElementById('prv-status').innerHTML =
+        `<div style="padding:10px 14px;background:#f8f9fa;border-radius:6px;font-size:.87rem">ℹ️ ${msg}</div>`;
+      document.getElementById('prv-body').innerHTML = r.motivo
+        ? `<p style="color:var(--muted);font-size:.82rem;margin-top:8px">${r.motivo}</p>` : '';
+      return;
+    }
+
+    if (r.estado === 'error') {
+      document.getElementById('prv-status').innerHTML =
+        `<div style="padding:10px 14px;background:#fff0f0;border-radius:6px;color:var(--danger)">❌ ${r.error}</div>`;
+      document.getElementById('prv-body').innerHTML = '';
+      return;
+    }
+
+    // estado='activa' — mostrar desglose completo
+    document.getElementById('prv-status').innerHTML = `
+      <div style="padding:8px 14px;background:#f0fff4;border-radius:6px;font-size:.85rem;display:flex;gap:20px;flex-wrap:wrap">
+        <span>📋 Lista: <strong>${r.pricelist_name}</strong></span>
+        <span>💱 Moneda: <strong>${r.currency||'—'}</strong></span>
+        <span style="color:#5c3a1a">🟤 VES Total: <strong>$${fmtNum(r.total_lista_ves,2)}</strong></span>
+        <span style="color:var(--primary)">🔵 USD Total: <strong>$${fmtNum(r.total_lista_usd,2)}</strong></span>
+      </div>`;
+
+    document.getElementById('prv-body').innerHTML = `
+      <div class="table-wrap" style="max-height:360px;overflow-y:auto;margin-top:10px">
+        <table>
+          <thead style="position:sticky;top:0;z-index:1"><tr style="background:#1a4f82;color:#fff">
+            <th style="font-size:.75rem">Ref</th>
+            <th>Producto</th>
+            <th style="text-align:right">Cant.</th>
+            <th style="text-align:right;background:#5c3a1a">P. VES</th>
+            <th style="text-align:right;background:#5c3a1a">Sub VES</th>
+            <th style="text-align:right;background:#1a3a5c">P. USD</th>
+            <th style="text-align:right;background:#1a3a5c">Sub USD</th>
+            <th style="text-align:right;color:#aaa;font-size:.72rem">Imp%</th>
+          </tr></thead>
+          <tbody>
+            ${(r.lineas||[]).map(l => `<tr>
+              <td style="font-size:.75rem;color:var(--muted)">${l.producto_ref||'—'}</td>
+              <td style="font-size:.84rem">${l.producto_nombre}</td>
+              <td style="text-align:right">${l.cantidad}</td>
+              <td style="text-align:right">$${fmtNum(l.precio_lista_ves,2)}</td>
+              <td style="text-align:right">$${fmtNum(l.subtotal_ves,2)}</td>
+              <td style="text-align:right">$${fmtNum(l.precio_lista_usd,2)}</td>
+              <td style="text-align:right">$${fmtNum(l.subtotal_usd,2)}</td>
+              <td style="text-align:right;font-size:.75rem;color:var(--muted)">${((l.tax_rate||0)*100).toFixed(0)}%</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="background:#f5f5f5;font-weight:600">
+              <td colspan="4" style="text-align:right;color:var(--muted);font-size:.82rem">Subtotal:</td>
+              <td style="text-align:right">$${fmtNum(r.subtotal_lista_ves,2)}</td>
+              <td></td>
+              <td style="text-align:right">$${fmtNum(r.subtotal_lista_usd,2)}</td>
+              <td></td>
+            </tr>
+            <tr style="background:#e8f4e8;font-weight:700">
+              <td colspan="4" style="text-align:right">Total c/imp:</td>
+              <td style="text-align:right;color:#5c3a1a">$${fmtNum(r.total_lista_ves,2)}</td>
+              <td></td>
+              <td style="text-align:right;color:var(--primary)">$${fmtNum(r.total_lista_usd,2)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+
+    document.getElementById('prv-sync-btn').style.display = '';
+  } catch(e) {
+    document.getElementById('prv-status').innerHTML =
+      `<div style="color:var(--danger)">Error al calcular preview: ${e.message}</div>`;
+    document.getElementById('prv-body').innerHTML = '';
+  }
+}
+
+async function syncOrdenDesdePreview() {
+  if (!_previewOrderName) return;
+  const btn = document.getElementById('prv-sync-btn');
+  const res = document.getElementById('prv-sync-result');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    const r = await api('POST', `/replicas/${encodeURIComponent(_previewOrderName)}/sync-uno`);
+    btn.textContent = '✓ Guardado';
+    btn.style.background = 'var(--success)';
+    res.textContent = `VES $${fmtNum(r.total_lista_ves||0,2)} | USD $${fmtNum(r.total_lista_usd||0,2)}`;
+    res.style.color = 'var(--success)';
+    setTimeout(() => { closeModal('modal-replica-preview'); loadCxC(); }, 1200);
+  } catch(e) {
+    res.textContent = 'Error: ' + e.message;
+    res.style.color = 'var(--danger)';
+    btn.disabled = false;
+    btn.textContent = '⟳ Crear / Actualizar Réplica';
   }
 }
 
@@ -6410,20 +6551,44 @@ async function loadConfigApp() {
 
 async function loadOdooPricelists(cfg) {
   try {
-    const pricelists = await api('GET', '/config/odoo-pricelists');
-    if (!pricelists || !Array.isArray(pricelists)) return;
+    // Cargar listas de Odoo Y locales en paralelo
+    const [pricelists, localListas] = await Promise.all([
+      api('GET', '/config/odoo-pricelists').catch(() => []),
+      api('GET', '/precios').catch(() => []),
+    ]);
+
     const vesSelect = document.getElementById('cfg-pricelist-ves-select');
     const usdSelect = document.getElementById('cfg-pricelist-usd-select');
-    const opts = pricelists.map(p => `<option value="${p.name}">${p.id} — ${p.name}</option>`).join('');
+    if (!vesSelect && !usdSelect) return;
+
+    let optsHtml = '<option value="">— Seleccionar —</option>';
+
+    if (pricelists && pricelists.length) {
+      optsHtml += '<optgroup label="Listas de Odoo">';
+      optsHtml += pricelists.map(p => {
+        const mon = Array.isArray(p.currency_id) ? p.currency_id[1] : (p.currency_id || '');
+        return `<option value="${p.name}">${p.name}${mon ? ' (' + mon + ')' : ''}</option>`;
+      }).join('');
+      optsHtml += '</optgroup>';
+    }
+
+    if (localListas && localListas.length) {
+      optsHtml += '<optgroup label="Listas Locales">';
+      optsHtml += localListas.map(l =>
+        `<option value="${l.nombre}">${l.nombre} (${l.moneda})</option>`
+      ).join('');
+      optsHtml += '</optgroup>';
+    }
+
     if (vesSelect) {
-      vesSelect.innerHTML = '<option value="">— Seleccionar de Odoo —</option>' + opts;
+      vesSelect.innerHTML = optsHtml;
       if (cfg && cfg.pricelist_ves_nombre) vesSelect.value = cfg.pricelist_ves_nombre;
     }
     if (usdSelect) {
-      usdSelect.innerHTML = '<option value="">— Seleccionar de Odoo —</option>' + opts;
+      usdSelect.innerHTML = optsHtml;
       if (cfg && cfg.pricelist_usd_nombre) usdSelect.value = cfg.pricelist_usd_nombre;
     }
-  } catch(e) { /* Odoo may not be connected, fail silently */ }
+  } catch(e) { /* fail silently if Odoo not connected */ }
 }
 
 async function actualizarBCV() {
