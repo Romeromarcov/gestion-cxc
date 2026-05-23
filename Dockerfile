@@ -32,13 +32,17 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 
+# Entrypoint: script de arranque con expansión de shell para $PORT
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 WORKDIR /app/backend
 
-# Puerto expuesto (se puede sobreescribir con la variable PORT)
+# Puerto expuesto (Railway sobreescribe con la variable PORT)
 EXPOSE 8000
 
-# Healthcheck: verifica que la app responda antes de marcar el contenedor como listo
+# Healthcheck interno (docker-compose). Railway usa su propio healthcheck vía /health.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://localhost:'+os.environ.get('PORT','8000')+'/health')"
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["/app/entrypoint.sh"]
