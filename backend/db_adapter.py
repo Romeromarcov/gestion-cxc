@@ -62,8 +62,10 @@ def _translate(sql: str) -> tuple[str, bool]:
     s = s.replace('?', '%s')
 
     # 2. INSERT OR IGNORE → INSERT … ON CONFLICT DO NOTHING
-    has_on_conflict = bool(_RE_INSERT_IGNORE.search(s))
-    if has_on_conflict:
+    #    También detectamos ON CONFLICT explícito (p.ej. DO UPDATE SET) para
+    #    evitar añadir RETURNING id en tablas sin columna id (como config_app).
+    has_on_conflict = bool(_RE_INSERT_IGNORE.search(s)) or ('ON CONFLICT' in s.upper())
+    if _RE_INSERT_IGNORE.search(s):
         s = _RE_INSERT_IGNORE.sub('INSERT INTO', s)
         s = s.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
 
