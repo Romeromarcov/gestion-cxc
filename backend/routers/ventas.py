@@ -326,7 +326,8 @@ def get_entregas(user=Depends(get_current_user)):
 
 
 @router.get('/status')
-def odoo_status():
+def odoo_status(user=Depends(require_roles('admin', 'gerente'))):
+    """Estado de conexión con Odoo. Solo para administradores y gerentes."""
     try:
         odoo = OdooClient()
         return {'status': 'ok', 'uid': odoo.uid}
