@@ -5,15 +5,17 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       gestion_cxc
-      POSTGRES_USER:     gestion_user
-      POSTGRES_PASSWORD: gestion_pass
+      POSTGRES_DB:       ${POSTGRES_DB:-gestion_cxc}
+      POSTGRES_USER:     ${POSTGRES_USER:-gestion_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"       # expuesto para acceso con DBeaver/pgAdmin en desarrollo
+      # Solo accesible desde localhost — no expuesto a la red local.
+      # Para conectar con DBeaver/pgAdmin usa host=127.0.0.1 puerto=5432.
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gestion_user -d gestion_cxc"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gestion_user} -d ${POSTGRES_DB:-gestion_cxc}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,7 +33,7 @@ services:
       - .env
     environment:
       # Sobreescribe DATABASE_URL del .env para apuntar al servicio 'db'
-      DATABASE_URL: postgresql://gestion_user:gestion_pass@db:5432/gestion_cxc
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gestion_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-gestion_cxc}
     depends_on:
       db:
         condition: service_healthy
