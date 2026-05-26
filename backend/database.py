@@ -1,15 +1,62 @@
+import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
+# ── Pool de conexiones PostgreSQL ─────────────────────────────────────────────
+# Se inicializa la primera vez que se llama a get_con() (lazy init).
+# minconn=2  → conexiones siempre abiertas (warm)
+# maxconn    → configurable vía DATABASE_POOL_MAX (default 20)
+# ThreadedConnectionPool es seguro para uso desde múltiples threads de uvicorn.
+
+_pool = None
+_pool_lock = threading.Lock()
+
+
+def _build_pool():
+    from psycopg2 import pool as pg_pool
+    from config import DATABASE_URL
+    max_conn = int(os.getenv('DATABASE_POOL_MAX', '20'))
+    p = pg_pool.ThreadedConnectionPool(minconn=2, maxconn=max_conn, dsn=DATABASE_URL)
+    logger.info('Pool de conexiones PostgreSQL creado (max=%d)', max_conn)
+    return p
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:          # double-checked locking
+                _pool = _build_pool()
+    return _pool
+
 
 def get_con():
-    """Devuelve una conexión PostgreSQL envuelta en el adaptador sqlite3-compatible."""
-    import psycopg2
-    from config import DATABASE_URL
+    """
+    Obtiene una conexión del pool y la devuelve envuelta en el adaptador
+    sqlite3-compatible. Llama a con.close() cuando termines: eso devuelve
+    la conexión al pool en lugar de cerrarla físicamente.
+    """
     from db_adapter import CompatConnection
-    pg = psycopg2.connect(DATABASE_URL)
-    return CompatConnection(pg)
+    pool = _get_pool()
+    pg = pool.getconn()
+    # autocommit=False (default psycopg2) — las transacciones deben commitearse explícitamente
+    return CompatConnection(pg, pool=pool)
+
+
+def close_pool():
+    """Cierra todas las conexiones del pool. Llamar en shutdown de la app."""
+    global _pool
+    with _pool_lock:
+        if _pool is not None:
+            try:
+                _pool.closeall()
+                logger.info('Pool de conexiones PostgreSQL cerrado.')
+            except Exception as e:
+                logger.warning('close_pool: error al cerrar el pool — %s', e)
+            finally:
+                _pool = None
 
 
 def migrate(con):

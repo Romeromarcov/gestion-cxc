@@ -12,7 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from database import init_db
+from database import init_db, close_pool
 from services.tasas_cambio import obtener_tasa_bcv
 from services.binance_p2p import actualizar_tasa_binance_p2p
 from config import ALLOWED_ORIGINS
@@ -215,7 +215,7 @@ async def auto_sync_conciliacion():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
-    init_db()
+    init_db()   # crea el pool y corre migraciones en el startup
     scheduler.add_job(obtener_tasa_bcv, 'cron', hour='8,14', minute=0)
     scheduler.add_job(actualizar_tasa_binance_p2p, 'interval', minutes=30)
     scheduler.add_job(sync_pagos_odoo, 'interval', minutes=15)
@@ -226,7 +226,9 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(obtener_tasa_bcv())
     asyncio.create_task(actualizar_tasa_binance_p2p())
     yield
+    # ── Shutdown limpio ───────────────────────────────────────────────────────
     scheduler.shutdown()
+    close_pool()   # devuelve todas las conexiones al pool y lo cierra
 
 
 app = FastAPI(

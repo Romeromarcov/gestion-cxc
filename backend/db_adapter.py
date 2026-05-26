@@ -191,12 +191,19 @@ class CompatCursor:
 # ── CompatConnection ──────────────────────────────────────────────────────────
 
 class CompatConnection:
-    """Conexión psycopg2 con interfaz sqlite3."""
+    """
+    Conexión psycopg2 con interfaz sqlite3.
 
-    __slots__ = ('_conn',)
+    Cuando se construye con `pool=` (lo hace database.get_con()), `close()`
+    devuelve la conexión al pool en lugar de cerrarla físicamente.
+    Sin pool (p. ej. init_db con conexión directa), `close()` cierra la conexión.
+    """
 
-    def __init__(self, pg_conn):
+    __slots__ = ('_conn', '_pool')
+
+    def __init__(self, pg_conn, pool=None):
         self._conn = pg_conn
+        self._pool = pool  # ThreadedConnectionPool o None
 
     def execute(self, sql: str, params=None) -> CompatCursor:
         cur = CompatCursor(self._conn)
@@ -232,4 +239,16 @@ class CompatConnection:
         self._conn.rollback()
 
     def close(self) -> None:
-        self._conn.close()
+        """
+        Devuelve la conexión al pool (si existe) o la cierra directamente.
+        Siempre hace rollback antes de devolver al pool para limpiar
+        cualquier transacción abierta accidentalmente.
+        """
+        if self._pool is not None:
+            try:
+                self._conn.rollback()   # limpia transacciones abiertas
+            except Exception:
+                pass
+            self._pool.putconn(self._conn)
+        else:
+            self._conn.close()
