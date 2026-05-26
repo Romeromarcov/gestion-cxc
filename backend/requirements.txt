@@ -1,3 +1,7 @@
+# Referencia para desarrollo local sin Docker.
+# El Dockerfile usa el requirements.txt del directorio raíz (que incluye psycopg2-binary).
+# Mantener ambos archivos sincronizados.
+
 PyJWT==2.9.0
 fastapi==0.115.0
 uvicorn==0.30.0
@@ -5,7 +9,6 @@ python-dotenv==1.0.0
 pydantic==2.7.0
 passlib[bcrypt]==1.7.4
 bcrypt==3.2.2
-python-jose[cryptography]==3.3.0
 APScheduler==3.10.4
 httpx==0.27.0
 requests==2.32.5
@@ -15,3 +18,4 @@ google-api-python-client==2.131.0
 google-auth==2.29.0
 google-auth-httplib2==0.3.1
 python-dateutil==2.9.0.post0
+psycopg2-binary==2.9.9
