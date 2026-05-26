@@ -94,7 +94,7 @@ def actualizar_categoria(cat_id: int, body: dict,
 
 # ── OPERACIONES ───────────────────────────────────────────────────────────────
 
-@router.get('')
+@router.get('/')
 def listar_operaciones(
     tipo: Optional[str] = None,
     categoria: Optional[str] = None,
@@ -133,7 +133,7 @@ def listar_operaciones(
     return rows
 
 
-@router.post('')
+@router.post('/')
 def crear_operacion(body: MaestroOperacionCreate, user=Depends(get_current_user)):
     fecha = body.fecha or date.today().isoformat()
     monto = body.monto
