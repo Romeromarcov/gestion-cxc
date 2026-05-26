@@ -168,6 +168,12 @@ def sqlite_db():
             valor TEXT,
             descripcion TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip TEXT NOT NULL,
+            intentado_en TEXT NOT NULL
+        );
     """)
     con.commit()
 

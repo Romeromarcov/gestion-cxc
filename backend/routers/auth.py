@@ -1,7 +1,6 @@
-import time
+import random
 import logging
 import bcrypt as _bcrypt
-from collections import defaultdict
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt as pyjwt
@@ -33,20 +32,55 @@ def _verify_password(plain: str, hashed: str) -> bool:
 
 ALGORITHM = 'HS256'
 
-# Rate limiting: máx 5 intentos de login por IP en ventana de 60 segundos
-_login_attempts: dict[str, list[float]] = defaultdict(list)
-_RATE_LIMIT_MAX = 5
-_RATE_LIMIT_WINDOW = 60.0
+# ── Rate limiting persistente en PostgreSQL ───────────────────────────────────
+# Sin Redis: usamos la misma BD ya disponible.
+# Ventaja: funciona con múltiples workers/réplicas y sobrevive reinicios.
+
+_RATE_LIMIT_MAX    = 5      # intentos fallidos antes de bloquear
+_RATE_LIMIT_WINDOW = 60     # segundos de ventana deslizante
 
 
-def _check_rate_limit(ip: str) -> None:
-    now = time.monotonic()
-    attempts = _login_attempts[ip]
-    _login_attempts[ip] = [t for t in attempts if now - t < _RATE_LIMIT_WINDOW]
-    if len(_login_attempts[ip]) >= _RATE_LIMIT_MAX:
-        logger.warning('rate limit de login alcanzado para IP %s', ip)
-        raise HTTPException(status_code=429, detail='Demasiados intentos. Intenta en 60 segundos.')
-    _login_attempts[ip].append(now)
+def _check_rate_limit_db(ip: str, con) -> None:
+    """
+    Cuenta intentos fallidos de esta IP en la ventana reciente.
+    Si supera el límite → HTTPException 429.
+    Siempre registra el intento actual (para contarlo en futuras llamadas).
+    Hace limpieza lazy del 5 % de las veces (evita crecer indefinidamente).
+    """
+    ventana = (
+        datetime.now(timezone.utc) - timedelta(seconds=_RATE_LIMIT_WINDOW)
+    ).isoformat()
+
+    row = con.execute(
+        "SELECT COUNT(*) FROM login_attempts WHERE ip=? AND intentado_en > ?",
+        (ip, ventana),
+    ).fetchone()
+    count = row[0] if row else 0
+
+    if count >= _RATE_LIMIT_MAX:
+        logger.warning('rate limit alcanzado IP=%s (%d intentos en %ds)', ip, count, _RATE_LIMIT_WINDOW)
+        raise HTTPException(
+            status_code=429,
+            detail='Demasiados intentos de inicio de sesión. Intenta de nuevo en 60 segundos.',
+        )
+
+    con.execute(
+        "INSERT INTO login_attempts(ip, intentado_en) VALUES(?,?)",
+        (ip, datetime.now(timezone.utc).isoformat()),
+    )
+    con.commit()
+
+    # Limpieza lazy: borrar registros de hace más de 2 horas (≈5 % de las veces)
+    if random.random() < 0.05:
+        old = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        con.execute("DELETE FROM login_attempts WHERE intentado_en < ?", (old,))
+        con.commit()
+
+
+def _clear_attempts(ip: str, con) -> None:
+    """Elimina los intentos de una IP tras un login exitoso."""
+    con.execute("DELETE FROM login_attempts WHERE ip=?", (ip,))
+    con.commit()
 
 
 def create_token(data: dict) -> str:
@@ -106,31 +140,39 @@ def require_roles(*roles):
 @router.post('/login')
 def login(body: LoginRequest, request: Request):
     ip = request.client.host if request.client else 'unknown'
-    _check_rate_limit(ip)
     con = get_con()
-    user = row_to_dict(con.execute(
-        "SELECT * FROM usuarios WHERE email=? AND activo=1", (body.email,)
-    ).fetchone())
-    con.close()
-    if not user or not _verify_password(body.password, user['password_hash']):
-        logger.warning('intento de login fallido para email=%s desde IP=%s', body.email, ip)
-        raise HTTPException(status_code=401, detail='Credenciales incorrectas')
-    # login exitoso: limpiar contador de intentos
-    _login_attempts.pop(ip, None)
-    token = create_token({'sub': user['id'], 'rol': user['rol']})
-    debe_cambiar = bool(user.get('debe_cambiar_password'))
-    logger.info('login exitoso email=%s debe_cambiar_password=%s', body.email, debe_cambiar)
-    return {
-        'access_token': token,
-        'token_type': 'bearer',
-        'debe_cambiar_password': debe_cambiar,
-        'usuario': {
-            'id': user['id'],
-            'nombre': user['nombre'],
-            'email': user['email'],
-            'rol': user['rol'],
-        },
-    }
+    try:
+        # 1. Rate limit (registra el intento en BD; lanza 429 si excede el límite)
+        _check_rate_limit_db(ip, con)
+
+        # 2. Verificar credenciales
+        user = row_to_dict(con.execute(
+            "SELECT * FROM usuarios WHERE email=? AND activo=1", (body.email,)
+        ).fetchone())
+
+        if not user or not _verify_password(body.password, user['password_hash']):
+            logger.warning('login fallido email=%s IP=%s', body.email, ip)
+            raise HTTPException(status_code=401, detail='Credenciales incorrectas')
+
+        # 3. Login exitoso: borrar intentos acumulados de esta IP
+        _clear_attempts(ip, con)
+
+        token = create_token({'sub': user['id'], 'rol': user['rol']})
+        debe_cambiar = bool(user.get('debe_cambiar_password'))
+        logger.info('login exitoso email=%s debe_cambiar=%s', body.email, debe_cambiar)
+        return {
+            'access_token': token,
+            'token_type': 'bearer',
+            'debe_cambiar_password': debe_cambiar,
+            'usuario': {
+                'id': user['id'],
+                'nombre': user['nombre'],
+                'email': user['email'],
+                'rol': user['rol'],
+            },
+        }
+    finally:
+        con.close()
 
 
 @router.put('/cambiar-password')

@@ -349,4 +349,6 @@ Considera Datadog, Sentry o el propio Railway Observability.
 | **F3** | H-17 Actualizar dependencias | ✅ `2407bfa` |
 | **F4** | H-16 Dividir maestro.py y reportes.py | ✅ `b06ef21` |
 | **F4** | H-14 Scaffold de tests | ✅ pendiente push |
-| **F4** | H-05 **[USUARIO]** Redis para rate limiting | ⬜ Pendiente |
+| **F4** | H-05 Rate limiting persistente (PostgreSQL) | ✅ pendiente push |
+| **F1** | H-02 SECRET_KEY | ✅ hecho por usuario |
+| **F1** | H-03 Odoo API Key | ✅ hecho por usuario |

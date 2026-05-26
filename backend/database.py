@@ -1082,6 +1082,25 @@ def migrate_fraccionamiento(con):
     con.commit()
 
 
+def migrate_login_attempts(con):
+    """v3.2 — Tabla de intentos de login para rate limiting persistente (sin Redis)."""
+    con.execute("""CREATE TABLE IF NOT EXISTS login_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT NOT NULL,
+        intentado_en TEXT NOT NULL
+    )""")
+    con.commit()
+    # Índice compuesto: las consultas siempre filtran por ip + intentado_en
+    try:
+        con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_ts "
+            "ON login_attempts(ip, intentado_en)"
+        )
+        con.commit()
+    except Exception as e:
+        logger.warning('migrate_login_attempts idx: %s', e)
+
+
 def init_db():
     con = get_con()
     # El adaptador traduce AUTOINCREMENT→SERIAL y omite los PRAGMA de SQLite
@@ -1257,6 +1276,7 @@ def init_db():
         ('v2.9_aprobaciones_egresos',           migrate_aprobaciones),
         ('v3.0_fraccionamiento',                migrate_fraccionamiento),
         ('v3.1_forzar_cambio_password',         migrate_forzar_cambio_password),
+        ('v3.2_login_attempts',                 migrate_login_attempts),
     ]
 
     aplicadas = {r[0] for r in con.execute(
