@@ -338,11 +338,11 @@ Considera Datadog, Sentry o el propio Railway Observability.
 | **F1** | H-02 **[USUARIO]** Actualizar SECRET_KEY en Railway | ⬜ Pendiente |
 | **F1** | H-03 **[USUARIO]** Rotar API Key Odoo | ⬜ Pendiente |
 | **F1** | H-04 Pool de conexiones PostgreSQL | ✅ `6772027` |
-| **F2** | H-07 Proteger endpoints sin auth | ⬜ Pendiente |
-| **F2** | H-09 Forzar cambio contraseña admin | ⬜ Pendiente |
-| **F2** | H-11 Consolidar deployment files | ⬜ Pendiente |
-| **F2** | H-12 Restringir puerto PostgreSQL | ⬜ Pendiente |
-| **F2** | H-15 Limpiar archivos de debug | ⬜ Pendiente |
+| **F2** | H-07 Proteger endpoints sin auth | ✅ `0ab41bf` |
+| **F2** | H-09 Forzar cambio contraseña admin | ✅ `6325d9f` |
+| **F2** | H-11 Consolidar deployment files | ✅ `1000b21` |
+| **F2** | H-12 Restringir puerto PostgreSQL | ✅ `1000b21` |
+| **F2** | H-15 Limpiar archivos de debug | ✅ `1000b21` |
 | **F3** | H-13 Pydantic models en body:dict | ⬜ Pendiente |
 | **F3** | H-10 Control de migraciones | ⬜ Pendiente |
 | **F3** | H-18 Thread-safety Odoo singleton | ⬜ Pendiente |
