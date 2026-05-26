@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, HTTPException, Depends
 from routers.auth import get_current_user, require_roles
 from models.schemas import rows_to_list
+from models.schemas_input import AcuerdoCreate, AcuerdoUpdate, CuotaPagoUpdate
 from database import get_con
 from datetime import date as _date, timedelta
 
@@ -79,16 +80,13 @@ def get_acuerdo(acuerdo_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear_acuerdo(body: dict, user=Depends(get_current_user)):
-    for f in ['cliente_id', 'descripcion', 'monto_total', 'fecha_inicio']:
-        if not body.get(f) and body.get(f) != 0:
-            raise HTTPException(status_code=422, detail=f'Campo requerido: {f}')
-    monto = float(body['monto_total'])
-    fecha_inicio = body['fecha_inicio']
-    plazo = int(body.get('plazo_total_dias') or 90)
-    periodicidad = body.get('periodicidad', 'semanal')
-    porc = float(body.get('porcentaje_abono') or 0)
-    monto_cuota = float(body.get('monto_cuota') or 0)
+def crear_acuerdo(body: AcuerdoCreate, user=Depends(get_current_user)):
+    monto = body.monto_total
+    fecha_inicio = body.fecha_inicio
+    plazo = body.plazo_total_dias
+    periodicidad = body.periodicidad
+    porc = body.porcentaje_abono
+    monto_cuota = body.monto_cuota
     fecha_venc = (_date.fromisoformat(fecha_inicio) + timedelta(days=plazo)).isoformat()
 
     con = get_con()
@@ -99,14 +97,14 @@ def crear_acuerdo(body: dict, user=Depends(get_current_user)):
              fecha_inicio, fecha_vencimiento, ordenes_odoo, estado, notas, creado_por)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        body['cliente_id'], body.get('cliente_nombre', ''),
-        body['descripcion'], monto,
-        body.get('moneda', 'USD'),
+        body.cliente_id, body.cliente_nombre,
+        body.descripcion, monto,
+        body.moneda,
         plazo, periodicidad, porc, monto_cuota,
         fecha_inicio, fecha_venc,
-        json.dumps(body.get('ordenes_odoo', [])),
+        json.dumps(body.ordenes_odoo),
         'activo',
-        body.get('notas', ''),
+        body.notas,
         user['id'],
     ))
     acuerdo_id = cur.lastrowid
@@ -118,15 +116,17 @@ def crear_acuerdo(body: dict, user=Depends(get_current_user)):
 
 
 @router.put('/{acuerdo_id}')
-def actualizar_acuerdo(acuerdo_id: int, body: dict, user=Depends(get_current_user)):
+def actualizar_acuerdo(acuerdo_id: int, body: AcuerdoUpdate, user=Depends(get_current_user)):
     con = get_con()
     acuerdo = con.execute("SELECT * FROM acuerdos_pago WHERE id=?", (acuerdo_id,)).fetchone()
     if not acuerdo:
         con.close()
         raise HTTPException(status_code=404, detail='Acuerdo no encontrado')
-    campos = ['descripcion', 'estado', 'notas', 'ordenes_odoo']
-    sets = [f"{c}=?" for c in campos if c in body]
-    vals = [body[c] for c in campos if c in body]
+    data = body.model_dump(exclude_none=True)
+    if 'ordenes_odoo' in data:
+        data['ordenes_odoo'] = json.dumps(data['ordenes_odoo'])
+    sets = [f"{c}=?" for c in data]
+    vals = list(data.values())
     if sets:
         con.execute(f"UPDATE acuerdos_pago SET {','.join(sets)} WHERE id=?", vals + [acuerdo_id])
         con.commit()
@@ -135,9 +135,9 @@ def actualizar_acuerdo(acuerdo_id: int, body: dict, user=Depends(get_current_use
 
 
 @router.put('/{acuerdo_id}/cuotas/{cuota_id}/pagar')
-def marcar_cuota_pagada(acuerdo_id: int, cuota_id: int, body: dict,
+def marcar_cuota_pagada(acuerdo_id: int, cuota_id: int, body: CuotaPagoUpdate,
                         user=Depends(get_current_user)):
-    monto_pagado = float(body.get('monto_pagado') or 0)
+    monto_pagado = body.monto_pagado
     con = get_con()
     cuota = con.execute(
         "SELECT * FROM acuerdos_pago_cuotas WHERE id=? AND acuerdo_id=?",
@@ -150,7 +150,7 @@ def marcar_cuota_pagada(acuerdo_id: int, cuota_id: int, body: dict,
     estado = 'pagado' if monto_pagado >= esperado else 'parcial'
     con.execute(
         "UPDATE acuerdos_pago_cuotas SET monto_pagado=?, estado=?, notas=? WHERE id=?",
-        (monto_pagado, estado, body.get('notas', ''), cuota_id)
+        (monto_pagado, estado, '', cuota_id)
     )
     # Verificar si el acuerdo está cumplido
     pendientes = con.execute(

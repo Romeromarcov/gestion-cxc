@@ -13,6 +13,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
 from models.schemas import rows_to_list, row_to_dict
+from models.schemas_input import CambioDivisaCreate, CambioDivisaUpdate, RechazoBody
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/cambios-divisa', tags=['cambios-divisa'])
@@ -71,33 +72,8 @@ def obtener_cambio(cambio_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear_cambio(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Crea un cambio de divisa en estado borrador.
-
-    Body:
-    {
-      "fecha": "2025-01-15",
-      "descripcion": "Cambio USD → VES",
-      "monto_egreso": 1000.0,
-      "moneda_egreso": "USD",
-      "banco_egreso": "Banesco USD",
-      "odoo_journal_egreso": 12,
-      "monto_ingreso": 3850000.0,
-      "moneda_ingreso": "VES",
-      "banco_ingreso": "Banesco VES",
-      "odoo_journal_ingreso": 7,
-      "tasa_cambio": 38.50,
-      "notas": ""
-    }
-    """
-    reqs = ['fecha', 'monto_egreso', 'moneda_egreso', 'monto_ingreso', 'moneda_ingreso', 'tasa_cambio']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
-    if body['moneda_egreso'] == body['moneda_ingreso']:
-        raise HTTPException(status_code=400, detail='Las monedas de egreso e ingreso deben ser diferentes')
-
+def crear_cambio(body: CambioDivisaCreate, user=Depends(require_roles('gerente', 'admin'))):
+    """Crea un cambio de divisa en estado borrador."""
     ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
     cur = con.execute("""
@@ -107,18 +83,18 @@ def crear_cambio(body: dict, user=Depends(require_roles('gerente', 'admin'))):
              tasa_cambio, estado, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,'borrador',?,?,?)
     """, (
-        body['fecha'],
-        body.get('descripcion') or f"{body['moneda_egreso']} → {body['moneda_ingreso']}",
-        float(body['monto_egreso']),
-        body['moneda_egreso'],
-        body.get('banco_egreso') or '',
-        int(body['odoo_journal_egreso']) if body.get('odoo_journal_egreso') else None,
-        float(body['monto_ingreso']),
-        body['moneda_ingreso'],
-        body.get('banco_ingreso') or '',
-        int(body['odoo_journal_ingreso']) if body.get('odoo_journal_ingreso') else None,
-        float(body['tasa_cambio']),
-        body.get('notas') or '',
+        body.fecha,
+        body.descripcion or f"{body.moneda_egreso} → {body.moneda_ingreso}",
+        body.monto_egreso,
+        body.moneda_egreso,
+        body.banco_egreso or '',
+        body.odoo_journal_egreso,
+        body.monto_ingreso,
+        body.moneda_ingreso,
+        body.banco_ingreso or '',
+        body.odoo_journal_ingreso,
+        body.tasa_cambio,
+        body.notas or '',
         user['id'], ahora,
     ))
     cambio_id = cur.lastrowid
@@ -129,7 +105,7 @@ def crear_cambio(body: dict, user=Depends(require_roles('gerente', 'admin'))):
 
 
 @router.put('/{cambio_id}')
-def actualizar_cambio(cambio_id: int, body: dict,
+def actualizar_cambio(cambio_id: int, body: CambioDivisaUpdate,
                       user=Depends(require_roles('gerente', 'admin'))):
     """Actualiza un cambio en estado borrador."""
     con = get_con()
@@ -137,19 +113,12 @@ def actualizar_cambio(cambio_id: int, body: dict,
     if c['estado'] != 'borrador':
         con.close()
         raise HTTPException(status_code=400, detail='Solo se pueden editar cambios en borrador')
-
-    campos = ['fecha', 'descripcion', 'monto_egreso', 'moneda_egreso', 'banco_egreso',
-              'odoo_journal_egreso', 'monto_ingreso', 'moneda_ingreso', 'banco_ingreso',
-              'odoo_journal_ingreso', 'tasa_cambio', 'notas']
-    sets, params = [], []
-    for f in campos:
-        if f in body:
-            sets.append(f"{f}=?")
-            params.append(body[f])
-    if not sets:
+    data = body.model_dump(exclude_none=True)
+    if not data:
         con.close()
         raise HTTPException(status_code=400, detail='Sin campos para actualizar')
-    params.append(cambio_id)
+    sets = [f"{f}=?" for f in data]
+    params = list(data.values()) + [cambio_id]
     con.execute(f"UPDATE cambios_divisa SET {', '.join(sets)} WHERE id=?", params)
     con.commit()
     c = _get_or_404(con, cambio_id)
@@ -330,8 +299,8 @@ def aprobar_cambio(cambio_id: int, user=Depends(require_roles('gerente', 'admin'
 
 
 @router.post('/{cambio_id}/rechazar')
-def rechazar_cambio(cambio_id: int, body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    motivo = body.get('motivo', '')
+def rechazar_cambio(cambio_id: int, body: RechazoBody, user=Depends(require_roles('gerente', 'admin'))):
+    motivo = body.motivo
     con = get_con()
     _get_or_404(con, cambio_id)
     con.execute("""UPDATE cambios_divisa SET aprobacion_estado='rechazado',

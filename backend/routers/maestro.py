@@ -4,6 +4,7 @@ from typing import Optional
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from models.schemas import row_to_dict, rows_to_list
+from models.schemas_input import MaestroOperacionCreate
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/maestro', tags=['maestro'])
@@ -101,19 +102,14 @@ def listar_operaciones(
 
 
 @router.post('')
-def crear_operacion(body: dict, user=Depends(get_current_user)):
-    fecha = body.get('fecha') or date.today().isoformat()
-    monto = body.get('monto')
-    moneda = body.get('moneda')
-    tipo = body.get('tipo')  # 'ingreso' | 'egreso'
+def crear_operacion(body: MaestroOperacionCreate, user=Depends(get_current_user)):
+    fecha = body.fecha or date.today().isoformat()
+    monto = body.monto
+    moneda = body.moneda
+    tipo = body.tipo
 
-    if not all([monto, moneda, tipo]):
-        raise HTTPException(status_code=400, detail='monto, moneda y tipo son requeridos')
-    if tipo not in ('ingreso', 'egreso'):
-        raise HTTPException(status_code=400, detail='tipo debe ser ingreso o egreso')
-
-    tasa_bcv = body.get('tasa_bcv') or tasa_bcv_hoy()
-    tasa_real = body.get('tasa_real') or tasa_custom_hoy()
+    tasa_bcv = body.tasa_bcv or tasa_bcv_hoy()
+    tasa_real = body.tasa_real or tasa_custom_hoy()
 
     monto_usd_bcv = None
     monto_real_usd = None

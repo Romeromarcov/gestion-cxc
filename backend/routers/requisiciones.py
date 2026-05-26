@@ -21,6 +21,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
 from models.schemas import rows_to_list, row_to_dict
+from models.schemas_input import RequisicionCreate, RequisicionUpdate
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/requisiciones', tags=['requisiciones'])
@@ -85,46 +86,20 @@ def obtener(req_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear(body: dict, user=Depends(get_current_user)):
-    """
-    Body:
-    {
-      "empleado_nombre": "Juan Pérez",
-      "odoo_employee_id": 12,         # ID empleado Odoo HR (opcional)
-      "departamento": "Ventas",       # opcional (auto-fill desde Odoo)
-      "motivo": "muestra",
-      "descripcion": "Muestras para cliente XYZ",
-      "notas": "",
-      "odoo_cuenta_id": 350,          # cuenta contable del gasto/ajuste (opcional)
-      "odoo_cuenta_codigo": "7.1.1",
-      "odoo_journal_id": 5,
-      "odoo_location_id": 8,          # ubicación de almacén (opcional)
-      "lineas": [
-        {"producto_ref": "PROD-001",
-         "producto_nombre": "Aceite Motor 1L",
-         "producto_odoo_id": 42,
-         "cantidad": 2,
-         "unidad": "unidades",
-         "costo_unitario": 5.50}
-      ]
-    }
-    """
-    for f in ['empleado_nombre', 'motivo']:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
-    if body['motivo'] not in MOTIVOS:
+def crear(body: RequisicionCreate, user=Depends(get_current_user)):
+    if body.motivo not in MOTIVOS:
         raise HTTPException(status_code=400,
                             detail=f'Motivo inválido. Válidos: {", ".join(MOTIVOS)}')
 
     # lineas opcional: si no viene se auto-genera una línea desde descripción/monto
-    lineas = body.get('lineas') or []
-    if not isinstance(lineas, list) or not lineas:
+    lineas = body.lineas or []
+    if not lineas:
         lineas = [{
-            'producto_nombre': body.get('descripcion') or 'Solicitud general',
+            'producto_nombre': body.descripcion or 'Solicitud general',
             'producto_ref': '',
             'cantidad': 1,
             'unidad': 'unidades',
-            'costo_unitario': float(body.get('monto_estimado') or 0),
+            'costo_unitario': float(body.monto_estimado or 0),
         }]
 
     ahora = datetime.now(timezone.utc).isoformat()
@@ -136,16 +111,16 @@ def crear(body: dict, user=Depends(get_current_user)):
              estado, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?,'solicitada',?,?,?)
     """, (
-        body['empleado_nombre'],
-        int(body['odoo_employee_id']) if body.get('odoo_employee_id') else None,
-        body.get('departamento') or '',
-        body['motivo'],
-        body.get('descripcion') or '',
-        int(body['odoo_cuenta_id']) if body.get('odoo_cuenta_id') else None,
-        body.get('odoo_cuenta_codigo') or '',
-        int(body['odoo_journal_id']) if body.get('odoo_journal_id') else None,
-        int(body['odoo_location_id']) if body.get('odoo_location_id') else None,
-        body.get('notas') or '',
+        body.empleado_nombre,
+        body.odoo_employee_id,
+        body.departamento or '',
+        body.motivo,
+        body.descripcion or '',
+        body.odoo_cuenta_id,
+        body.odoo_cuenta_codigo or '',
+        body.odoo_journal_id,
+        body.odoo_location_id,
+        body.notas or '',
         user['id'], ahora,
     ))
     req_id = cur.lastrowid
@@ -176,7 +151,7 @@ def crear(body: dict, user=Depends(get_current_user)):
 
 
 @router.put('/{req_id}')
-def actualizar(req_id: int, body: dict,
+def actualizar(req_id: int, body: RequisicionUpdate,
                user=Depends(require_roles('gerente', 'admin'))):
     """Actualiza campos de la requisición (solo en estado solicitada)."""
     con = get_con()
@@ -185,21 +160,18 @@ def actualizar(req_id: int, body: dict,
         con.close()
         raise HTTPException(status_code=400,
                             detail='Solo se pueden editar requisiciones en estado solicitada')
-    campos = ['empleado_nombre', 'departamento', 'motivo', 'descripcion',
-              'odoo_cuenta_id', 'odoo_cuenta_codigo', 'odoo_journal_id',
-              'odoo_location_id', 'notas']
-    sets, params = [], []
-    for f in campos:
-        if f in body:
-            sets.append(f"{f}=?"); params.append(body[f])
+    data = body.model_dump(exclude_none=True)
+    lineas = data.pop('lineas', None)
+    sets = [f"{f}=?" for f in data]
+    params = list(data.values())
     if sets:
         params.append(req_id)
         con.execute(f"UPDATE requisiciones SET {', '.join(sets)} WHERE id=?", params)
 
     # Actualizar líneas si se incluyen
-    if 'lineas' in body and isinstance(body['lineas'], list):
+    if lineas is not None:
         con.execute("DELETE FROM requisiciones_lineas WHERE requisicion_id=?", (req_id,))
-        for l in body['lineas']:
+        for l in lineas:
             if not l.get('producto_nombre') or not l.get('cantidad'):
                 continue
             con.execute("""

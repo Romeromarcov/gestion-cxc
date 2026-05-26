@@ -2,6 +2,9 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from routers.auth import get_current_user, require_roles
 from models.schemas import rows_to_list
+from models.schemas_input import (GestionCreate, GestionUpdate,
+                                   PlantillaCreate, PlantillaUpdate,
+                                   PreviewPlantillaRequest)
 from database import get_con
 from datetime import date as _date
 
@@ -36,11 +39,7 @@ def listar_gestiones(cliente_id: int = None, orden_name: str = None,
 
 
 @router.post('/gestiones')
-def registrar_gestion(body: dict, user=Depends(get_current_user)):
-    required = ['cliente_id', 'fecha_gestion', 'tipo_contacto', 'resultado']
-    for f in required:
-        if not body.get(f):
-            raise HTTPException(status_code=422, detail=f'Campo requerido: {f}')
+def registrar_gestion(body: GestionCreate, user=Depends(get_current_user)):
     con = get_con()
     cur = con.execute("""
         INSERT INTO cobranza_gestiones
@@ -50,18 +49,18 @@ def registrar_gestion(body: dict, user=Depends(get_current_user)):
              proxima_accion, fecha_proxima)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        body['cliente_id'],
-        body.get('cliente_nombre', ''),
-        body.get('orden_name'),
-        body.get('ejecutivo_id') or user['id'],
-        body['fecha_gestion'],
-        body['tipo_contacto'],
-        body['resultado'],
-        body.get('monto_prometido'),
-        body.get('fecha_promesa'),
-        body.get('comentarios', ''),
-        body.get('proxima_accion', ''),
-        body.get('fecha_proxima'),
+        body.cliente_id,
+        body.cliente_nombre,
+        body.orden_name,
+        body.ejecutivo_id or user['id'],
+        body.fecha_gestion,
+        body.tipo_contacto,
+        body.resultado,
+        body.monto_prometido,
+        body.fecha_promesa,
+        body.comentarios,
+        body.proxima_accion,
+        body.fecha_proxima,
     ))
     con.commit()
     gestion = rows_to_list(con.execute(
@@ -72,16 +71,15 @@ def registrar_gestion(body: dict, user=Depends(get_current_user)):
 
 
 @router.put('/gestiones/{gestion_id}')
-def actualizar_gestion(gestion_id: int, body: dict, user=Depends(get_current_user)):
+def actualizar_gestion(gestion_id: int, body: GestionUpdate, user=Depends(get_current_user)):
     con = get_con()
     existe = con.execute("SELECT id FROM cobranza_gestiones WHERE id=?", (gestion_id,)).fetchone()
     if not existe:
         con.close()
         raise HTTPException(status_code=404, detail='Gestión no encontrada')
-    campos = ['tipo_contacto', 'resultado', 'monto_prometido', 'fecha_promesa',
-              'comentarios', 'proxima_accion', 'fecha_proxima']
-    sets = [f"{c}=?" for c in campos if c in body]
-    vals = [body[c] for c in campos if c in body]
+    data = body.model_dump(exclude_none=True)
+    sets = [f"{c}=?" for c in data]
+    vals = list(data.values())
     if sets:
         con.execute(f"UPDATE cobranza_gestiones SET {','.join(sets)} WHERE id=?",
                     vals + [gestion_id])
@@ -155,28 +153,24 @@ def listar_plantillas(user=Depends(get_current_user)):
 
 
 @router.post('/plantillas')
-def crear_plantilla(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    for f in ['nombre', 'tipo', 'mensaje']:
-        if not body.get(f):
-            raise HTTPException(status_code=422, detail=f'Campo requerido: {f}')
+def crear_plantilla(body: PlantillaCreate, user=Depends(require_roles('gerente', 'admin'))):
     con = get_con()
     cur = con.execute("""
         INSERT INTO cobranza_plantillas(nombre, tipo, dias_relativos, canal, mensaje, activa)
-        VALUES (?,?,?,?,?,1)
-    """, (body['nombre'], body['tipo'], body.get('dias_relativos', 0),
-          body.get('canal', 'whatsapp'), body['mensaje']))
+        VALUES (?,?,?,?,?,?)
+    """, (body.nombre, body.tipo, body.dias_relativos, body.canal, body.mensaje, body.activa))
     con.commit()
     con.close()
     return {'id': cur.lastrowid, 'mensaje': 'Plantilla creada'}
 
 
 @router.put('/plantillas/{pid}')
-def actualizar_plantilla(pid: int, body: dict,
+def actualizar_plantilla(pid: int, body: PlantillaUpdate,
                          user=Depends(require_roles('gerente', 'admin'))):
     con = get_con()
-    campos = ['nombre', 'tipo', 'dias_relativos', 'canal', 'mensaje', 'activa']
-    sets = [f"{c}=?" for c in campos if c in body]
-    vals = [body[c] for c in campos if c in body]
+    data = body.model_dump(exclude_none=True)
+    sets = [f"{c}=?" for c in data]
+    vals = list(data.values())
     if sets:
         con.execute(f"UPDATE cobranza_plantillas SET {','.join(sets)} WHERE id=?",
                     vals + [pid])
@@ -195,7 +189,7 @@ def eliminar_plantilla(pid: int, user=Depends(require_roles('gerente', 'admin'))
 
 
 @router.post('/plantillas/{pid}/preview')
-def preview_plantilla(pid: int, body: dict, user=Depends(get_current_user)):
+def preview_plantilla(pid: int, body: PreviewPlantillaRequest, user=Depends(get_current_user)):
     """Genera preview del mensaje sustituyendo variables."""
     con = get_con()
     plantilla = con.execute("SELECT * FROM cobranza_plantillas WHERE id=?", (pid,)).fetchone()
@@ -203,6 +197,6 @@ def preview_plantilla(pid: int, body: dict, user=Depends(get_current_user)):
     if not plantilla:
         raise HTTPException(status_code=404, detail='Plantilla no encontrada')
     msg = plantilla['mensaje']
-    for k, v in body.items():
+    for k, v in body.model_dump().items():
         msg = msg.replace(f'{{{k}}}', str(v))
     return {'mensaje': msg}

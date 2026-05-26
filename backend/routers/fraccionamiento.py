@@ -9,6 +9,11 @@ from datetime import datetime, timezone, date
 from database import get_con
 from routers.auth import get_current_user, require_roles
 from models.schemas import row_to_dict, rows_to_list
+from models.schemas_input import (
+    FraccionamientoLoteCreate, FraccionamientoVentaCreate,
+    FraccionamientoLineaCreate, FraccionamientoPagoCreate,
+    FraccionamientoRegaloCreate, FraccionamientoAjusteCreate,
+)
 
 router = APIRouter(prefix='/fraccionamiento', tags=['fraccionamiento'])
 
@@ -57,19 +62,14 @@ def listar_lotes(user=Depends(get_current_user)):
 
 
 @router.post('/lotes')
-def crear_lote(body: dict, user=Depends(require_roles('admin', 'gerente'))):
+def crear_lote(body: FraccionamientoLoteCreate, user=Depends(require_roles('admin', 'gerente'))):
     con = get_con()
     _require_modulo(con)
 
-    reqs = ['producto_nombre', 'unidad_padre', 'cantidad_padre', 'subunidad_nombre', 'factor_conversion']
-    for f in reqs:
-        if body.get(f) is None:
-            con.close(); raise HTTPException(400, f'Campo requerido: {f}')
-
-    cantidad_padre = float(body['cantidad_padre'])
-    factor = float(body['factor_conversion'])
+    cantidad_padre = body.cantidad_padre
+    factor = body.factor_conversion
     total_sub = cantidad_padre * factor
-    costo_padre = float(body['costo_padre_usd']) if body.get('costo_padre_usd') else None
+    costo_padre = body.costo_padre_usd
     costo_sub = round(costo_padre / factor, 6) if costo_padre else None
 
     codigo = _generar_codigo_lote(con)
@@ -83,22 +83,22 @@ def crear_lote(body: dict, user=Depends(require_roles('admin', 'gerente'))):
              estado, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'activo',?,?,?)
     """, (
-        codigo, body.get('producto_ref'), body['producto_nombre'],
-        body['unidad_padre'], cantidad_padre, body['subunidad_nombre'],
+        codigo, body.producto_ref, body.producto_nombre,
+        body.unidad_padre, cantidad_padre, body.subunidad_nombre,
         factor, total_sub, total_sub,
-        costo_padre, costo_sub, float(body['precio_venta_usd']) if body.get('precio_venta_usd') else None,
-        body.get('notas'), user['id'], ahora
+        costo_padre, costo_sub, body.precio_venta_usd,
+        body.notas, user['id'], ahora
     ))
     lote_id = cur.lastrowid
 
     # Decrementar inventario_interno si hay producto_ref
-    if body.get('producto_ref'):
+    if body.producto_ref:
         con.execute("""
             UPDATE inventario_interno
             SET stock_actual = GREATEST(0, stock_actual - ?),
                 ultima_actualizacion = ?
             WHERE producto_codigo = ?
-        """, (cantidad_padre, ahora, body['producto_ref']))
+        """, (cantidad_padre, ahora, body.producto_ref))
 
     # Crear movimiento inicial de entrada
     con.execute("""
@@ -148,10 +148,9 @@ def cerrar_lote(lote_id: int, user=Depends(require_roles('admin', 'gerente'))):
 
 
 @router.post('/lotes/{lote_id}/regalo')
-def registrar_regalo(lote_id: int, body: dict, user=Depends(require_roles('admin', 'gerente'))):
-    cantidad = float(body.get('cantidad', 0))
-    if cantidad <= 0:
-        raise HTTPException(400, 'Cantidad debe ser mayor a 0')
+def registrar_regalo(lote_id: int, body: FraccionamientoRegaloCreate,
+                     user=Depends(require_roles('admin', 'gerente'))):
+    cantidad = body.cantidad
     con = get_con()
     _require_modulo(con)
     lote = row_to_dict(con.execute(
@@ -171,14 +170,15 @@ def registrar_regalo(lote_id: int, body: dict, user=Depends(require_roles('admin
         INSERT INTO fraccionamiento_movimientos
             (lote_id, tipo, cantidad, destinatario, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?)
-    """, (lote_id, 'regalo', -cantidad, body.get('destinatario'), body.get('notas'), user['id'], ahora))
+    """, (lote_id, 'regalo', -cantidad, body.destinatario, body.notas, user['id'], ahora))
     con.commit(); con.close()
     return {'mensaje': 'Regalo registrado', 'cantidad': cantidad}
 
 
 @router.post('/lotes/{lote_id}/ajuste')
-def ajustar_lote(lote_id: int, body: dict, user=Depends(require_roles('admin', 'gerente'))):
-    delta = float(body.get('cantidad_delta', 0))
+def ajustar_lote(lote_id: int, body: FraccionamientoAjusteCreate,
+                 user=Depends(require_roles('admin', 'gerente'))):
+    delta = body.cantidad_delta
     con = get_con()
     _require_modulo(con)
     lote = row_to_dict(con.execute(
@@ -199,7 +199,7 @@ def ajustar_lote(lote_id: int, body: dict, user=Depends(require_roles('admin', '
         INSERT INTO fraccionamiento_movimientos
             (lote_id, tipo, cantidad, referencia, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?)
-    """, (lote_id, 'ajuste', delta, body.get('motivo'), body.get('motivo'), user['id'], ahora))
+    """, (lote_id, 'ajuste', delta, body.motivo, body.motivo, user['id'], ahora))
     con.commit(); con.close()
     return {'mensaje': 'Ajuste registrado', 'stock_nuevo': nuevo_stock}
 
@@ -218,9 +218,7 @@ def listar_ventas(user=Depends(get_current_user)):
 
 
 @router.post('/ventas/crear')
-def crear_venta(body: dict, user=Depends(require_roles('admin', 'gerente'))):
-    if not body.get('cliente_nombre'):
-        raise HTTPException(400, 'cliente_nombre es requerido')
+def crear_venta(body: FraccionamientoVentaCreate, user=Depends(require_roles('admin', 'gerente'))):
     con = get_con()
     _require_modulo(con)
 
@@ -230,7 +228,7 @@ def crear_venta(body: dict, user=Depends(require_roles('admin', 'gerente'))):
         INSERT INTO fraccionamiento_ventas
             (codigo, cliente_nombre, vendedor_id, estado, notas, creado_en)
         VALUES (?,?,?,'borrador',?,?)
-    """, (codigo, body['cliente_nombre'], user['id'], body.get('notas'), ahora))
+    """, (codigo, body.cliente_nombre, user['id'], body.notas, ahora))
     venta_id = cur.lastrowid
     con.commit()
     venta = row_to_dict(con.execute(
@@ -265,7 +263,8 @@ def detalle_venta(venta_id: int, user=Depends(get_current_user)):
 
 
 @router.post('/ventas/{venta_id}/agregar-linea')
-def agregar_linea(venta_id: int, body: dict, user=Depends(require_roles('admin', 'gerente'))):
+def agregar_linea(venta_id: int, body: FraccionamientoLineaCreate,
+                  user=Depends(require_roles('admin', 'gerente'))):
     con = get_con()
     _require_modulo(con)
     venta = row_to_dict(con.execute(
@@ -276,10 +275,10 @@ def agregar_linea(venta_id: int, body: dict, user=Depends(require_roles('admin',
     if venta['estado'] != 'borrador':
         con.close(); raise HTTPException(400, 'Solo se pueden agregar líneas a ventas en borrador')
 
-    lote_id = body.get('lote_id')
-    cantidad = float(body.get('cantidad', 1))
-    precio = float(body.get('precio_unitario_usd', 0))
-    descuento = float(body.get('descuento_pct', 0))
+    lote_id = body.lote_id
+    cantidad = body.cantidad
+    precio = body.precio_unitario_usd
+    descuento = body.descuento_pct
     subtotal = round(cantidad * precio * (1 - descuento / 100), 4)
 
     lote = row_to_dict(con.execute(
@@ -399,11 +398,8 @@ def anular_venta(venta_id: int, user=Depends(require_roles('admin', 'gerente')))
 
 
 @router.post('/ventas/{venta_id}/registrar-pago')
-def registrar_pago(venta_id: int, body: dict, user=Depends(require_roles('admin', 'gerente'))):
-    reqs = ['monto', 'metodo', 'fecha_pago']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(400, f'Campo requerido: {f}')
+def registrar_pago(venta_id: int, body: FraccionamientoPagoCreate,
+                   user=Depends(require_roles('admin', 'gerente'))):
     con = get_con()
     _require_modulo(con)
     venta = row_to_dict(con.execute(
@@ -414,14 +410,14 @@ def registrar_pago(venta_id: int, body: dict, user=Depends(require_roles('admin'
     if venta['estado'] != 'confirmada':
         con.close(); raise HTTPException(400, 'Solo se pueden registrar pagos en ventas confirmadas')
 
-    monto = float(body['monto'])
+    monto = body.monto
     ahora = datetime.now(timezone.utc).isoformat()
     con.execute("""
         INSERT INTO fraccionamiento_pagos
             (venta_id, monto, moneda, metodo, referencia, fecha_pago, notas, registrado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?)
-    """, (venta_id, monto, body.get('moneda', 'USD'), body['metodo'],
-          body.get('referencia'), body['fecha_pago'], body.get('notas'), user['id'], ahora))
+    """, (venta_id, monto, body.moneda, body.metodo,
+          body.referencia, body.fecha_pago, body.notas, user['id'], ahora))
 
     # Reducir saldo pendiente
     con.execute("""

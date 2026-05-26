@@ -15,6 +15,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
 from models.schemas import rows_to_list, row_to_dict
+from models.schemas_input import PagoFiscalCreate, PagoFiscalUpdate
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/pagos-fiscales', tags=['pagos-fiscales'])
@@ -114,52 +115,29 @@ def obtener(pf_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Body:
-    {
-      "tipo": "alcaldia",           # requerido
-      "descripcion": "Alcaldía enero 2025",  # requerido
-      "monto": 150000.0,            # requerido
-      "moneda": "VES",              # default VES
-      "equivalente_usd": 3.90,      # opcional
-      "fecha": "2025-01-31",        # requerido
-      "referencia": "PLANILLA-001", # opcional
-      "periodo": "2025-01",         # opcional
-      "odoo_cuenta_gasto_id": 350,  # cuenta de gasto en Odoo
-      "odoo_cuenta_gasto_codigo": "6.3.1",
-      "odoo_cuenta_haber_id": 42,   # banco/caja que paga
-      "odoo_cuenta_haber_codigo": "1.1.1.1",
-      "odoo_journal_id": 7,         # diario contable
-      "notas": ""
-    }
-    """
-    reqs = ['tipo', 'descripcion', 'monto', 'fecha']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
-    tipo = body['tipo'].lower()
-    if tipo not in TIPOS_FISCAL:
-        raise HTTPException(status_code=400,
-                            detail=f'Tipo inválido. Válidos: {", ".join(TIPOS_FISCAL)}')
-
+def crear(body: PagoFiscalCreate, user=Depends(require_roles('gerente', 'admin'))):
     ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
 
     # Auto-lookup: si no se enviaron cuentas, intentar desde config del tipo
-    if not body.get('odoo_cuenta_gasto_id') or not body.get('odoo_cuenta_haber_id'):
+    odoo_cuenta_gasto_id = body.odoo_cuenta_gasto_id
+    odoo_cuenta_gasto_codigo = body.odoo_cuenta_gasto_codigo
+    odoo_cuenta_haber_id = body.odoo_cuenta_haber_id
+    odoo_cuenta_haber_codigo = body.odoo_cuenta_haber_codigo
+    odoo_journal_id = body.odoo_journal_id
+    if not odoo_cuenta_gasto_id or not odoo_cuenta_haber_id:
         cfg = row_to_dict(con.execute(
-            "SELECT * FROM pagos_fiscales_config WHERE tipo=?", (tipo,)
+            "SELECT * FROM pagos_fiscales_config WHERE tipo=?", (body.tipo,)
         ).fetchone())
         if cfg:
-            if not body.get('odoo_cuenta_gasto_id') and cfg.get('odoo_cuenta_gasto_id'):
-                body['odoo_cuenta_gasto_id'] = cfg['odoo_cuenta_gasto_id']
-                body['odoo_cuenta_gasto_codigo'] = cfg.get('odoo_cuenta_gasto_nombre', '')
-            if not body.get('odoo_cuenta_haber_id') and cfg.get('odoo_cuenta_haber_id'):
-                body['odoo_cuenta_haber_id'] = cfg['odoo_cuenta_haber_id']
-                body['odoo_cuenta_haber_codigo'] = cfg.get('odoo_cuenta_haber_nombre', '')
-            if not body.get('odoo_journal_id') and cfg.get('odoo_journal_id'):
-                body['odoo_journal_id'] = cfg['odoo_journal_id']
+            if not odoo_cuenta_gasto_id and cfg.get('odoo_cuenta_gasto_id'):
+                odoo_cuenta_gasto_id = cfg['odoo_cuenta_gasto_id']
+                odoo_cuenta_gasto_codigo = odoo_cuenta_gasto_codigo or cfg.get('odoo_cuenta_gasto_nombre', '')
+            if not odoo_cuenta_haber_id and cfg.get('odoo_cuenta_haber_id'):
+                odoo_cuenta_haber_id = cfg['odoo_cuenta_haber_id']
+                odoo_cuenta_haber_codigo = odoo_cuenta_haber_codigo or cfg.get('odoo_cuenta_haber_nombre', '')
+            if not odoo_journal_id and cfg.get('odoo_journal_id'):
+                odoo_journal_id = cfg['odoo_journal_id']
 
     cur = con.execute("""
         INSERT INTO pagos_fiscales
@@ -170,20 +148,20 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
              odoo_journal_id, estado, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'borrador',?,?,?)
     """, (
-        tipo,
-        body['descripcion'],
-        body.get('periodo') or '',
-        float(body['monto']),
-        body.get('moneda', 'VES'),
-        float(body['equivalente_usd']) if body.get('equivalente_usd') else None,
-        body['fecha'],
-        body.get('referencia') or '',
-        int(body['odoo_cuenta_gasto_id']) if body.get('odoo_cuenta_gasto_id') else None,
-        body.get('odoo_cuenta_gasto_codigo') or '',
-        int(body['odoo_cuenta_haber_id']) if body.get('odoo_cuenta_haber_id') else None,
-        body.get('odoo_cuenta_haber_codigo') or '',
-        int(body['odoo_journal_id']) if body.get('odoo_journal_id') else None,
-        body.get('notas') or '',
+        body.tipo,
+        body.descripcion,
+        body.periodo or '',
+        body.monto,
+        body.moneda,
+        body.equivalente_usd,
+        body.fecha,
+        body.referencia or '',
+        odoo_cuenta_gasto_id,
+        odoo_cuenta_gasto_codigo or '',
+        odoo_cuenta_haber_id,
+        odoo_cuenta_haber_codigo or '',
+        odoo_journal_id,
+        body.notas or '',
         user['id'], ahora,
     ))
     pf_id = cur.lastrowid
@@ -194,7 +172,7 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
 
 
 @router.put('/{pf_id}')
-def actualizar(pf_id: int, body: dict,
+def actualizar(pf_id: int, body: PagoFiscalUpdate,
                user=Depends(require_roles('gerente', 'admin'))):
     con = get_con()
     p = _get_or_404(con, pf_id)
@@ -202,19 +180,12 @@ def actualizar(pf_id: int, body: dict,
         con.close()
         raise HTTPException(status_code=400, detail='Solo se pueden editar pagos en borrador')
 
-    campos = ['tipo', 'descripcion', 'periodo', 'monto', 'moneda', 'equivalente_usd',
-              'fecha', 'referencia',
-              'odoo_cuenta_gasto_id', 'odoo_cuenta_gasto_codigo',
-              'odoo_cuenta_haber_id', 'odoo_cuenta_haber_codigo',
-              'odoo_journal_id', 'notas']
-    sets, params = [], []
-    for f in campos:
-        if f in body:
-            sets.append(f"{f}=?"); params.append(body[f])
-    if not sets:
+    data = body.model_dump(exclude_none=True)
+    if not data:
         con.close()
         raise HTTPException(status_code=400, detail='Sin campos para actualizar')
-    params.append(pf_id)
+    sets = [f"{f}=?" for f in data]
+    params = list(data.values()) + [pf_id]
     con.execute(f"UPDATE pagos_fiscales SET {', '.join(sets)} WHERE id=?", params)
     con.commit()
     p = _get_or_404(con, pf_id)

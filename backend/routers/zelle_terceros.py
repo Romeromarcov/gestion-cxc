@@ -17,6 +17,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
 from models.schemas import rows_to_list, row_to_dict
+from models.schemas_input import ZelleTerceroCreate, ZelleTerceroUpdate
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/zelle-terceros', tags=['zelle-terceros'])
@@ -72,26 +73,7 @@ def obtener(zt_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Body:
-    {
-      "fecha": "2025-02-01",
-      "descripcion": "Pago cliente vía Zelle Proveedor X",
-      "proveedor_id": 45,            # partner_id Odoo del proveedor
-      "proveedor_nombre": "Proveedor X, C.A.",
-      "cliente_nombre": "Cliente ABC",
-      "orden_cobrada": "S00123",     # orden de venta que se cobraba
-      "monto_usd": 250.00,
-      "referencia_zelle": "CONF-789012",
-      "notas": ""
-    }
-    """
-    reqs = ['fecha', 'proveedor_nombre', 'monto_usd']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
-
+def crear(body: ZelleTerceroCreate, user=Depends(require_roles('gerente', 'admin'))):
     ahora = datetime.now(timezone.utc).isoformat()
     con = get_con()
     cur = con.execute("""
@@ -99,18 +81,18 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
             (fecha, descripcion, proveedor_id, proveedor_nombre,
              cliente_nombre, orden_cobrada, monto_usd, referencia_zelle,
              estado, notas, creado_por, creado_en)
-        VALUES (?,?,?,?,?,?,?,'pendiente',?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        body['fecha'],
-        body.get('descripcion') or '',
-        int(body['proveedor_id']) if body.get('proveedor_id') else None,
-        body['proveedor_nombre'],
-        body.get('cliente_nombre') or '',
-        body.get('orden_cobrada') or '',
-        float(body['monto_usd']),
-        body.get('referencia_zelle') or '',
+        body.fecha,
+        body.descripcion or '',
+        body.proveedor_id,
+        body.proveedor_nombre,
+        body.cliente_nombre or '',
+        body.orden_cobrada or '',
+        body.monto_usd,
+        body.referencia_zelle or '',
         'pendiente',
-        body.get('notas') or '',
+        body.notas or '',
         user['id'], ahora,
     ))
     zt_id = cur.lastrowid
@@ -121,7 +103,7 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
 
 
 @router.put('/{zt_id}')
-def actualizar(zt_id: int, body: dict,
+def actualizar(zt_id: int, body: ZelleTerceroUpdate,
                user=Depends(require_roles('gerente', 'admin'))):
     con = get_con()
     z = _get_or_404(con, zt_id)
@@ -129,17 +111,12 @@ def actualizar(zt_id: int, body: dict,
         con.close()
         raise HTTPException(status_code=400,
                             detail='Solo se pueden editar registros pendientes')
-    campos = ['fecha', 'descripcion', 'proveedor_id', 'proveedor_nombre',
-              'cliente_nombre', 'orden_cobrada', 'monto_usd',
-              'referencia_zelle', 'notas']
-    sets, params = [], []
-    for f in campos:
-        if f in body:
-            sets.append(f"{f}=?"); params.append(body[f])
-    if not sets:
+    data = body.model_dump(exclude_none=True)
+    if not data:
         con.close()
         raise HTTPException(status_code=400, detail='Sin campos para actualizar')
-    params.append(zt_id)
+    sets = [f"{f}=?" for f in data]
+    params = list(data.values()) + [zt_id]
     con.execute(f"UPDATE zelle_terceros SET {', '.join(sets)} WHERE id=?", params)
     con.commit()
     z = _get_or_404(con, zt_id)

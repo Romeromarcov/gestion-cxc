@@ -16,6 +16,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
 from models.schemas import rows_to_list, row_to_dict
+from models.schemas_input import GastoCreate, RechazoBody
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/gastos', tags=['gastos'])
@@ -174,42 +175,22 @@ def obtener(gasto_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Body:
-    {
-      "tipo": "recurrente",          # unico | recurrente | servicio_publico
-      "categoria": "Servicios Públicos",
-      "subcategoria": "Electricidad / Corpoelec",
-      "descripcion": "Corpoelec oficina",
-      "monto": 85000.0,
-      "moneda": "VES",
-      "fecha": "2025-03-01",
-      "es_recurrente": true,
-      "dia_pago": 15,
-      "odoo_cuenta_gasto_id": 410,
-      "odoo_journal_id": 7,
-      "proveedor_nombre": "Corpoelec"
-    }
-    """
-    reqs = ['tipo', 'categoria', 'descripcion', 'monto', 'fecha']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
-    if body['tipo'] not in TIPOS:
-        raise HTTPException(status_code=400, detail=f'Tipo inválido: {TIPOS}')
-
+def crear(body: GastoCreate, user=Depends(require_roles('gerente', 'admin'))):
+    """Crea un gasto o compromiso de pago en estado borrador."""
     # Auto-lookup config contable si no viene en el body
     con = get_con()
-    if not body.get('odoo_cuenta_gasto_id'):
+    cuenta_gasto_id  = body.odoo_cuenta_gasto_id
+    cuenta_gasto_cod = body.odoo_cuenta_gasto_codigo
+    journal_id       = body.odoo_journal_id
+    if not cuenta_gasto_id:
         cfg = row_to_dict(con.execute(
             "SELECT * FROM gastos_config_cuentas WHERE categoria=? AND (subcategoria=? OR subcategoria IS NULL) LIMIT 1",
-            (body['categoria'], body.get('subcategoria'))
+            (body.categoria, body.subcategoria)
         ).fetchone())
         if cfg:
-            body.setdefault('odoo_cuenta_gasto_id', cfg.get('odoo_cuenta_gasto_id'))
-            body.setdefault('odoo_cuenta_gasto_codigo', cfg.get('odoo_cuenta_gasto_codigo'))
-            body.setdefault('odoo_journal_id', cfg.get('odoo_journal_id'))
+            cuenta_gasto_id  = cfg.get('odoo_cuenta_gasto_id')
+            cuenta_gasto_cod = cfg.get('odoo_cuenta_gasto_codigo')
+            journal_id       = cfg.get('odoo_journal_id')
 
     ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
@@ -222,16 +203,16 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
              estado, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,'borrador',?,?,?)
     """, (
-        body['tipo'], body['categoria'], body.get('subcategoria'),
-        body['descripcion'], body.get('proveedor_nombre'), body.get('proveedor_odoo_id'),
-        float(body['monto']), body.get('moneda', 'VES'),
-        float(body['equivalente_usd']) if body.get('equivalente_usd') else None,
-        body['fecha'], body.get('referencia'), body.get('periodo'),
-        1 if body.get('es_recurrente') else 0,
-        int(body['dia_pago']) if body.get('dia_pago') else 1,
-        body.get('odoo_cuenta_gasto_id'), body.get('odoo_cuenta_gasto_codigo'),
-        body.get('odoo_cuenta_banco_id'), body.get('odoo_journal_id'),
-        body.get('notas'), user['id'], ahora,
+        body.tipo, body.categoria, body.subcategoria,
+        body.descripcion, body.proveedor_nombre, body.proveedor_odoo_id,
+        body.monto, body.moneda,
+        body.equivalente_usd,
+        body.fecha, body.referencia, body.periodo,
+        1 if body.es_recurrente else 0,
+        body.dia_pago,
+        cuenta_gasto_id, cuenta_gasto_cod,
+        body.odoo_cuenta_banco_id, journal_id,
+        body.notas, user['id'], ahora,
     ))
     gasto_id = cur.lastrowid
     con.commit()
@@ -457,8 +438,8 @@ def aprobar_gasto(gasto_id: int, user=Depends(require_roles('gerente', 'admin'))
 
 
 @router.post('/{gasto_id}/rechazar')
-def rechazar_gasto(gasto_id: int, body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    motivo = body.get('motivo', '')
+def rechazar_gasto(gasto_id: int, body: RechazoBody, user=Depends(require_roles('gerente', 'admin'))):
+    motivo = body.motivo
     con = get_con()
     _get_or_404(con, gasto_id)
     con.execute("""UPDATE gastos SET aprobacion_estado='rechazado',

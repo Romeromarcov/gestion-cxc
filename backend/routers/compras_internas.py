@@ -11,6 +11,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from models.operaciones import CompraInternaCreate
 from models.schemas import row_to_dict, rows_to_list
+from models.schemas_input import RechazoBody
 
 router = APIRouter(prefix='/compras-internas', tags=['compras-internas'])
 
@@ -174,8 +175,8 @@ def aprobar_compra(compra_id: int, user=Depends(require_roles('gerente', 'admin'
 
 
 @router.post('/{compra_id}/rechazar')
-def rechazar_compra(compra_id: int, body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    motivo = body.get('motivo', '')
+def rechazar_compra(compra_id: int, body: RechazoBody, user=Depends(require_roles('gerente', 'admin'))):
+    motivo = body.motivo
     con = get_con()
     compra = row_to_dict(con.execute(
         "SELECT id FROM compras_internas WHERE id=?", (compra_id,)

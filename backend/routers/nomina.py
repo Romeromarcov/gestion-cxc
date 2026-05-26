@@ -21,6 +21,7 @@ from database import get_con
 from routers.auth import get_current_user, require_roles
 from routers.ventas import get_odoo
 from models.schemas import rows_to_list, row_to_dict
+from models.schemas_input import NominaCreate, NominaUpdate, NominaTerceroCreate, NominaImportarOdoo
 from services.tasas_cambio import tasa_bcv_hoy, tasa_custom_hoy
 
 router = APIRouter(prefix='/nomina', tags=['nomina'])
@@ -106,39 +107,20 @@ def obtener(nom_id: int, user=Depends(get_current_user)):
 
 
 @router.post('')
-def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Body:
-    {
-      "periodo": "2025-03",
-      "tipo": "bonificacion",
-      "descripcion": "Bono de productividad marzo",
-      "empleado_nombre": "Juan Pérez",
-      "empleado_odoo_id": 12,
-      "es_grupal": false,
-      "monto": 200.0,
-      "moneda": "USD",
-      "odoo_cuenta_gasto_id": 510,
-      "odoo_journal_id": 7
-    }
-    """
-    reqs = ['periodo', 'tipo', 'descripcion', 'monto']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
-    if body['tipo'] not in TIPOS:
-        raise HTTPException(status_code=400, detail=f'Tipo inválido: {TIPOS}')
-
-    # Auto-lookup config contable
+def crear(body: NominaCreate, user=Depends(require_roles('gerente', 'admin'))):
+    # Auto-lookup config contable si no se proveyó cuenta
     con = get_con()
-    if not body.get('odoo_cuenta_gasto_id'):
+    odoo_cuenta_gasto_id = body.odoo_cuenta_gasto_id
+    odoo_cuenta_gasto_codigo = body.odoo_cuenta_gasto_codigo
+    odoo_journal_id = body.odoo_journal_id
+    if not odoo_cuenta_gasto_id:
         cfg = row_to_dict(con.execute(
-            "SELECT * FROM nomina_config_cuentas WHERE tipo=?", (body['tipo'],)
+            "SELECT * FROM nomina_config_cuentas WHERE tipo=?", (body.tipo,)
         ).fetchone())
         if cfg:
-            body.setdefault('odoo_cuenta_gasto_id', cfg.get('odoo_cuenta_gasto_id'))
-            body.setdefault('odoo_cuenta_gasto_codigo', cfg.get('odoo_cuenta_gasto_codigo'))
-            body.setdefault('odoo_journal_id', cfg.get('odoo_journal_id'))
+            odoo_cuenta_gasto_id = odoo_cuenta_gasto_id or cfg.get('odoo_cuenta_gasto_id')
+            odoo_cuenta_gasto_codigo = odoo_cuenta_gasto_codigo or cfg.get('odoo_cuenta_gasto_codigo')
+            odoo_journal_id = odoo_journal_id or cfg.get('odoo_journal_id')
 
     ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
@@ -151,14 +133,14 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
              estado, notas, creado_por, creado_en)
         VALUES (?,?,?,'manual',?,?,?,?,?,?,?,?,?,?,'borrador',?,?,?)
     """, (
-        body['periodo'], body['tipo'], body['descripcion'],
-        body.get('empleado_nombre'), body.get('empleado_odoo_id'),
-        1 if body.get('es_grupal') else 0,
-        float(body['monto']), body.get('moneda', 'VES'),
-        float(body['equivalente_usd']) if body.get('equivalente_usd') else None,
-        body.get('odoo_cuenta_gasto_id'), body.get('odoo_cuenta_gasto_codigo'),
-        body.get('odoo_cuenta_banco_id'), body.get('odoo_journal_id'),
-        body.get('notas'), user['id'], ahora,
+        body.periodo, body.tipo, body.descripcion,
+        body.empleado_nombre, body.empleado_odoo_id,
+        1 if body.es_grupal else 0,
+        body.monto, body.moneda,
+        body.equivalente_usd,
+        odoo_cuenta_gasto_id, odoo_cuenta_gasto_codigo,
+        body.odoo_cuenta_banco_id, odoo_journal_id,
+        body.notas, user['id'], ahora,
     ))
     nom_id = cur.lastrowid
     con.commit()
@@ -168,25 +150,19 @@ def crear(body: dict, user=Depends(require_roles('gerente', 'admin'))):
 
 
 @router.put('/{nom_id}')
-def actualizar(nom_id: int, body: dict,
+def actualizar(nom_id: int, body: NominaUpdate,
                user=Depends(require_roles('gerente', 'admin'))):
     con = get_con()
     n = _get_or_404(con, nom_id)
     if n['estado'] not in ('borrador',):
         con.close()
         raise HTTPException(status_code=400, detail='Solo se pueden editar registros en borrador')
-    campos = ['periodo', 'tipo', 'descripcion', 'empleado_nombre', 'empleado_odoo_id',
-              'es_grupal', 'monto', 'moneda', 'equivalente_usd',
-              'odoo_cuenta_gasto_id', 'odoo_cuenta_gasto_codigo',
-              'odoo_cuenta_banco_id', 'odoo_journal_id', 'notas']
-    sets, vals = [], []
-    for f in campos:
-        if f in body:
-            sets.append(f"{f}=?"); vals.append(body[f])
-    if not sets:
+    data = body.model_dump(exclude_none=True)
+    if not data:
         con.close()
         return {'mensaje': 'Sin cambios'}
-    vals.append(nom_id)
+    sets = [f"{f}=?" for f in data]
+    vals = list(data.values()) + [nom_id]
     con.execute(f"UPDATE nomina_registros SET {', '.join(sets)} WHERE id=?", vals)
     con.commit()
     n = _get_or_404(con, nom_id)
@@ -317,14 +293,11 @@ def enviar_odoo(nom_id: int, body: dict = None,
 # ── IMPORTAR DESDE ODOO ────────────────────────────────────────────────────────
 
 @router.post('/importar-odoo')
-def importar_odoo(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Importa lotes de nómina de Odoo HR Payroll.
-    body: { "fecha_desde": "YYYY-MM-DD", "fecha_hasta": "YYYY-MM-DD" }
-    """
+def importar_odoo(body: NominaImportarOdoo, user=Depends(require_roles('gerente', 'admin'))):
+    """Importa lotes de nómina de Odoo HR Payroll."""
     odoo = get_odoo()
     try:
-        batches = odoo.get_payslip_batches(body.get('fecha_desde'), body.get('fecha_hasta'))
+        batches = odoo.get_payslip_batches(body.fecha_desde, body.fecha_hasta)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f'Error Odoo: {e}')
 
@@ -383,26 +356,8 @@ def listar_terceros(
 
 
 @router.post('/terceros')
-def crear_tercero(body: dict, user=Depends(require_roles('gerente', 'admin'))):
-    """
-    Registra un pago de nómina a través de proveedor (descuento AP).
-    body: {
-      "periodo": "2025-03",
-      "descripcion": "Salario empleado X vía Proveedor Y",
-      "empleado_nombre": "Juan Pérez",
-      "monto": 350.0,
-      "moneda": "USD",
-      "proveedor_id": 45,
-      "proveedor_nombre": "Empresa Tercerizada S.A.",
-      "referencia": "REF-001",
-      "odoo_cuenta_gasto_id": 510,
-      "odoo_cuenta_ap_id": 210
-    }
-    """
-    reqs = ['periodo', 'empleado_nombre', 'monto', 'proveedor_nombre']
-    for f in reqs:
-        if not body.get(f):
-            raise HTTPException(status_code=400, detail=f'Campo requerido: {f}')
+def crear_tercero(body: NominaTerceroCreate, user=Depends(require_roles('gerente', 'admin'))):
+    """Registra un pago de nómina a través de proveedor (descuento AP)."""
     con = get_con()
     ahora = datetime.now(timezone.utc).isoformat()
     cur = con.execute("""
@@ -413,15 +368,15 @@ def crear_tercero(body: dict, user=Depends(require_roles('gerente', 'admin'))):
              estado, notas, creado_por, creado_en)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pendiente',?,?,?)
     """, (
-        body.get('nomina_id'), body['periodo'],
-        body.get('descripcion') or f"Nómina {body['empleado_nombre']}",
-        body['empleado_nombre'], float(body['monto']),
-        body.get('moneda', 'USD'),
-        body.get('proveedor_id'), body['proveedor_nombre'],
-        body.get('referencia'),
-        body.get('odoo_cuenta_gasto_id'), body.get('odoo_cuenta_ap_id'),
-        body.get('odoo_journal_id'),
-        body.get('notas'), user['id'], ahora,
+        body.nomina_id, body.periodo,
+        body.descripcion or f"Nómina {body.empleado_nombre}",
+        body.empleado_nombre, body.monto,
+        body.moneda,
+        body.proveedor_id, body.proveedor_nombre,
+        body.referencia,
+        body.odoo_cuenta_gasto_id, body.odoo_cuenta_ap_id,
+        body.odoo_journal_id,
+        body.notas, user['id'], ahora,
     ))
     tid = cur.lastrowid
     con.commit()

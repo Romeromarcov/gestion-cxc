@@ -1222,26 +1222,62 @@ def init_db():
     ''')
     con.commit()
 
+    # ── Tabla de control de migraciones (idempotente) ─────────────────────────
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version     TEXT PRIMARY KEY,
+            aplicada_en TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    con.commit()
+
     # Datos iniciales
     _seed(con)
-    migrate(con)
-    migrate_v15(con)
-    migrate_v16(con)
-    migrate_v17(con)
-    migrate_v18(con)
-    migrate_v19(con)
-    migrate_v20(con)
-    migrate_v21(con)
-    migrate_v22(con)
-    migrate_v23(con)
-    migrate_v24(con)
-    migrate_v25(con)
-    migrate_v26(con)
-    migrate_v27(con)
-    migrate_modulo_interno(con)
-    migrate_aprobaciones(con)
-    migrate_fraccionamiento(con)
-    migrate_forzar_cambio_password(con)
+
+    # ── Registro de migraciones ───────────────────────────────────────────────
+    # Cada tupla: (version_string, función_de_migración)
+    # El orden importa — no reordenar migraciones existentes.
+    # Para agregar una nueva: appended al final con un nombre único.
+    _MIGRATIONS = [
+        ('v1.1_pagos_banco_y_odoo_importados',  migrate),
+        ('v1.5_crm_acuerdos_nc_condiciones',    migrate_v15),
+        ('v1.6_replicas_config_app',            migrate_v16),
+        ('v1.7_replicas_subtotales_impuestos',  migrate_v17),
+        ('v1.8_creditos_cliente',               migrate_v18),
+        ('v1.9_cambios_divisa',                 migrate_v19),
+        ('v2.0_pagos_fiscales',                 migrate_v20),
+        ('v2.1_requisiciones',                  migrate_v21),
+        ('v2.2_zelle_terceros',                 migrate_v22),
+        ('v2.3_gastos_compromisos',             migrate_v23),
+        ('v2.4_nomina',                         migrate_v24),
+        ('v2.5_zelle_terceros_pago_id',         migrate_v25),
+        ('v2.6_config_fiscal_divisa_metodos',   migrate_v26),
+        ('v2.7_requisiciones_employee',         migrate_v27),
+        ('v2.8_modulo_interno',                 migrate_modulo_interno),
+        ('v2.9_aprobaciones_egresos',           migrate_aprobaciones),
+        ('v3.0_fraccionamiento',                migrate_fraccionamiento),
+        ('v3.1_forzar_cambio_password',         migrate_forzar_cambio_password),
+    ]
+
+    aplicadas = {r[0] for r in con.execute(
+        "SELECT version FROM schema_migrations"
+    ).fetchall()}
+
+    for version, fn in _MIGRATIONS:
+        if version in aplicadas:
+            continue
+        try:
+            fn(con)
+            con.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version) VALUES(?)",
+                (version,)
+            )
+            con.commit()
+            logger.info('Migración aplicada: %s', version)
+        except Exception as e:
+            logger.error('Migración fallida: %s — %s', version, e)
+            raise  # detiene el arranque si una migración falla
+
     _create_indexes(con)
     con.close()
 
@@ -1337,13 +1373,8 @@ def _seed(con):
                     (nombre, monedas_json))
 
     # Usuario admin por defecto (password: admin1234)
-    import hashlib
-    try:
-        from passlib.context import CryptContext
-        ctx = CryptContext(schemes=['bcrypt'], deprecated='auto')
-        pw_hash = ctx.hash('admin1234')
-    except Exception:
-        pw_hash = hashlib.sha256(b'admin1234').hexdigest()
+    import bcrypt as _bcrypt
+    pw_hash = _bcrypt.hashpw(b'admin1234', _bcrypt.gensalt()).decode('utf-8')
 
     inserted = con.execute(
         """INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol,debe_cambiar_password)
