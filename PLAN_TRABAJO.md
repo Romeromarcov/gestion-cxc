@@ -343,10 +343,10 @@ Considera Datadog, Sentry o el propio Railway Observability.
 | **F2** | H-11 Consolidar deployment files | ✅ `1000b21` |
 | **F2** | H-12 Restringir puerto PostgreSQL | ✅ `1000b21` |
 | **F2** | H-15 Limpiar archivos de debug | ✅ `1000b21` |
-| **F3** | H-13 Pydantic models en body:dict | ⬜ Pendiente |
-| **F3** | H-10 Control de migraciones | ⬜ Pendiente |
-| **F3** | H-18 Thread-safety Odoo singleton | ⬜ Pendiente |
-| **F3** | H-17 Actualizar dependencias | ⬜ Pendiente |
+| **F3** | H-13 Pydantic models en body:dict | ✅ `2407bfa` |
+| **F3** | H-10 Control de migraciones | ✅ `2407bfa` |
+| **F3** | H-18 Thread-safety Odoo singleton | ✅ `2407bfa` |
+| **F3** | H-17 Actualizar dependencias | ✅ `2407bfa` |
 | **F4** | H-14 Scaffold de tests | ⬜ Pendiente |
 | **F4** | H-16 Dividir maestro.py y reportes.py | ⬜ Pendiente |
 | **F4** | H-05 **[USUARIO]** Redis para rate limiting | ⬜ Pendiente |
