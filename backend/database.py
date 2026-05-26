@@ -1396,10 +1396,13 @@ def _seed(con):
     import bcrypt as _bcrypt
     pw_hash = _bcrypt.hashpw(b'admin1234', _bcrypt.gensalt()).decode('utf-8')
 
+    # Nota: debe_cambiar_password NO se incluye aquí porque _seed() corre ANTES
+    # de las migraciones. La columna la agrega migrate_forzar_cambio_password y
+    # ese mismo migrate hace UPDATE para poner el flag en 1 para el admin.
     inserted = con.execute(
-        """INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol,debe_cambiar_password)
-           VALUES(?,?,?,?,?)""",
-        ('Administrador', 'admin@gestioncxc.local', pw_hash, 'admin', 1)
+        """INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol)
+           VALUES(?,?,?,?)""",
+        ('Administrador', 'admin@gestioncxc.local', pw_hash, 'admin')
     )
     if inserted.rowcount:
         logger.warning(
