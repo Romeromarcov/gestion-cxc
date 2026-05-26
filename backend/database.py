@@ -1241,8 +1241,36 @@ def init_db():
     migrate_modulo_interno(con)
     migrate_aprobaciones(con)
     migrate_fraccionamiento(con)
+    migrate_forzar_cambio_password(con)
     _create_indexes(con)
     con.close()
+
+
+def migrate_forzar_cambio_password(con):
+    """
+    v2.8 — Campo debe_cambiar_password en usuarios.
+    El admin creado por defecto arranca con este flag en 1.
+    El sistema bloquea el acceso hasta que se cambie la contraseña.
+    """
+    try:
+        con.execute("ALTER TABLE usuarios ADD COLUMN debe_cambiar_password INTEGER DEFAULT 0")
+        con.commit()
+    except Exception:
+        pass  # La columna ya existe
+
+    # Marcar al admin por defecto para que fuerce el cambio si su hash
+    # corresponde a la contraseña vacía o débil conocida ('admin1234').
+    # Solo actualiza si aún no cambió (debe_cambiar_password sigue en 0).
+    try:
+        con.execute("""
+            UPDATE usuarios
+            SET debe_cambiar_password = 1
+            WHERE email = 'admin@gestioncxc.local'
+              AND debe_cambiar_password = 0
+        """)
+        con.commit()
+    except Exception:
+        pass
 
 
 def _create_indexes(con):
@@ -1317,12 +1345,14 @@ def _seed(con):
     except Exception:
         pw_hash = hashlib.sha256(b'admin1234').hexdigest()
 
-    inserted = con.execute("""INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol)
-                   VALUES(?,?,?,?)""",
-                ('Administrador', 'admin@gestioncxc.local', pw_hash, 'admin'))
+    inserted = con.execute(
+        """INSERT OR IGNORE INTO usuarios(nombre,email,password_hash,rol,debe_cambiar_password)
+           VALUES(?,?,?,?,?)""",
+        ('Administrador', 'admin@gestioncxc.local', pw_hash, 'admin', 1)
+    )
     if inserted.rowcount:
         logger.warning(
             'Usuario admin creado con contraseña por defecto (admin1234). '
-            'Cámbiala inmediatamente desde la interfaz de administración.'
+            'El sistema forzará el cambio en el primer inicio de sesión.'
         )
     con.commit()
