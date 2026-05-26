@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import warnings
 from dotenv import load_dotenv
@@ -12,15 +13,44 @@ ODOO_DB      = os.getenv('ODOO_DB', '')
 ODOO_USER    = os.getenv('ODOO_USER', '')
 ODOO_API_KEY = os.getenv('ODOO_API_KEY', '')
 
+# ── Validación de SECRET_KEY ──────────────────────────────────────────────────
 _DEFAULT_SECRET = 'cambiar_en_produccion_clave_muy_larga_123456789'
+
+# Palabras que delatan un secreto de placeholder / desarrollo
+_WEAK_PATTERNS = re.compile(
+    r'cambiar|aqui|placeholder|ejemplo|test|dev|secret|password|1234|'
+    r'clave|aqui|sample|demo|default|replace|your[-_]?secret',
+    re.IGNORECASE,
+)
+
 SECRET_KEY = os.getenv('SECRET_KEY', _DEFAULT_SECRET)
-if SECRET_KEY == _DEFAULT_SECRET or len(SECRET_KEY) < 32:
-    warnings.warn(
-        'SECRET_KEY no configurada o demasiado corta. '
-        'Establece SECRET_KEY en .env con al menos 32 caracteres aleatorios.',
-        RuntimeWarning,
-        stacklevel=1,
+
+def _validate_secret_key(key: str) -> None:
+    """Emite advertencia o lanza error si el SECRET_KEY es inseguro."""
+    weak = (
+        key == _DEFAULT_SECRET
+        or len(key) < 32
+        or bool(_WEAK_PATTERNS.search(key))
     )
+    if not weak:
+        return
+
+    msg = (
+        'SECRET_KEY insegura detectada. '
+        'Genera un secreto real con: '
+        'python -c "import secrets; print(secrets.token_hex(32))" '
+        'y configúralo en las variables de entorno del servidor.'
+    )
+
+    # En producción (Railway inyecta RAILWAY_ENVIRONMENT o PORT), error fatal.
+    # En desarrollo local se permite con warning para no bloquear el arranque.
+    is_prod = bool(os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_PROJECT_ID'))
+    if is_prod:
+        raise RuntimeError(f'[SEGURIDAD] {msg}')
+    else:
+        warnings.warn(msg, RuntimeWarning, stacklevel=2)
+
+_validate_secret_key(SECRET_KEY)
 
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv('ACCESS_TOKEN_EXPIRE_HOURS', '8'))
 
