@@ -18,3 +18,8 @@ google-auth==2.29.0
 google-auth-httplib2==0.3.1
 python-dateutil==2.9.0.post0
 psycopg2-binary==2.9.9
+
+# Testing
+pytest==8.2.2
+pytest-asyncio==0.23.8
+anyio==4.4.0

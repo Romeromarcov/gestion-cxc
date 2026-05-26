@@ -347,6 +347,6 @@ Considera Datadog, Sentry o el propio Railway Observability.
 | **F3** | H-10 Control de migraciones | ✅ `2407bfa` |
 | **F3** | H-18 Thread-safety Odoo singleton | ✅ `2407bfa` |
 | **F3** | H-17 Actualizar dependencias | ✅ `2407bfa` |
-| **F4** | H-14 Scaffold de tests | ⬜ Pendiente |
-| **F4** | H-16 Dividir maestro.py y reportes.py | ⬜ Pendiente |
+| **F4** | H-16 Dividir maestro.py y reportes.py | ✅ `b06ef21` |
+| **F4** | H-14 Scaffold de tests | ✅ pendiente push |
 | **F4** | H-05 **[USUARIO]** Redis para rate limiting | ⬜ Pendiente |
