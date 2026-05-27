@@ -2,11 +2,15 @@
 Scraper Binance P2P — tasa USDT/VES.
 
 Algoritmo:
-  - Obtiene las primeras 20 ofertas de COMPRA (BUY)  → lo que pagan los compradores
-  - Obtiene las primeras 20 ofertas de VENTA  (SELL) → lo que piden los vendedores
-  - Promedia los 40 precios juntos → tasa de referencia de mercado P2P
+  - Obtiene las primeras 5 ofertas de COMPRA (BUY)  → lo que pagan los compradores
+  - Obtiene las primeras 5 ofertas de VENTA  (SELL) → lo que piden los vendedores
+  - Promedia los 10 precios juntos → tasa de referencia de mercado P2P
   - Persiste como tasa_custom en tasas_cambio (par=USD_VES, fuente='binance_p2p')
   - Actualiza cada 30 minutos desde el scheduler.
+
+Motivo para usar solo 5+5:
+  Las primeras 5 ofertas de cada lado reflejan el precio de mercado real
+  (las más competitivas). Promediar 50+ diluye la señal con órdenes marginales.
 """
 import httpx
 import logging
@@ -21,7 +25,7 @@ _HEADERS = {
 }
 
 
-async def _fetch_prices(trade_type: str, rows: int = 50) -> list[float]:
+async def _fetch_prices(trade_type: str, rows: int = 5) -> list[float]:
     """
     Pide las primeras `rows` ofertas de Binance P2P para USDT/VES.
     trade_type: 'BUY' (compradores) | 'SELL' (vendedores).
@@ -60,11 +64,17 @@ async def _fetch_prices(trade_type: str, rows: int = 50) -> list[float]:
 
 async def actualizar_tasa_binance_p2p() -> dict:
     """
-    Promedia las primeras 50 ofertas BUY + las primeras 50 ofertas SELL (hasta 100 precios)
+    Promedia las primeras 5 ofertas BUY + las primeras 5 ofertas SELL (10 precios)
     y persiste el resultado como tasa_custom en tasas_cambio.
+
+    Usar 5+5 en lugar de 50+50 porque:
+      - Las 5 primeras son las más competitivas y representan el precio real
+      - Menos requests = menos chance de rate-limiting por Binance
+      - El promedio de 10 precios top es más preciso que el de 100 diluidos
     """
-    buy_prices, sell_prices = await _fetch_prices('BUY'), await _fetch_prices('SELL')
-    all_prices = buy_prices + sell_prices
+    buy_prices  = await _fetch_prices('BUY',  rows=5)
+    sell_prices = await _fetch_prices('SELL', rows=5)
+    all_prices  = buy_prices + sell_prices
 
     if not all_prices:
         logger.warning('binance_p2p: sin precios disponibles')
@@ -93,8 +103,10 @@ async def actualizar_tasa_binance_p2p() -> dict:
     con.close()
 
     logger.info(
-        'binance_p2p: %d ofertas BUY + %d ofertas SELL = %d precios → PROMEDIO=%.4f',
-        len(buy_prices), len(sell_prices), len(all_prices), promedio
+        'binance_p2p: %d BUY %s + %d SELL %s → PROMEDIO=%.4f',
+        len(buy_prices), buy_prices,
+        len(sell_prices), sell_prices,
+        promedio,
     )
     return {
         'fecha': hoy,
@@ -102,8 +114,10 @@ async def actualizar_tasa_binance_p2p() -> dict:
         'sell_count': len(sell_prices),
         'total_precios': len(all_prices),
         'promedio': promedio,
-        'buy_min': min(buy_prices) if buy_prices else None,
-        'buy_max': max(buy_prices) if buy_prices else None,
+        'buy_precios': buy_prices,
+        'sell_precios': sell_prices,
+        'buy_min': min(buy_prices)  if buy_prices  else None,
+        'buy_max': max(buy_prices)  if buy_prices  else None,
         'sell_min': min(sell_prices) if sell_prices else None,
         'sell_max': max(sell_prices) if sell_prices else None,
     }

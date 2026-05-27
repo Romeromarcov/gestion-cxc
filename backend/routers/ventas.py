@@ -12,44 +12,70 @@ logger = logging.getLogger(__name__)
 
 _odoo_instance: OdooClient | None = None
 _odoo_lock = threading.Lock()
+_odoo_last_ping: float = 0.0          # timestamp del último ping exitoso
+_PING_INTERVAL = 120.0                 # re-validar conexión máx cada 2 minutos
 
 
 def get_odoo() -> OdooClient:
     """Devuelve una instancia de OdooClient activa (thread-safe).
 
-    Reutiliza la instancia global si responde al ping; si no,
-    la descarta y crea una nueva. Reintenta una vez con pausa
-    para manejar estados transitorios 'Idle' del servidor Odoo SaaS.
-    El Lock garantiza que solo un hilo inicializa la instancia a la vez.
+    Mejoras respecto a la versión anterior:
+      - El ping de validación solo ocurre cada 2 min, no en cada request.
+        Antes: cada /odoo/ventas hacía 2 llamadas RPC (ping + la real).
+        Ahora: solo hace la llamada real; el ping se amortiza en el tiempo.
+      - time.sleep(3) del reintento se ejecuta FUERA del lock.
+        Antes: el sleep bloqueaba el lock → todas las demás peticiones Odoo
+        quedaban en cola durante 3 s → parecía un loop.
+        Ahora: el sleep ocurre liberado el lock → otras peticiones pueden
+        reutilizar la instancia si otra thread la reconectó antes.
     """
-    global _odoo_instance
+    global _odoo_instance, _odoo_last_ping
 
+    # ── Fase 1: re-validar instancia existente (con lock, sin sleep) ──────────
     with _odoo_lock:
-        # Validar instancia existente con ping liviano
         if _odoo_instance is not None:
-            try:
-                _odoo_instance.call('res.lang', 'search_count', [[]])
-            except Exception:
-                logger.warning('get_odoo: instancia Odoo no responde — reconectando')
-                _odoo_instance = None
-
-        if _odoo_instance is None:
-            last_exc = None
-            for intento in range(2):          # hasta 2 intentos con pausa
+            now = time.monotonic()
+            if now - _odoo_last_ping > _PING_INTERVAL:
+                # Solo pingear si pasaron más de 2 minutos desde el último ping
                 try:
-                    _odoo_instance = OdooClient()
-                    logger.info('get_odoo: conexión Odoo establecida (uid=%s)', _odoo_instance.uid)
-                    break
-                except Exception as e:
-                    last_exc = e
+                    _odoo_instance.call('res.lang', 'search_count', [[]])
+                    _odoo_last_ping = now
+                except Exception:
+                    logger.warning('get_odoo: ping falló — reconectando')
                     _odoo_instance = None
-                    if intento == 0:
-                        time.sleep(3)         # esperar 3 s antes del reintento
-            if _odoo_instance is None:
-                raise HTTPException(status_code=503,
-                                    detail=f'No se puede conectar a Odoo: {last_exc}')
 
-    return _odoo_instance
+        if _odoo_instance is not None:
+            return _odoo_instance          # camino rápido: instancia válida
+
+        # ── Intento 1 de conexión (dentro del lock) ───────────────────────
+        try:
+            _odoo_instance = OdooClient()
+            _odoo_last_ping = time.monotonic()
+            logger.info('get_odoo: conexión Odoo establecida (uid=%s)', _odoo_instance.uid)
+            return _odoo_instance
+        except Exception as first_exc:
+            _odoo_instance = None
+            logger.warning('get_odoo: intento 1 falló (%s) — esperando y reintentando', first_exc)
+
+    # ── Sleep FUERA del lock para no bloquear otras peticiones ────────────────
+    time.sleep(3)
+
+    # ── Intento 2 de conexión (re-adquirir lock) ──────────────────────────────
+    with _odoo_lock:
+        # Otra thread pudo haber reconectado durante el sleep
+        if _odoo_instance is not None:
+            return _odoo_instance
+        try:
+            _odoo_instance = OdooClient()
+            _odoo_last_ping = time.monotonic()
+            logger.info('get_odoo: reconexión exitosa (uid=%s)', _odoo_instance.uid)
+            return _odoo_instance
+        except Exception as second_exc:
+            _odoo_instance = None
+            raise HTTPException(
+                status_code=503,
+                detail=f'No se puede conectar a Odoo: {second_exc}',
+            )
 
 
 @router.get('/ventas')
