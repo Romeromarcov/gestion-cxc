@@ -62,6 +62,27 @@ async def _fetch_prices(trade_type: str, rows: int = 5) -> list[float]:
         return []
 
 
+def _filtrar_outliers(precios: list[float]) -> list[float]:
+    """Elimina precios que estén más de 2 desviaciones estándar del promedio.
+
+    En el P2P de Binance aparecen ofertas extremas (~774 VES/USD cuando el
+    mercado está en ~737) que son outliers obvios y distorsionan el promedio.
+    Con pocos datos (5-6 precios) usamos rango intercuartílico o el criterio
+    de 1.5×IQR para no perder datos válidos.
+    """
+    if len(precios) < 3:
+        return precios
+    precios_sorted = sorted(precios)
+    n = len(precios_sorted)
+    q1 = precios_sorted[n // 4]
+    q3 = precios_sorted[(3 * n) // 4]
+    iqr = q3 - q1
+    lo = q1 - 1.5 * iqr
+    hi = q3 + 1.5 * iqr
+    filtrados = [p for p in precios if lo <= p <= hi]
+    return filtrados if filtrados else precios   # nunca devolver lista vacía
+
+
 async def actualizar_tasa_binance_p2p() -> dict:
     """
     Promedia las primeras 5 ofertas BUY + las primeras 5 ofertas SELL (10 precios)
@@ -71,9 +92,13 @@ async def actualizar_tasa_binance_p2p() -> dict:
       - Las 5 primeras son las más competitivas y representan el precio real
       - Menos requests = menos chance de rate-limiting por Binance
       - El promedio de 10 precios top es más preciso que el de 100 diluidos
+    También se filtran outliers (IQR 1.5×) antes de promediar.
     """
     buy_prices  = await _fetch_prices('BUY',  rows=5)
     sell_prices = await _fetch_prices('SELL', rows=5)
+    # Filtrar outliers en cada lado antes de combinar
+    buy_prices  = _filtrar_outliers(buy_prices)
+    sell_prices = _filtrar_outliers(sell_prices)
     all_prices  = buy_prices + sell_prices
 
     if not all_prices:
@@ -103,7 +128,7 @@ async def actualizar_tasa_binance_p2p() -> dict:
     con.close()
 
     logger.info(
-        'binance_p2p: %d BUY %s + %d SELL %s → PROMEDIO=%.4f',
+        'binance_p2p: %d BUY %s + %d SELL %s → PROMEDIO=%.4f (filtrado outliers)',
         len(buy_prices), buy_prices,
         len(sell_prices), sell_prices,
         promedio,

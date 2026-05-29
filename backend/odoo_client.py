@@ -1,16 +1,45 @@
 import re
+import http.client
 import xmlrpc.client
 from config import ODOO_HOST, ODOO_DB, ODOO_USER, ODOO_API_KEY
+
+_ODOO_TIMEOUT = 15.0   # segundos para cada llamada XML-RPC
+
+
+class _TimeoutTransport(xmlrpc.client.SafeTransport):
+    """Transport HTTPS con timeout de socket configurable.
+
+    xmlrpc.client.ServerProxy usa SafeTransport para HTTPS pero no expone
+    un parámetro de timeout. Esta subclase lo inyecta en make_connection
+    para que cada llamada XML-RPC sea cancelada si Odoo no responde.
+    """
+
+    def __init__(self, timeout: float = _ODOO_TIMEOUT, **kwargs):
+        super().__init__(**kwargs)
+        self._timeout = timeout
+
+    def make_connection(self, host):  # noqa: D401
+        return http.client.HTTPSConnection(host, timeout=self._timeout)
 
 
 class OdooClient:
     def __init__(self):
+        if not ODOO_HOST:
+            raise Exception('ODOO_HOST no configurado — revisar variables de entorno')
         base = f'https://{ODOO_HOST}'
-        common = xmlrpc.client.ServerProxy(f'{base}/xmlrpc/2/common', allow_none=True)
+        transport = _TimeoutTransport(timeout=_ODOO_TIMEOUT)
+        common = xmlrpc.client.ServerProxy(
+            f'{base}/xmlrpc/2/common', allow_none=True, transport=transport)
         self.uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_API_KEY, {})
-        self.models = xmlrpc.client.ServerProxy(f'{base}/xmlrpc/2/object', allow_none=True)
+        transport2 = _TimeoutTransport(timeout=_ODOO_TIMEOUT)
+        self.models = xmlrpc.client.ServerProxy(
+            f'{base}/xmlrpc/2/object', allow_none=True, transport=transport2)
         if not self.uid:
-            raise Exception('Autenticación Odoo fallida — verificar credenciales en .env')
+            raise Exception(
+                f'Autenticación Odoo fallida — '
+                f'host={ODOO_HOST!r} db={ODOO_DB!r} user={ODOO_USER!r} '
+                f'(verificar credenciales en Railway → Variables)'
+            )
 
     def call(self, model, method, domain=None, kwargs=None):
         return self.models.execute_kw(

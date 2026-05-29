@@ -363,8 +363,18 @@ def get_entregas(user=Depends(get_current_user)):
 @router.get('/status')
 def odoo_status(user=Depends(require_roles('admin', 'gerente'))):
     """Estado de conexión con Odoo. Solo para administradores y gerentes."""
+    from config import ODOO_HOST, ODOO_DB, ODOO_USER, ODOO_API_KEY
+    config = {
+        'ODOO_HOST':    ODOO_HOST    or '⚠ NO CONFIGURADO',
+        'ODOO_DB':      ODOO_DB      or '⚠ NO CONFIGURADO',
+        'ODOO_USER':    ODOO_USER    or '⚠ NO CONFIGURADO',
+        'ODOO_API_KEY': '✓ set' if ODOO_API_KEY else '⚠ NO CONFIGURADO',
+        'instancia_cacheada': _odoo_instance is not None,
+    }
+    if not all([ODOO_HOST, ODOO_DB, ODOO_USER, ODOO_API_KEY]):
+        return {'status': 'sin_configurar', 'config': config}
     try:
         odoo = OdooClient()
-        return {'status': 'ok', 'uid': odoo.uid}
+        return {'status': 'ok', 'uid': odoo.uid, 'config': config}
     except Exception as e:
-        return {'status': 'error', 'detalle': str(e)}
+        return {'status': 'error', 'detalle': str(e), 'config': config}

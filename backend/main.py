@@ -212,6 +212,33 @@ async def auto_sync_conciliacion():
         logger.error('auto_sync_conciliacion: fallo general — %s', e)
 
 
+async def _probar_odoo():
+    """Intenta conectar a Odoo en startup y cachea la instancia.
+
+    Si falla, loguea el error con detalle para que el admin vea exactamente
+    qué variable está mal configurada en Railway sin tener que adivinar.
+    """
+    from config import ODOO_HOST, ODOO_DB, ODOO_USER, ODOO_API_KEY
+    if not all([ODOO_HOST, ODOO_DB, ODOO_USER, ODOO_API_KEY]):
+        missing = [k for k, v in {
+            'ODOO_HOST': ODOO_HOST, 'ODOO_DB': ODOO_DB,
+            'ODOO_USER': ODOO_USER, 'ODOO_API_KEY': ODOO_API_KEY,
+        }.items() if not v]
+        logger.warning('_probar_odoo: variables faltantes → %s — integración Odoo desactivada',
+                        ', '.join(missing))
+        return
+    try:
+        from routers.ventas import get_odoo
+        odoo = get_odoo()
+        logger.info('_probar_odoo: Odoo OK — host=%s db=%s uid=%s', ODOO_HOST, ODOO_DB, odoo.uid)
+    except Exception as exc:
+        logger.error(
+            '_probar_odoo: NO se pudo conectar a Odoo — %s\n'
+            '  host=%r  db=%r  user=%r',
+            exc, ODOO_HOST, ODOO_DB, ODOO_USER,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
@@ -225,6 +252,7 @@ async def lifespan(app: FastAPI):
     # Run BCV fetch on startup so we always have today's rate
     asyncio.create_task(obtener_tasa_bcv())
     asyncio.create_task(actualizar_tasa_binance_p2p())
+    asyncio.create_task(_probar_odoo())   # ← diagnóstico Odoo en startup
     yield
     # ── Shutdown limpio ───────────────────────────────────────────────────────
     scheduler.shutdown()
