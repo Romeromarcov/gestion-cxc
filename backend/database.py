@@ -1101,6 +1101,23 @@ def migrate_login_attempts(con):
         logger.warning('migrate_login_attempts idx: %s', e)
 
 
+def migrate_fix_debe_cambiar_password(con):
+    """v3.3 — Corrección: la migración v3.1 marcó erróneamente a usuarios
+    existentes en producción con debe_cambiar_password=1, bloqueando todos
+    los endpoints protegidos con require_roles.
+
+    Esta migración resetea el flag a 0 para todos los usuarios afectados.
+    La función de cambio de contraseña forzado queda disponible para uso
+    futuro (activar manualmente por usuario desde el panel de admin).
+    """
+    try:
+        con.execute("UPDATE usuarios SET debe_cambiar_password = 0 WHERE debe_cambiar_password = 1")
+        con.commit()
+        logger.info('migrate_fix_debe_cambiar_password: flag reseteado para usuarios bloqueados')
+    except Exception as e:
+        logger.warning('migrate_fix_debe_cambiar_password: %s', e)
+
+
 def init_db():
     con = get_con()
     # El adaptador traduce AUTOINCREMENT→SERIAL y omite los PRAGMA de SQLite
@@ -1277,6 +1294,7 @@ def init_db():
         ('v3.0_fraccionamiento',                migrate_fraccionamiento),
         ('v3.1_forzar_cambio_password',         migrate_forzar_cambio_password),
         ('v3.2_login_attempts',                 migrate_login_attempts),
+        ('v3.3_fix_debe_cambiar_password',      migrate_fix_debe_cambiar_password),
     ]
 
     aplicadas = {r[0] for r in con.execute(
@@ -1304,26 +1322,27 @@ def init_db():
 
 def migrate_forzar_cambio_password(con):
     """
-    v2.8 — Campo debe_cambiar_password en usuarios.
-    El admin creado por defecto arranca con este flag en 1.
-    El sistema bloquea el acceso hasta que se cambie la contraseña.
+    v3.1 — Campo debe_cambiar_password en usuarios.
+
+    Solo añade la columna; NO fuerza cambio en instalaciones existentes.
+    El flag se activa solo cuando el admin se crea en un deploy nuevo
+    con la contraseña por defecto 'admin1234' (gestionado desde _seed o
+    desde el panel de administración).
+
+    IMPORTANTE: El UPDATE que marcaba al admin existente fue eliminado
+    porque rompía instalaciones en producción donde el admin ya tenía
+    contraseña real, bloqueando todos los endpoints con require_roles.
     """
     try:
         con.execute("ALTER TABLE usuarios ADD COLUMN debe_cambiar_password INTEGER DEFAULT 0")
         con.commit()
     except Exception:
-        pass  # La columna ya existe
+        pass  # La columna ya existe — idempotente
 
-    # Marcar al admin por defecto para que fuerce el cambio si su hash
-    # corresponde a la contraseña vacía o débil conocida ('admin1234').
-    # Solo actualiza si aún no cambió (debe_cambiar_password sigue en 0).
+    # Asegurarse de que ningún usuario quede bloqueado por esta migración.
+    # Si el flag quedó en 1 por una versión anterior del código, lo corregimos.
     try:
-        con.execute("""
-            UPDATE usuarios
-            SET debe_cambiar_password = 1
-            WHERE email = 'admin@gestioncxc.local'
-              AND debe_cambiar_password = 0
-        """)
+        con.execute("UPDATE usuarios SET debe_cambiar_password = 0 WHERE debe_cambiar_password = 1")
         con.commit()
     except Exception:
         pass
