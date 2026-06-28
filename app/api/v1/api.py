@@ -1,13 +1,10 @@
-import logging
 from fastapi import APIRouter
-from app.api.v1.endpoints import tags
-
-logger = logging.getLogger(__name__)
+from app.api.v1.endpoints import health
 
 api_router = APIRouter()
 
-# Registro del router de etiquetas
-api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
+# Incluir el router de salud
+api_router.include_router(health.router, tags=["Health"])
 
-# Nota: Asegúrese de incluir otros routers existentes (ej: login, accounts) aquí
-# api_router.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
+# Nota: Aquí se deberían incluir otros routers existentes (tags, accounts, etc.)
+# api_router.include_router(tags.router, prefix="/tags", tags=["Tags"])

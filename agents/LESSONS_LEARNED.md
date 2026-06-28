@@ -67,3 +67,52 @@
 
 ### Backend
 - [2026-06-28 | CRUD de etiquetas para clasificar cuentas por cobrar | SECOPS | CRÍTICA] *   **Endpoint de Listado:** Si el endpoint `GET /tags` se implementa siguiendo el patrón estándar de CRUD (ej. `session.query(Tag).all()` o `.limit()`), expondrá inmediatamente todas las etiquetas de todas las empresas a cualquier usuario autenticado
+
+<!-- actualizado: 2026-06-28 17:02 UTC -->
+
+### Backend
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | ALTA] **Import de módulo no provisto (`database`)**. El archivo importa `from database import get_db`. No se ha proporcionado `database.py` en el código entregado, lo que provoca un `ImportError` al ejecutar la aplicación, impidiendo el arranque del servicio
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | MEDIA] **Eficiencia de N+1 Potencial**. Aunque se usa un join inicial (`query(Invoice, Customer)`), si `Invoice` tiene relaciones lazy-loaded adicionales (ej. payments, aunque no se usan en el reporte, el ORM podría intentar cargarlas si se acceden inadvertidamente). En este caso específico la consulta es eficiente, pero se recomienda explícitar `load_only` o solo seleccionar las columnas necesarias para reducir el payload de la base de datos
+
+### Seguridad
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | CRÍTIC] **Falta de Autenticación y Autorización**. El endpoint `GET /aging` no utiliza la dependencia `Depends(get_current_user)` ni verifica permisos. Cualquier usuario anónimo puede acceder a información financiera sensible (saldos vencidos). Esto viola el requisito "Auth (401 sin token)"
+
+<!-- actualizado: 2026-06-28 17:09 UTC -->
+
+### Backend
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | CRÍTIC] **Archivo faltante (Schema)**. El código importa `from app.schemas.reports import AgingReportResponse, CustomerAgingSummary, InvoiceAgingDetail`. Sin el archivo `app/schemas/reports.py`, la aplicación fallará con `ImportError` al iniciar y no se podrá validar la respuesta del API
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | ALTA] **Violación de Convención de Importación**. El código usa `from app.models.invoice import Invoice` y `from app.models.customer import Customer`. El fingerprint establece explícitamente: "Imports planos dentro del dir del entrypoint... NO uses un paquete `app.` inexistente". Esto causará `ModuleNotFoundError` si la estructura no tiene `__init__.py` en `app`
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | MEDIA] **Posible Excepción en Cálculo de Fechas**. La línea `delta = cutoff_date - invoice.due_date` asume que `invoice.due_date` nunca es `None`. Si la base de datos contiene facturas sin fecha de vencimiento, el endpoint lanzará un error 500 interno (`TypeError: unsupported operand type(s)`). Se debe validar `if invoice.due_date is None`
+
+### Seguridad
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | CRÍTIC] **Control de Acceso Roto (A01)**. La dependencia `get_current_user` valida la presencia del token y el formato "Bearer", pero **no implementa verificación de roles**. Cualquier usuario con un token válido (ej. cliente básico) puede acceder al reporte financiero completo. El requisito de testing "Auth (403 con permisos insuficientes)" no se cumple, ya que el endpoint devuelve 200 en lugar de 403 para usuarios no autorizados
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | ALTA] **Definición de Dependencia en Router**. La función `get_current_user` se define localmente dentro de `reports.py`. Esto viola el principio DRY y las mejores prácticas de seguridad, ya que la lógica de validación de tokens (que incluye decodificación de JWT en un futuro real) debería estar centralizada en `backend/dependencies.py` o similar para asegurar consistencia en toda la API
+
+<!-- actualizado: 2026-06-28 17:12 UTC -->
+
+### Backend
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | SECOPS | CRÍTICA] A01:2021 - Broken Access Control**
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | SECOPS | CRÍTICA] Availability / Integrity**
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | SECOPS | ALTA] A05:2021 - Security Misconfiguration / Error Handling**
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | SECOPS | ALTA] Architecture / Maintainability**
+
+### Seguridad
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | SECOPS | ALTA] A07:2021 - Identification and Authentication Failures**
+
+<!-- actualizado: 2026-06-28 17:17 UTC -->
+
+### Backend
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | ALTA] **Riesgo de ImportError**. Se importa `from database import get_db`. Según el fingerprint, la estructura es `backend/main.py` y `backend/routers/`. Asumiendo que `database.py` reside en `backend/`, la importación relativa `from .database import get_db` es más segura y convencional para evitar problemas si el directorio de ejecución cambia. Si `database.py` está en la raíz, fallará a menos que se configure PYTHONPATH globalmente
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | MEDIA] **Falta validación de fecha límite**. El input `cutoffDate` no tiene una restricción `max` (hoy) en el HTML, permitiendo seleccionar fechas futuras. Aunque el backend puede manejarlo, visualmente podría confundir al reporte de "deuda vencida"
+
+### Seguridad
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | CRÍTIC] **Autenticación no enviada al Backend**. La línea `// 'Authorization': ${token}` está comentada en el objeto `headers` dentro de `generateReport()`. Dado que el backend (`backend/routers/reports.py`) requiere estrictamente el header `Authorization` (ver línea 41 y 64 del backend), la petición fallará con **401 Unauthorized** cuando el usuario intente generar un reporte real (no demo), rompiendo el flujo funcional
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | MEDIA] **Simulación de Auth Insegura (Hardcoded)**. La función `get_current_user` valida el rol buscando el string "admin" dentro del token: `if "admin" in token.lower():`. Esto es una simulación frágil. En producción, esto debe reemplazarse por una decodificación real del JWT y verificación de claims `roles` o `scopes`
+
+<!-- actualizado: 2026-06-28 17:24 UTC -->
+
+### Frontend
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | ALTA] **Inconsistencia de Ruta API**. El frontend llama a `http://localhost:8000/api/v1/reports/aging`. Sin embargo, el router en `backend/routers/reports.py` define la ruta como `@router.get("/aging")`. Para que esto funcione, el archivo `backend/main.py` (no provisto en el código) debe incluir el router con el prefijo exacto `/api/v1/reports`. Si el `main.py` usa el prefijo genérico `/api/v1` o `/reports`, la petición fallará con **404 Not Found**. Se recomienda validar la configuración en `main.py`
+
+### Seguridad
+- [2026-06-28 | Reporte de antiguedad de saldos de cuentas por cobrar | QA | CRÍTIC] **Fallo de Autenticación (Header Comentado)**. La línea `// 'Authorization': ${token}` dentro del objeto `headers` está comentada. El backend (`backend/routers/reports.py`) requiere estrictamente el header `Authorization` (dependencia `get_current_user`). Al no enviarlo, cualquier petición real (demo mode desactivado) resultará en un error **401 Unauthorized**, rompiendo el flujo funcional principal del reporte
