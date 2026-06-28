@@ -41,3 +41,11 @@ unpacked_spec/
 *.docx
 *.xlsx
 *.pptx
+
+# Añadido por Fábrica de Software — archivos sensibles
+*.env
+.env.*
+*.key
+*.pem
+secrets/
+*.secret
